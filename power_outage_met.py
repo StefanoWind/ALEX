@@ -32,18 +32,18 @@ import pandas as pd
 cd=os.path.dirname(__file__)
 import xarray as xr
 from matplotlib import pyplot as plt
+from pathlib import Path
 from scipy import stats
 from matplotlib.gridspec import GridSpec
 import matplotlib
 import warnings
-from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (roc_auc_score, average_precision_score,
-                             mean_squared_error)
+from sklearn.metrics import roc_auc_score,mean_squared_error
 from sklearn.utils.class_weight import compute_sample_weight
+from datetime import datetime
 
 plt.close('all')
 warnings.filterwarnings("ignore")
@@ -59,32 +59,25 @@ except ImportError:
     HAS_SHAP = False
     print("Warning: SHAP not installed. Run `pip install shap` for SHAP importance.")
     
-    
 #%% Inputs
-source='./data/siteA1_met_outages_15min.nc'
-# target = 'outages'
-# min_outages=10
-# vars_=['wind_speed','wind_direction','wind_direction_std','temperature',
-#        'relative_humidity','pressure','shortwave_radiation']
-
-
-# n_bins=50
-# perc_bins=[1,99]
-
-# #graphics
-# nrow=2
-# ncol=4
 
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 CONFIG = dict(
+    
+    # __ User ──────────────────────────────────────────────────────────────────
+    synthetic = False,
+    prelim_rf = False,
+    shap = False,
+    add_rolling      = True,
+    
     # ── Data ──────────────────────────────────────────────────────────────────
-    data_path        = os.path.abspath("data/siteA1_met_outages_15min.nc"),   # path to input CSV
+    source        = os.path.abspath("data/siteA1_met_outages_15min_v2.nc"),   # path to input CSV
     datetime_col     = "time",        # column name or index
     target_col       = "outages",   # outage column (count or binary)
 
     # Atmospheric predictor columns (None = all non-target columns)
-    predictor_cols   = ['wind_speed','wind_direction','wind_direction_std','temperature',
+    predictor_cols   = ['wind_speed','wind_direction_uv','wind_direction_std','temperature',
            'relative_humidity','pressure','shortwave_radiation'],
 
     # ── Target mode ───────────────────────────────────────────────────────────
@@ -94,27 +87,37 @@ CONFIG = dict(
     outage_threshold = 10,                 # customers_out > this → outage=1
 
     # ── Lag settings ──────────────────────────────────────────────────────────
-    # Lags to explore (in time steps). E.g. if data is 1-min, lag=60 → 1 hour.
-    lag_list         = [0,1,2,3,6,12],
+    # Lags to explore (in time steps). 
+    lag_list         = [0,1,3,6,12,36,144],
 
     # Best single lag to use for model training (None = auto-selected by XCorr)
     best_lag         = None,
     min_corr = 0.1,
 
     # Also include rolling statistics as features?
-    add_rolling      = True,
-    rolling_windows  = [6],      # window sizes in time steps
+    rolling_windows  = [3,6,144],      # window sizes in time steps
+    
+    # ── Collinearity settings ──────────────────────────────────────────────────
+    # Spearman |r| above this → flag as collinear pair
+    collinearity_r_threshold  = 0.85,
+    # VIF above this → flag feature as redundant (10 is conventional; use 5 for
+    # stricter control). Set to None to skip VIF (slow for wide feature matrices).
+    collinearity_vif_threshold = 10.0,
+    # "warn"  → report collinear features but keep all of them
+    # "drop"  → automatically drop the lower-importance member of each pair
+    collinearity_action       = "drop",
 
-    # ── Model settings ─────────────────────────────────────────────────────────
+    # ── RF settings ─────────────────────────────────────────────────────────
     n_estimators     = 500,
     max_features     = "sqrt",
     n_jobs           = -1,
     random_state     = 42,
     n_cv_folds       = 2,
+    importance_reps  = 10,
     
-    #stats
+    #── Stats ─────────────────────────────────────────────────────────
     limits={'wind_speed':[0,20],
-            'wind_direction':[0,360],
+            'wind_direction_uv':[0,360],
             'wind_direction_std':[0,30],
             'temperature':[-10,45],
             'relative_humidity':[0,100],
@@ -122,34 +125,89 @@ CONFIG = dict(
             'shortwave_radiation':[0,0.2]},
 
     # ── Output ─────────────────────────────────────────────────────────────────
-    output_dir       = os.path.abspath("data")
+    output_dir       = os.path.abspath("data"),
+    
+    # ── Graphics ─────────────────────────────────────────────────────────────────
+    n_bins=50,
+    perc_bins=[1,99],
+    nrow=2,
+    ncol=4,
+
 )
 
-OUT = Path(CONFIG["output_dir"])
-
+OUT = Path(os.path.join(CONFIG["output_dir"],datetime.strftime(datetime.now(),'%Y%m%d.%H%M%S')))
+os.makedirs(OUT,exist_ok=True)
 
 #%% Functions
 def load_data(config: dict) -> pd.DataFrame:
     """Load CSV, parse datetime, return tidy DataFrame."""
-    ds = xr.open_dataset(config["data_path"], parse_dates=[config["datetime_col"]])
-    df=ds.to_dataframe()
-    df = df.set_index(config["datetime_col"]).sort_index()
+    ds = xr.open_dataset(config["source"])
+    df=ds[config['predictor_cols']+[config['target_col']]].to_dataframe()
     return df
 
 def qc_data(df: pd.DataFrame(),config: dict):
     '''
     Apply thresholds
     '''
-    df_qc=df.DataFrame()
-    for v in config.predictor_cols:
+    df_qc=pd.DataFrame()
+    for v in config['predictor_cols']:
         df_qc[v]=df[v].where(df[v]>=config['limits'][v][0]).where(df[v]<=config['limits'][v][1])
-        
+    df_qc[config['target_col']]=df[config['target_col']]
+    
     return df_qc
     
 def make_binary_target(series: pd.Series, threshold: float) -> pd.Series:
     """Convert count column to binary outage flag."""
     return (series > threshold).astype(int)
 
+def plot_histograms(df: pd.DataFrame(),config: dict, lag: dict = None, save_path: Path = None):
+    """ Plot 2-D histogram of feature vs. target"""
+    
+    #bins of target
+    bins_y=np.linspace(config['outage_threshold'], 
+                       np.nanpercentile(df[config['target_col']],config['perc_bins'][1]+0.1),config['n_bins'])
+    
+    #loop through features
+    fig = plt.figure(figsize=(18,8))
+    gs = GridSpec(config['nrow'], config['ncol']+1,
+    figure=fig,
+    width_ratios=config['ncol']*[1]+[0.05])
+    ctr=0
+    for col in config['predictor_cols']:
+        if lag is not None:
+            shifted = df[col].shift(lag[col])
+        else:
+            shifted = df[col].copy()
+            
+        bins_x=np.linspace(np.nanpercentile(shifted,config['perc_bins'][0]), 
+                           np.nanpercentile(shifted,config['perc_bins'][1]+0.1),config['n_bins'])
+        
+        N=stats.binned_statistic_2d(shifted.values, 
+                                    df[config['target_col']].values,
+                                    shifted.values,
+                                    statistic='count',
+                                    bins=(bins_x,bins_y))[0]
+        
+        ax = fig.add_subplot(gs[ctr+int(ctr/config['ncol'])])
+        
+        pc=plt.pcolor(mid(bins_x),mid(bins_y),np.log10(N.T/N.max()),cmap='inferno',vmin=-3,vmax=0)
+        plt.xlabel(col)
+        plt.ylabel(config['target_col'])
+        ax.set_facecolor('k')
+        plt.grid()
+        ctr+=1
+            
+    cax = fig.add_subplot(gs[:, -1])
+    cbar = fig.colorbar(pc, cax=cax,label='Normalized count')
+    cbar.set_ticks(np.arange(-3,1))
+    cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in np.arange(-3,1)])
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        print(f"  Saved histograms plot → {save_path}")
+    
 def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
                           lag_list: list) -> pd.DataFrame:
     """
@@ -159,7 +217,8 @@ def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
     Returns DataFrame: rows=lags, columns=predictors.
     """
     records = []
-    for lag in lag_list:
+    mirror_lags=np.unique(np.concat([-np.array(lag_list),np.array(lag_list)]))
+    for lag in mirror_lags:
         row = {"lag": lag}
         for col in predictors:
             shifted = df[col].shift(lag)          # shift predictor forward in time
@@ -171,8 +230,7 @@ def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
     corr_df = pd.DataFrame(records).set_index("lag")
     return corr_df
 
-
-def select_best_lag(corr_df: pd.DataFrame,config=dict) -> int:
+def select_best_lag(corr_df: pd.DataFrame,config=dict) -> dict:
     """
     Return the lag at which the mean |correlation| across all predictors
     is maximised.
@@ -180,7 +238,7 @@ def select_best_lag(corr_df: pd.DataFrame,config=dict) -> int:
     id_max=corr_df.abs().idxmax()
     corr_max=corr_df.abs().max()
     id_max.loc[corr_max<config['min_corr']]=0
-    return id_max
+    return dict(id_max)
 
 def plot_lag_correlation(corr_df: pd.DataFrame, top_n: int = 10,
                          save_path: Path = None):
@@ -189,10 +247,18 @@ def plot_lag_correlation(corr_df: pd.DataFrame, top_n: int = 10,
     max_abs = corr_df.abs().max(axis=0).sort_values(ascending=False)
     top_cols = max_abs.head(top_n).index.tolist()
     subset   = corr_df[top_cols]
+    max_corr=subset.abs().max().max()
 
-    fig, ax = plt.subplots(figsize=(max(8, top_n * 0.8), 5))
+    fig, ax = plt.subplots(figsize=(max(18, top_n * 0.8), 5))
     im = ax.imshow(subset.T.values, aspect="auto", cmap="RdBu_r",
-                   vmin=-1, vmax=1)
+                   vmin=-max_corr, vmax=max_corr)
+    for j in range(len(subset.columns)):
+        for i in range(len(subset.index)):
+            if subset.iloc[i,j]>0:
+                color='g'
+            else:
+                color='orange'
+            plt.text(i-0.25,j,f"{subset.iloc[i,j]:02.3f}",fontsize=8,color=color)
     ax.set_xticks(range(len(subset.index)))
     ax.set_xticklabels(subset.index, rotation=45, ha="right")
     ax.set_yticks(range(len(top_cols)))
@@ -202,7 +268,7 @@ def plot_lag_correlation(corr_df: pd.DataFrame, top_n: int = 10,
     plt.colorbar(im, ax=ax, label="Pearson r")
     plt.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=150)
+        fig.savefig(save_path, dpi=300)
     plt.close(fig)
     print(f"  Saved lag correlation plot → {save_path}")
 
@@ -218,15 +284,15 @@ def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
 
     for col in predictors:
         # Lagged value
-        frames[f"{col}_lag{lag}"] = df[col].shift(lag[col])
+        frames[f"{col}_lag{lag[col]}"] = df[col].shift(lag[col])
 
         if add_rolling:
             for w in rolling_windows:
                 # Rolling statistics computed BEFORE the lag offset
-                frames[f"{col}_rollmean{w}_lag{lag}"] = (
+                frames[f"{col}_rollmean{w}_lag{lag[col]}"] = (
                     df[col].rolling(w).mean().shift(lag[col])
                 )
-                frames[f"{col}_rollstd{w}_lag{lag}"]  = (
+                frames[f"{col}_rollstd{w}_lag{lag[col]}"]  = (
                     df[col].rolling(w).std().shift(lag[col])
                 )
 
@@ -290,7 +356,7 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
 
         # Permutation importance on validation fold
         perm = permutation_importance(model, X_val, y_val,
-                                      n_repeats=10,
+                                      n_repeats=config["importance_reps"],
                                       random_state=config["random_state"],
                                       n_jobs=config["n_jobs"])
         imp_list.append(perm.importances_mean)
@@ -362,7 +428,7 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
         shap.summary_plot(shap_values, X_samp, show=False,
                           max_display=20, plot_size=(10, 7))
         plt.tight_layout()
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
         print(f"  Saved SHAP summary plot → {save_path}")
 
@@ -446,7 +512,7 @@ def plot_importance_comparison(results: pd.DataFrame,
                  fontsize=13, fontweight="bold", y=1.01)
     plt.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved importance comparison plot → {save_path}")
 
@@ -487,6 +553,235 @@ def lag_sweep_importance(df: pd.DataFrame, predictors: list,
 
     return pd.DataFrame(records).set_index("lag")
 
+def _vif_series(X_arr: np.ndarray) -> np.ndarray:
+    """
+    Compute Variance Inflation Factor for each column of X_arr.
+ 
+    VIF_j = 1 / (1 - R²_j), where R²_j is the R² from regressing column j
+    on all other columns.  Uses the normal-equations directly to avoid a
+    statsmodels dependency.
+ 
+    Parameters
+    ----------
+    X_arr : ndarray, shape (n_samples, n_features)
+        Feature matrix (should be standardised before calling).
+ 
+    Returns
+    -------
+    vif : ndarray, shape (n_features,)
+    """
+    n, p = X_arr.shape
+    vif  = np.full(p, np.nan)
+    for j in range(p):
+        y_j   = X_arr[:, j]
+        X_oth = np.delete(X_arr, j, axis=1)
+        # Add intercept column
+        X_oth = np.column_stack([np.ones(n), X_oth])
+        try:
+            # OLS via pseudo-inverse
+            beta  = np.linalg.lstsq(X_oth, y_j, rcond=None)[0]
+            y_hat = X_oth @ beta
+            ss_res = np.sum((y_j - y_hat) ** 2)
+            ss_tot = np.sum((y_j - y_j.mean()) ** 2)
+            r2    = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+            vif[j] = 1.0 / (1.0 - r2) if r2 < 1.0 else np.inf
+        except np.linalg.LinAlgError:
+            vif[j] = np.inf
+    return vif
+ 
+
+def check_collinearity(X: pd.DataFrame,
+                       r_threshold: float = 0.85,
+                       vif_threshold: float | None = 10.0,
+                       action: str = "drop",
+                       save_path: Path = None
+                       ) -> tuple[pd.DataFrame, list[str], pd.DataFrame]:
+    """
+    Identify and optionally remove collinear features from the feature matrix.
+ 
+    Two complementary diagnostics are run:
+ 
+    1. **Spearman correlation matrix** — catches monotonic linear and nonlinear
+       dependencies without assuming normality.  Pairs with |r| ≥ r_threshold
+       are flagged.
+ 
+    2. **Variance Inflation Factor (VIF)** — measures how much the variance of
+       a regression coefficient is inflated due to collinearity with the other
+       features.  VIF > 10 (or > 5 for stricter control) conventionally
+       indicates a problematic feature.
+ 
+    When ``action="drop"``, the function resolves collinear pairs greedily:
+    within each pair it drops the feature with the higher mean |r| to all
+    other features (i.e., the more "redundant" one), keeping the one that
+    carries more unique information.
+ 
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Feature matrix produced by ``build_feature_matrix``.
+    r_threshold : float
+        Spearman |r| above which a pair is considered collinear (default 0.85).
+    vif_threshold : float or None
+        VIF above which a feature is flagged.  Set to None to skip VIF
+        (recommended for very wide matrices, >200 features, where VIF is slow).
+    action : {"warn", "drop"}
+        "warn"  → report findings, return X unchanged.
+        "drop"  → remove redundant features and return reduced X.
+    save_path : Path or None
+        If provided, save the Spearman correlation heatmap here.
+ 
+    Returns
+    -------
+    X_out : pd.DataFrame
+        Feature matrix after (optional) collinear feature removal.
+    dropped : list[str]
+        Names of features that were dropped (empty if action="warn").
+    report : pd.DataFrame
+        Summary table with columns:
+        feature | mean_abs_r | vif | flagged_by | dropped
+    """
+    features = list(X.columns)
+    n_feat   = len(features)
+ 
+    # ── 1. Spearman correlation matrix ────────────────────────────────────────
+    print(f"  Computing Spearman correlation matrix ({n_feat} × {n_feat}) ...")
+    spearman_mat = X.rank().corr()                   # rank-transform then Pearson = Spearman
+ 
+    # Identify collinear pairs (upper triangle only, exclude diagonal)
+    collinear_pairs = []
+    for i in range(n_feat):
+        for j in range(i + 1, n_feat):
+            r = spearman_mat.iloc[i, j]
+            if abs(r) >= r_threshold:
+                collinear_pairs.append((features[i], features[j], r))
+ 
+    if collinear_pairs:
+        print(f"  ⚠  {len(collinear_pairs)} collinear pair(s) found "
+              f"(|r| ≥ {r_threshold}):")
+        for a, b, r in collinear_pairs:
+            print(f"      {a}  ↔  {b}   r = {r:+.3f}")
+    else:
+        print(f"  ✓  No collinear pairs found at |r| ≥ {r_threshold}.")
+ 
+    # ── 2. VIF ────────────────────────────────────────────────────────────────
+    vif_values = np.full(n_feat, np.nan)
+    if vif_threshold is not None:
+        print(f"  Computing VIF for {n_feat} features ...")
+        scaler    = StandardScaler()
+        X_scaled  = scaler.fit_transform(X.values.astype(float))
+        vif_values = _vif_series(X_scaled)
+        high_vif  = [(features[i], vif_values[i])
+                     for i in range(n_feat)
+                     if vif_values[i] > vif_threshold]
+        if high_vif:
+            print(f"  ⚠  {len(high_vif)} feature(s) with VIF > {vif_threshold}:")
+            for name, v in sorted(high_vif, key=lambda x: -x[1]):
+                print(f"      {name}   VIF = {v:.1f}")
+        else:
+            print(f"  ✓  All VIF values ≤ {vif_threshold}.")
+ 
+    # ── 3. Build report table ─────────────────────────────────────────────────
+    mean_abs_r = spearman_mat.abs().mean(axis=1)    # mean |r| to all other features
+ 
+    flagged_by = []
+    for i, feat in enumerate(features):
+        flags = []
+        if any(a == feat or b == feat for a, b, _ in collinear_pairs):
+            flags.append("spearman")
+        if not np.isnan(vif_values[i]) and vif_values[i] > (vif_threshold or np.inf):
+            flags.append("vif")
+        flagged_by.append("|".join(flags) if flags else "")
+ 
+    report = pd.DataFrame({
+        "feature":     features,
+        "mean_abs_r":  mean_abs_r.values,
+        "vif":         vif_values,
+        "flagged_by":  flagged_by,
+    }).set_index("feature")
+ 
+    # ── 4. Resolve pairs: drop the more redundant member ─────────────────────
+    dropped = []
+    if action == "drop" and collinear_pairs:
+        # Greedy: sort pairs by |r| descending so strongest collinearity resolved first
+        pairs_sorted = sorted(collinear_pairs, key=lambda x: -abs(x[2]))
+        already_dropped = set()
+        for a, b, r in pairs_sorted:
+            if a in already_dropped or b in already_dropped:
+                continue
+            # Drop whichever has the higher mean |r| (more redundant globally)
+            to_drop = a if mean_abs_r[a] >= mean_abs_r[b] else b
+            already_dropped.add(to_drop)
+            dropped.append(to_drop)
+            print(f"  ✂  Dropping '{to_drop}'  (mean |r| = {mean_abs_r[to_drop]:.3f}, "
+                  f"pair r = {r:+.3f}  with "
+                  f"'{b if to_drop == a else a}')")
+ 
+        if dropped:
+            print(f"  → {len(dropped)} feature(s) dropped; "
+                  f"{n_feat - len(dropped)} remain.")
+ 
+    report["dropped"] = report.index.isin(dropped)
+ 
+    # ── 5. Heatmap ────────────────────────────────────────────────────────────
+    if save_path is not None:
+        _plot_collinearity_heatmap(spearman_mat, r_threshold,
+                                   dropped=dropped, save_path=save_path)
+ 
+    X_out = X.drop(columns=dropped) if dropped else X.copy()
+    return X_out, dropped, report
+ 
+ 
+def _plot_collinearity_heatmap(spearman_mat: pd.DataFrame,
+                                r_threshold: float,
+                                dropped: list[str],
+                                save_path: Path):
+    """
+    Annotated heatmap of the Spearman correlation matrix.
+ 
+    Dropped features are marked with a red border on their row/column labels.
+    Cells that exceed r_threshold are outlined with a black rectangle.
+    """
+    n    = len(spearman_mat)
+    size = max(6, n * 0.45)
+    fig, ax = plt.subplots(figsize=(size, size * 0.85))
+ 
+    mat  = spearman_mat.values
+    im   = ax.imshow(mat, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+ 
+    # Axis labels — colour dropped features red
+    labels = list(spearman_mat.columns)
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    ax.set_yticklabels(labels, fontsize=7)
+    for tick, label in zip(ax.get_xticklabels(), labels):
+        if label in dropped:
+            tick.set_color("red")
+    for tick, label in zip(ax.get_yticklabels(), labels):
+        if label in dropped:
+            tick.set_color("red")
+ 
+    # Outline collinear cells
+    for i in range(n):
+        for j in range(n):
+            if i != j and abs(mat[i, j]) >= r_threshold:
+                ax.add_patch(plt.Rectangle(
+                    (j - 0.5, i - 0.5), 1, 1,
+                    fill=False, edgecolor="black", linewidth=1.2
+                ))
+ 
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Spearman r")
+    ax.set_title(
+        f"Feature Collinearity (Spearman r)  |  threshold = {r_threshold}\n"
+        f"Red labels = dropped features  |  boxed cells = |r| ≥ {r_threshold}",
+        fontsize=9
+    )
+    plt.tight_layout()
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved collinearity heatmap → {save_path}")
+ 
+
 def plot_lag_sweep(sweep_df: pd.DataFrame, top_n: int = 8,
                    save_path: Path = None):
     """Line plot of RF impurity importance vs lag for top-N variables."""
@@ -513,10 +808,15 @@ def plot_lag_sweep(sweep_df: pd.DataFrame, top_n: int = 8,
 
     plt.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=150)
+        fig.savefig(save_path, dpi=300)
     plt.close(fig)
     print(f"  Saved lag sweep plot → {save_path}")
 
+def mid(x):
+    '''
+    Midpoint in array
+    '''
+    return (x[1:]+x[:-1])/2
 
 def run_pipeline(config: dict = CONFIG, df: pd.DataFrame = None):
     """
@@ -527,12 +827,15 @@ def run_pipeline(config: dict = CONFIG, df: pd.DataFrame = None):
     print("  Atmospheric Variable Importance Pipeline")
     print("=" * 65)
 
-    # ── Load ──────────────────────────────────────────────────────────────
+    # ── Initial assessment ──────────────────────────────────────────────────────────────
     if df is None:
         print("\n[1] Loading data ...")
         df = load_data(config)
     else:
         print("\n[1] Using provided DataFrame.")
+        
+    # Histograms
+    plot_histograms(df, config, lag=None, save_path=OUT / "histograms.png")
 
     # Resolve predictor columns
     predictors = config["predictor_cols"] or [
@@ -559,30 +862,57 @@ def run_pipeline(config: dict = CONFIG, df: pd.DataFrame = None):
     best_lag = config["best_lag"]
     if best_lag is None:
         best_lag = select_best_lag(corr_df,config)
-    print(f"    Best lag (auto-selected): \n {best_lag} time steps")
+    print(f"    Best lag (auto-selected): \n{best_lag} time steps")
+    
+    # Histograms
+    plot_histograms(df, config, lag=best_lag, save_path=OUT / "histograms_lag.png")
 
     # ── Lag sweep (RF impurity, fast) ─────────────────────────────────────
-    print("\n[3] Lag sweep (quick RF at each lag) ...")
-    sweep_df = lag_sweep_importance(df, predictors, "__target__",
-                                    config["lag_list"], config)
-    plot_lag_sweep(sweep_df, save_path=OUT / "lag_sweep.png")
+    if config['prelim_rf']:
+        print("\n[3] Lag sweep (quick RF at each lag) ...")
+        sweep_df = lag_sweep_importance(df, predictors, "__target__",
+                                        config["lag_list"], config)
+        plot_lag_sweep(sweep_df, save_path=OUT / "lag_sweep.png")
+    else:
+        sweep_df=None
 
     # ── Build feature matrix at best lag ─────────────────────────────────
-    print(f"\n[4] Building feature matrix at lag={best_lag} ...")
+    print(f"\n[4] Building feature matrix at lag\n{best_lag} ...")
     X, y = build_feature_matrix(df, predictors, "__target__",
                                  lag=best_lag,
                                  rolling_windows=config["rolling_windows"],
                                  add_rolling=config["add_rolling"])
     print(f"    Feature matrix: {X.shape[0]} samples × {X.shape[1]} features")
+    
+    # ── Collinearity check ────────────────────────────────────────────────
+    print("\n[5] Checking feature collinearity ...")
+    X, dropped_features, collinearity_report = check_collinearity(
+        X,
+        r_threshold   = config["collinearity_r_threshold"],
+        vif_threshold = config["collinearity_vif_threshold"],
+        action        = config["collinearity_action"],
+        save_path     = OUT / "collinearity_heatmap.png",
+    )
+    collinearity_report.to_csv(OUT / "collinearity_report.csv")
+    print(f"    Saved collinearity report → {OUT / 'collinearity_report.csv'}")
+    if dropped_features:
+        print(f"    Proceeding with {X.shape[1]} features "
+              f"(dropped {len(dropped_features)}: {dropped_features})")
+    else:
+        print(f"    No features dropped; proceeding with {X.shape[1]} features.")
+
 
     # ── RF permutation importance (cross-validated) ───────────────────────
     print("\n[5] Training RF + permutation importance (CV) ...")
     rf_result = train_rf_importance(X, y, config)
 
     # ── SHAP importance ───────────────────────────────────────────────────
-    print("\n[6] Computing SHAP importance ...")
-    shap_imp = compute_shap_importance(X, y, config,
-                                       save_path=OUT / "shap_summary.png")
+    if config['shap']:
+        print("\n[6] Computing SHAP importance ...")
+        shap_imp = compute_shap_importance(X, y, config,
+                                           save_path=OUT / "shap_summary.png")
+    else:
+        shap_imp=[]
 
     # ── Compile results ───────────────────────────────────────────────────
     print("\n[7] Compiling results table ...")
@@ -636,60 +966,25 @@ def generate_synthetic_data(n: int = 100_000,
     return df
 
 if __name__ == "__main__":
-    print("Running with SYNTHETIC data (replace with your CSV path).\n")
-
-    df_synth = generate_synthetic_data(n=100_000)
-
+    
     cfg = CONFIG.copy()
-  
-    results, corr_df, sweep_df = run_pipeline(config=cfg, df=df_synth)
     
-
-def mid(x):
-    '''
-    Midpoint in array
-    '''
+    if cfg==True:
+        print("Running with SYNTHETIC data (replace with your CSV path).\n")
     
-    return (x[1:]+x[:-1])/2
-
+        df_qc = generate_synthetic_data(n=100_000)
+    else:
+        df=load_data(cfg)
     
+        df_qc=qc_data(df, cfg)
+    
+    
+    results, corr_df, sweep_df = run_pipeline(config=cfg, df=df_qc)
 
 
 
-# bins_y=np.linspace(np.nanpercentile(Data[target],perc_bins[0]), 
-#                  np.nanpercentile(Data[target],perc_bins[1]+0.1),n_bins)
-                 
-# #%% Plots
 
-# #all 2-D histograms
-# fig = plt.figure(figsize=(18,8))
-# gs = GridSpec(nrow, ncol+1,
-# figure=fig,
-# width_ratios=ncol*[1]+[0.05])
-# ctr=0
-# for v in vars_:
-#         bins_x=np.linspace(np.nanpercentile(Data[v],perc_bins[0]), 
-#                          np.nanpercentile(Data[v],perc_bins[1]+0.1),n_bins)
-#         N=stats.binned_statistic_2d(Data[v].values, 
-#                                     Data[target].values,
-#                                     Data[v].values,
-#                                     statistic='count',
-#                                     bins=(bins_x,bins_y))[0]
-        
-#         ax = fig.add_subplot(gs[ctr+int(ctr/ncol)])
-        
-#         pc=plt.pcolor(mid(bins_x),mid(bins_y),np.log10(N.T/N.max()),cmap='inferno',vmin=-3,vmax=0)
-#         plt.xlabel(v)
-#         plt.ylabel(target)
-#         ax.set_facecolor('k')
-#         plt.grid()
-#         ctr+=1
-        
-# cax = fig.add_subplot(gs[:, -1])
-# cbar = fig.colorbar(pc, cax=cax,label='Normalized count')
-# cbar.set_ticks(np.arange(-3,1))
-# cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in np.arange(-3,1)])
-# plt.tight_layout()
+
         
 
 
