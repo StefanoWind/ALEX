@@ -5,6 +5,7 @@ __pycache__
 *.csv
 *.log
 *.yaml
+!configs/*.yaml
 *.egg-info/
 *.hpl
 *.html
