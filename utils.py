@@ -37,13 +37,89 @@ def make_binary_target(series: pd.Series, threshold: float) -> pd.Series:
     return (series > threshold).astype(int)
 
 
+def make_segment_target(series: pd.Series, threshold: float, mode: str) -> pd.Series:
+    """
+    For each contiguous segment where series > threshold compute a severity metric
+    and broadcast it to every timestep in that segment; assign 0 elsewhere.
+
+    mode='AUC': integral of the outage curve (customer·h) over the segment.
+    mode='TOT': total duration of the segment in minutes.
+    """
+    result = pd.Series(0.0, index=series.index)
+    above = series > threshold
+    segment_id = (above != above.shift()).cumsum()
+    dt_minutes = series.index.to_series().diff().median().total_seconds() / 60
+
+    for seg_id, idx in above.groupby(segment_id).groups.items():
+        if not above[idx[0]]:
+            continue
+        seg = series[idx]
+        value = seg.sum() * dt_minutes / 60 if mode == 'AUC' else len(seg) * dt_minutes
+        result[idx] = value
+
+    return result
+
+
+def plot_segment_zoom(series: pd.Series, target: pd.Series, threshold: float,
+                      mode: str, save_path: Path = None):
+    """Zoom into the densest outage period, showing raw signal, threshold, and metric."""
+    above = series > threshold
+    dt = series.index.to_series().diff().median()
+    pts_per_day = max(1, int(pd.Timedelta(days=1) / dt))
+    win = min(30 * pts_per_day, len(series) // 3)
+    center_idx = above.rolling(win, center=True).sum().idxmax()
+    half = pd.Timedelta(days=15)
+    t0 = max(series.index[0], center_idx - half)
+    t1 = min(series.index[-1], center_idx + half)
+    mask = (series.index >= t0) & (series.index <= t1)
+
+    s = series[mask]
+    t = target[mask]
+    above_zoom = above[mask]
+    seg_id = (above_zoom != above_zoom.shift()).cumsum()
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 6), sharex=True)
+
+    axes[0].plot(s.index, s.values, color='gray', lw=0.5)
+    axes[0].axhline(threshold, color='black', lw=1, ls='--',
+                    label=f'threshold = {threshold}')
+    for _, idx in above_zoom.groupby(seg_id).groups.items():
+        if above_zoom[idx[0]]:
+            axes[0].axvspan(idx[0], idx[-1], alpha=0.3, color='red')
+    axes[0].set_ylabel('Customers out')
+    axes[0].legend(fontsize=8, loc='upper right')
+    axes[0].grid()
+
+    units = 'customer·h' if mode == 'AUC' else 'min'
+    axes[1].plot(t.index, t.values, color='steelblue', lw=1)
+    axes[1].set_ylabel(f'{mode} ({units})')
+    axes[1].grid()
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved segment zoom plot → {save_path}")
+
+
 def plot_time_series(df: pd.DataFrame, config: dict, save_path: Path = None):
     plt.figure(figsize=(18, 10))
     ctr = 1
+    mode = config.get('mode')
+    if mode == 'binary':
+        flag = df[config['target_col']] > config.get('outage_threshold', 0)
+    elif mode in ('AUC', 'TOT'):
+        c_vals = df['__target__'] if '__target__' in df.columns else df[config['target_col']]
     for col in config['predictor_cols']:
         plt.subplot(len(config['predictor_cols']), 1, ctr)
-        plt.scatter(df.index, df[col], s=1,
-                    c=np.log10(df[config['target_col']]), cmap='RdYlGn_r')
+        if mode == 'binary':
+            plt.scatter(df.index[~flag], df[col][~flag], s=1, c='green')
+            plt.scatter(df.index[flag], df[col][flag], s=1, c='red')
+        elif mode in ('AUC', 'TOT'):
+            plt.scatter(df.index, df[col], s=1, c=c_vals, cmap='RdYlGn_r')
+        else:
+            plt.scatter(df.index, df[col], s=1,
+                        c=np.log10(df[config['target_col']]), cmap='RdYlGn_r')
         plt.ylabel(col)
         plt.xlim([df.index[0], df.index[-1]])
         plt.grid()
@@ -192,10 +268,19 @@ def plot_seasonal_detrending(df_raw: pd.DataFrame,
 def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
                     window: dict = None, save_path: Path = None):
     """Plot 2-D histogram of feature vs. target."""
-    bins_y = np.linspace(config['outage_threshold'],
-                         np.nanpercentile(df[config['target_col']],
-                                          config['perc_bins'][1] + 0.1),
-                         config['n_bins'])
+    mode = config.get('mode')
+    if mode in ('AUC', 'TOT') and '__target__' in df.columns:
+        y_series = df['__target__']
+        y_label = mode
+        bins_y = np.linspace(0,
+                             np.nanpercentile(y_series, config['perc_bins'][1] + 0.1),
+                             config['n_bins'])
+    else:
+        y_series = df[config['target_col']]
+        y_label = config['target_col']
+        bins_y = np.linspace(config['outage_threshold'],
+                             np.nanpercentile(y_series, config['perc_bins'][1] + 0.1),
+                             config['n_bins'])
 
     fig = plt.figure(figsize=(18, 4 * config['nrow']))
     gs = GridSpec(config['nrow'], config['ncol'] + 1, figure=fig,
@@ -215,7 +300,7 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
                               config['n_bins'])
 
         N = stats.binned_statistic_2d(shifted.values,
-                                      df[config['target_col']].values,
+                                      y_series.values,
                                       shifted.values,
                                       statistic='count',
                                       bins=(bins_x, bins_y))[0]
@@ -231,7 +316,7 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
                 plt.xlabel(f"{col} (lag={lag[col]})")
         else:
             plt.xlabel(f"{col}")
-        plt.ylabel(config['target_col'])
+        plt.ylabel(y_label)
         ax.set_facecolor('k')
         plt.grid()
         ctr += 1
@@ -249,104 +334,141 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
 
 
 def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
-                          lag_list: list, window_list: list) -> dict:
-    """
-    Compute Pearson correlation between predictor[t-lag] and target[t] for all
-    lag/window combinations. [von Storch & Zwiers, 1999]
-    """
-    corr_df = {}
-    for w in window_list:
-        records = []
-        mirror_lags = np.unique(np.concat([-np.array(lag_list), np.array(lag_list)]))
-        for lag in mirror_lags:
-            row = {"lag": lag}
-            for col in predictors:
-                if w > 0:
-                    shifted = df[col].rolling(w, center=True).mean().shift(lag)
-                else:
-                    shifted = df[col].shift(lag)
-                valid = ~(shifted.isna() | target.isna())
-                r = shifted[valid].corr(target[valid])
-                row[col] = r
-            records.append(row)
-        corr_df[w] = pd.DataFrame(records).set_index("lag")
-    return corr_df
-
-
-def select_best_lag_window(corr_df: dict, config: dict) -> tuple[dict, dict]:
-    """Return the lag and window per predictor that maximises |correlation|."""
+                          lag_list: list) -> dict:
+    # [von Storch & Zwiers, 1999]
+    mirror_lags = np.unique(np.concat([-np.array(lag_list), np.array(lag_list)]))
     records = []
-    for w in corr_df.keys():
-        row = corr_df[w].abs().max()
-        row['window'] = int(w)
+    for lag in mirror_lags:
+        row = {"lag": lag}
+        for col in predictors:
+            shifted = df[col].shift(lag)
+            valid = ~(shifted.isna() | target.isna())
+            row[col] = shifted[valid].corr(target[valid])
         records.append(row)
-    corr_max = pd.DataFrame(records).set_index("window")
+    return {0: pd.DataFrame(records).set_index("lag")}
 
-    window_max = {k: int(v) for k, v in dict(corr_max.idxmax()).items()}
 
+def select_best_lag(corr_df: dict, config: dict) -> dict[str, int]:
+    subset = corr_df[0]
     lag_max = {}
-    for col in window_max.keys():
-        subset = corr_df[window_max[col]][col]
-        if subset.abs().max() >= config['min_corr']:
-            lag_max[col] = int(subset.abs().idxmax())
+    for col in subset.columns:
+        if subset[col].abs().max() >= config['min_corr']:
+            lag_max[col] = int(subset[col].abs().idxmax())
         else:
             lag_max[col] = 0
-            window_max[col] = 0
-
-    return dict(lag_max), dict(window_max)
+    return lag_max
 
 
 def plot_lag_correlation(corr_df: dict, save_path: Path = None,
                          target_name: str = "target"):
-    """Heatmap of cross-lag correlation for each rolling window."""
-    for w in corr_df.keys():
-        subset = corr_df[w]
-        max_corr = subset.abs().max().max()
+    subset = corr_df[0]
+    max_corr = subset.abs().max().max()
 
-        fig, ax = plt.subplots(figsize=(max(18, len(subset.columns) * 0.8), 5))
-        im = ax.imshow(subset.T.values, aspect="auto", cmap="RdBu_r",
-                       vmin=-max_corr, vmax=max_corr)
-        for j in range(len(subset.columns)):
-            for i in range(len(subset.index)):
-                color = 'g' if subset.iloc[i, j] > 0 else 'orange'
-                plt.text(i - 0.25, j, f"{subset.iloc[i, j]:02.3f}",
-                         fontsize=8, color=color)
-        ax.set_xticks(range(len(subset.index)))
-        ax.set_xticklabels(subset.index)
-        ax.set_yticks(range(len(subset.columns)))
-        ax.set_yticklabels(subset.columns)
-        ax.set_xlabel("Lag (time steps)")
-        ax.set_title(
-            f"Cross-Lag Correlation: Predictor[t-lag] vs {target_name}[t]"
-            f" | Rolling Window = {w}"
-        )
-        plt.colorbar(im, ax=ax, label="Pearson r")
-        plt.tight_layout()
-        if save_path:
-            fig.savefig(Path(str(save_path).replace(".png", f"_{w}.png")), dpi=300)
-        plt.close(fig)
-        print(f"  Saved lag correlation plot → {save_path}")
+    fig, ax = plt.subplots(figsize=(max(18, len(subset.columns) * 0.8), 5))
+    im = ax.imshow(subset.T.values, aspect="auto", cmap="RdBu_r",
+                   vmin=-max_corr, vmax=max_corr)
+    for j in range(len(subset.columns)):
+        for i in range(len(subset.index)):
+            color = 'g' if subset.iloc[i, j] > 0 else 'orange'
+            plt.text(i - 0.25, j, f"{subset.iloc[i, j]:02.3f}",
+                     fontsize=8, color=color)
+    ax.set_xticks(range(len(subset.index)))
+    ax.set_xticklabels(subset.index)
+    ax.set_yticks(range(len(subset.columns)))
+    ax.set_yticklabels(subset.columns)
+    ax.set_xlabel("Lag (time steps)")
+    ax.set_title(f"Cross-Lag Correlation: Predictor[t-lag] vs {target_name}[t]")
+    plt.colorbar(im, ax=ax, label="Pearson r")
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, dpi=300)
+    plt.close(fig)
+    print(f"  Saved lag correlation plot → {save_path}")
 
 
 def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
-                         lag: dict, window: dict) -> tuple[pd.DataFrame, pd.Series]:
-    """Build X and y with per-predictor lag and rolling-window offsets."""
+                         lag: dict) -> tuple[pd.DataFrame, pd.Series]:
+    frames = {f"{col} (lag={lag[col]})": df[col].shift(lag[col]) for col in predictors}
+    X = pd.DataFrame(frames, index=df.index)
+    y = df[target_col]
+    valid = X.notna().all(axis=1) & y.notna()
+    return X[valid], y[valid]
+
+
+# [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
+                            lag: dict, windows: list) -> tuple[pd.DataFrame, pd.Series]:
     frames = {}
     for col in predictors:
-        if window[col] > 0:
-            frames[f"{col}_avg (roll={window[col]}, lag={lag[col]})"] = (
-                df[col].rolling(window[col], center=True).mean().shift(lag[col])
-            )
-            frames[f"{col}_std (roll={window[col]}, lag={lag[col]})"] = (
-                df[col].rolling(window[col], center=True).std().shift(lag[col])
-            )
-        else:
-            frames[f"{col} (lag={lag[col]})"] = df[col].shift(lag[col])
+        L = lag[col]
+        x = df[col]
+        frames[f"{col}_raw (lag={L})"] = x.shift(L)
+        frames[f"{col}_grad (lag={L})"] = x.diff(1).shift(L)
+        for w in windows:
+            frames[f"{col}_mean_W{w} (lag={L})"] = x.rolling(w).mean().shift(L)
+            frames[f"{col}_std_W{w} (lag={L})"] = x.rolling(w).std().shift(L)
+            frames[f"{col}_maxgrad_W{w} (lag={L})"] = x.diff(1).rolling(w).max().shift(L)
+            rolling_med = x.rolling(w).median()
+            rolling_mad = (x - rolling_med).abs().rolling(w).median()
+            spike_z = (x - rolling_med) / rolling_mad.replace(0, np.nan)
+            frames[f"{col}_spikez_W{w} (lag={L})"] = spike_z.shift(L)
 
     X = pd.DataFrame(frames, index=df.index)
     y = df[target_col]
     valid = X.notna().all(axis=1) & y.notna()
     return X[valid], y[valid]
+
+
+def _mode_label(config: dict) -> str:
+    mode = config.get('mode', '')
+    units = {'AUC': 'customer·h', 'TOT': 'min'}
+    return f"{mode} ({units[mode]})" if mode in units else mode
+
+
+def plot_rf_scatter(y_true: pd.Series, y_pred: pd.Series, config: dict,
+                    save_path: Path = None):
+    """Scatter of observed vs OOF RF prediction with 1:1 line and linear regression."""
+    valid = ~(y_true.isna() | y_pred.isna())
+    yt, yp = y_true[valid].values, y_pred[valid].values
+    slope, intercept, r, _, _ = stats.linregress(yt, yp)
+    x_line = np.array([yp.min(), yp.max()])
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.scatter(yt, yp, s=2, alpha=0.4, color='steelblue')
+    ax.plot(x_line, x_line, 'k--', lw=1, label='1:1')
+    ax.plot(x_line, slope * x_line + intercept, 'r-', lw=1,
+            label=f'linear fit  r={r:.2f}')
+    label = _mode_label(config)
+    ax.set_ylabel(f'RF prediction [{label}]')
+    ax.set_xlabel(f'Observed [{label}]')
+    ax.legend()
+    ax.grid()
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved RF scatter plot → {save_path}")
+
+
+def plot_rf_timeseries(y_true: pd.Series, y_pred: pd.Series, config: dict,
+                       save_path: Path = None):
+    """Time series of observed vs OOF RF prediction."""
+    valid = ~(y_true.isna() | y_pred.isna())
+    label = _mode_label(config)
+
+    fig, ax = plt.subplots(figsize=(18, 4))
+    ax.plot(y_true[valid].index, y_true[valid].values,
+            '.-k', lw=0.8, label='Observed')
+    ax.plot(y_pred[valid].index, y_pred[valid].values,
+            '.-r', lw=0.8, label='RF prediction')
+    ax.set_ylabel(label)
+    ax.legend()
+    ax.grid()
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved RF time series plot → {save_path}")
 
 
 def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
@@ -373,6 +495,7 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
     y_arr = y.values
     imp_list = []
     cv_scores = []
+    oof_pred = np.full(len(y_arr), np.nan)
 
     for fold_i, (train_idx, val_idx) in enumerate(cv.split(X_arr, y_arr)):
         X_tr, X_val = X_arr[train_idx], X_arr[val_idx]
@@ -388,6 +511,9 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
         )
         model.fit(X_tr, y_tr, sample_weight=sw)
         cv_scores.append(score_fn(model, X_val, y_val))
+
+        if mode != "binary":
+            oof_pred[val_idx] = model.predict(X_val)
 
         perm = permutation_importance(model, X_val, y_val,
                                       n_repeats=config["importance_reps"],
@@ -406,6 +532,7 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
         "importance_std": std_imp,
         "cv_scores": cv_scores,
         "score_name": score_name,
+        "oof_pred": pd.Series(oof_pred, index=y.index) if mode != "binary" else None,
     }
 
 
@@ -741,7 +868,8 @@ def mid(x):
     return (x[1:] + x[:-1]) / 2
 
 
-def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
+def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
+                 best_lag: dict | None = None):
     """Orchestrate the full variable importance pipeline."""
     if out_dir is None:
         OUT = Path(config['output_dir']) / datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
@@ -768,6 +896,17 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
         df["__target__"] = make_binary_target(df[config["target_col"]],
                                               config["outage_threshold"])
         print(f"    Outage rate: {df['__target__'].mean():.3%}")
+    elif config["mode"] in ("AUC", "TOT"):
+        if "__target__" not in df.columns:
+            df["__target__"] = make_segment_target(df[config["target_col"]],
+                                                   config["outage_threshold"],
+                                                   config["mode"])
+            plot_segment_zoom(df[config["target_col"]], df["__target__"],
+                              config["outage_threshold"], config["mode"],
+                              save_path=OUT / "segment_zoom.png")
+        nonzero = (df["__target__"] > 0)
+        print(f"    {config['mode']} target: non-zero fraction = {nonzero.mean():.3%}, "
+              f"mean (non-zero) = {df['__target__'][nonzero].mean():.2f}")
     else:
         df["__target__"] = df[config["target_col"]]
 
@@ -800,15 +939,18 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
         print("\n[2] Seasonal detrending skipped.")
 
     print("\n[2] Cross-lag correlation analysis ...")
-    corr_df = cross_lag_correlation(df, predictors, df["__target__"],
-                                    config["lag_list"], config['window_list'])
-    plot_lag_correlation(corr_df, save_path=OUT / "lag_correlation.png",
-                         target_name=config['target_col'])
-
-    best_lag, best_window = select_best_lag_window(corr_df, config)
-    print(f"    Best lag: \n{best_lag} time steps")
-    print(f"    Best window: \n{best_window} time steps")
-    plot_histograms(df, config, lag=best_lag, window=best_window,
+    if best_lag is None:
+        corr_df = cross_lag_correlation(df, predictors, df["__target__"],
+                                        config["lag_list"])
+        plot_lag_correlation(corr_df, save_path=OUT / "lag_correlation.png",
+                             target_name=config['target_col'])
+        best_lag = select_best_lag(corr_df, config)
+        print(f"    Best lag: \n{best_lag} time steps")
+    else:
+        corr_df = None
+        print(f"    Using pre-supplied lag: {best_lag}")
+    plot_histograms(df, config, lag=best_lag,
+                    window={col: 0 for col in best_lag},
                     save_path=OUT / "histograms_lag.png")
 
     if config['prelim_rf']:
@@ -820,8 +962,12 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
         sweep_df = None
 
     print(f"\n[4] Building feature matrix at lag\n{best_lag} ...")
-    X, y = build_feature_matrix(df, predictors, "__target__",
-                                 lag=best_lag, window=best_window)
+    dynamic_windows = config.get('dynamic_windows', [])
+    if dynamic_windows:
+        X, y = build_dynamic_features(df, predictors, "__target__",
+                                       lag=best_lag, windows=dynamic_windows)
+    else:
+        X, y = build_feature_matrix(df, predictors, "__target__", lag=best_lag)
     print(f"    Feature matrix: {X.shape[0]} samples x {X.shape[1]} features")
 
     print("\n[5] Checking feature collinearity ...")
@@ -842,6 +988,12 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
 
     print("\n[5] Training RF + permutation importance (CV) ...")
     rf_result = train_rf_importance(X, y, config)
+
+    if config["mode"] != "binary" and rf_result["oof_pred"] is not None:
+        plot_rf_scatter(y, rf_result["oof_pred"], config,
+                        save_path=OUT / "rf_scatter.png")
+        plot_rf_timeseries(y, rf_result["oof_pred"], config,
+                           save_path=OUT / "rf_timeseries.png")
 
     if config['shap']:
         print("\n[6] Computing SHAP importance ...")
