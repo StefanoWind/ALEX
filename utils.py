@@ -395,23 +395,28 @@ def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
     return X[valid], y[valid]
 
 
+def _acf_osc(v):
+    v = v - v.mean()
+    denom = np.dot(v, v)
+    if denom == 0:
+        return np.nan
+    acf = np.correlate(v, v, mode='full')[len(v) - 1:] / denom
+    return -np.min(acf[1:max(2, len(v) // 2 + 1)])
+
+
 # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
 def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
-                            lag: dict, windows: list) -> tuple[pd.DataFrame, pd.Series]:
+                            lag: dict, window: int) -> tuple[pd.DataFrame, pd.Series]:
     frames = {}
+    w = window
     for col in predictors:
         L = lag[col]
         x = df[col]
-        frames[f"{col}_raw (lag={L})"] = x.shift(L)
-        frames[f"{col}_grad (lag={L})"] = x.diff(1).shift(L)
-        for w in windows:
-            frames[f"{col}_mean_W{w} (lag={L})"] = x.rolling(w).mean().shift(L)
-            frames[f"{col}_std_W{w} (lag={L})"] = x.rolling(w).std().shift(L)
-            frames[f"{col}_maxgrad_W{w} (lag={L})"] = x.diff(1).rolling(w).max().shift(L)
-            rolling_med = x.rolling(w).median()
-            rolling_mad = (x - rolling_med).abs().rolling(w).median()
-            spike_z = (x - rolling_med) / rolling_mad.replace(0, np.nan)
-            frames[f"{col}_spikez_W{w} (lag={L})"] = spike_z.shift(L)
+        frames[f"{col}_mean_W{w}"] = x.rolling(w).mean().shift(L)                                                                    # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_std_W{w}"] = x.rolling(w).std().shift(L)                                                                      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_gust_factor_W{w}"] = ((x.rolling(w).max() - x.rolling(w).mean()) / x.rolling(w).std()).shift(L)               # [Durst, 1960]
+        frames[f"{col}_mann_kendall_tau_W{w}"] = x.rolling(w).apply(lambda v: abs(stats.kendalltau(np.arange(len(v)), v)[0]), raw=True).shift(L)  # [Mann, 1945; Kendall, 1975]
+        frames[f"{col}_acf_osc_W{w}"] = x.rolling(w).apply(_acf_osc, raw=True).shift(L)                                             # [Box, Jenkins & Reinsel, 2008]
 
     X = pd.DataFrame(frames, index=df.index)
     y = df[target_col]
@@ -962,10 +967,10 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
         sweep_df = None
 
     print(f"\n[4] Building feature matrix at lag\n{best_lag} ...")
-    dynamic_windows = config.get('dynamic_windows', [])
-    if dynamic_windows:
+    dynamic_window = config.get('dynamic_window', 0)
+    if dynamic_window:
         X, y = build_dynamic_features(df, predictors, "__target__",
-                                       lag=best_lag, windows=dynamic_windows)
+                                       lag=best_lag, window=dynamic_window)
     else:
         X, y = build_feature_matrix(df, predictors, "__target__", lag=best_lag)
     print(f"    Feature matrix: {X.shape[0]} samples x {X.shape[1]} features")
