@@ -395,33 +395,6 @@ def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
     return X[valid], y[valid]
 
 
-def _acf_osc(v):
-    v = v - v.mean()
-    denom = np.dot(v, v)
-    if denom == 0:
-        return np.nan
-    acf = np.correlate(v, v, mode='full')[len(v) - 1:] / denom
-    return -np.min(acf[1:max(2, len(v) // 2 + 1)])
-
-
-def _rolling_mk_tau(x: pd.Series, w: int) -> pd.Series:
-    # [Mann, 1945; Kendall, 1975] — vectorized via stride tricks
-    arr = np.asarray(x, dtype=float)
-    n = len(arr)
-    if n < w:
-        return pd.Series(np.nan, index=x.index)
-    from numpy.lib.stride_tricks import sliding_window_view
-    wins = sliding_window_view(arr, w)          # (n-w+1, w)
-    ii, jj = np.triu_indices(w, k=1)
-    diffs = wins[:, jj] - wins[:, ii]           # (n-w+1, n_pairs)
-    S = np.abs(np.sum(np.sign(diffs), axis=1))
-    tau = S / (w * (w - 1) / 2)
-    result = np.full(n, np.nan)
-    half = w // 2
-    result[half:half + len(tau)] = tau
-    return pd.Series(result, index=x.index)
-
-
 # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
 def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
                             lag: dict, window: int) -> tuple[pd.DataFrame, pd.Series]:
@@ -430,11 +403,13 @@ def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
     for col in predictors:
         L = lag[col]
         x = df[col]
-        frames[f"{col}_mean_W{w} (lag={L})"] = x.rolling(w, center=True).mean().shift(L)                                                                    # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_std_W{w} (lag={L})"] = x.rolling(w, center=True).std().shift(L)                                                                      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_gust_factor_W{w} (lag={L})"] = ((x.rolling(w, center=True).max() - x.rolling(w, center=True).mean()) / x.rolling(w, center=True).std()).shift(L)               # [Durst, 1960]
-        frames[f"{col}_mann_kendall_tau_W{w} (lag={L})"] = _rolling_mk_tau(x, w).shift(L)  # [Mann, 1945; Kendall, 1975]
-        frames[f"{col}_acf_osc_W{w} (lag={L})"] = x.rolling(w, center=True).apply(_acf_osc, raw=True).shift(L)                                             # [Box, Jenkins & Reinsel, 2008]
+        agrad = x.diff().abs()
+        frames[f"{col}_mean_W{w} (lag={L})"]      = x.rolling(w, center=True).mean().shift(L)      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_max_W{w} (lag={L})"]       = x.rolling(w, center=True).max().shift(L)
+        frames[f"{col}_min_W{w} (lag={L})"]       = x.rolling(w, center=True).min().shift(L)
+        frames[f"{col}_std_W{w} (lag={L})"]       = x.rolling(w, center=True).std().shift(L)       # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_grad_mean_W{w} (lag={L})"] = agrad.rolling(w, center=True).mean().shift(L)
+        frames[f"{col}_grad_max_W{w} (lag={L})"]  = agrad.rolling(w, center=True).max().shift(L)
 
     X = pd.DataFrame(frames, index=df.index)
     y = df[target_col]

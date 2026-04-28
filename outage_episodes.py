@@ -7,47 +7,23 @@ import matplotlib
 import matplotlib.dates as mdates
 from matplotlib import pyplot as plt
 from pathlib import Path
-from scipy import stats
 
 from utils import make_segment_target
 
-def _acf_osc(v):
-    v = v - v.mean()
-    denom = np.dot(v, v)
-    if denom == 0:
-        return np.nan
-    acf = np.correlate(v, v, mode='full')[len(v) - 1:] / denom
-    return -np.min(acf[1:max(2, len(v) // 2 + 1)])
-
-
-def _rolling_mk_tau(x: pd.Series, w: int) -> pd.Series:
-    # [Mann, 1945; Kendall, 1975] — vectorized via stride tricks
-    arr = np.asarray(x, dtype=float)
-    n = len(arr)
-    if n < w:
-        return pd.Series(np.nan, index=x.index)
-    from numpy.lib.stride_tricks import sliding_window_view
-    wins = sliding_window_view(arr, w)          # (n-w+1, w)
-    ii, jj = np.triu_indices(w, k=1)
-    diffs = wins[:, jj] - wins[:, ii]           # (n-w+1, n_pairs)
-    S = np.abs(np.sum(np.sign(diffs), axis=1))
-    tau = S / (w * (w - 1) / 2)
-    result = np.full(n, np.nan)
-    half = w // 2
-    result[half:half + len(tau)] = tau
-    return pd.Series(result, index=x.index)
-
-
 def compute_dynamic_features(x: pd.Series, window: int) -> pd.DataFrame:
     w = window
-    mean   = x.rolling(w, center=True).mean()
-    std    = x.rolling(w, center=True).std()
-    gf     = (x.rolling(w, center=True).max() - mean) / std
-    mkt    = _rolling_mk_tau(x, w)
-    acf    = x.rolling(w, center=True).apply(_acf_osc, raw=True)
-    return pd.DataFrame({'mean': mean, 'std': std, 'gust_factor': gf,
-                         'mann_kendall_tau': mkt, 'acf_osc': acf},
-                        index=x.index)
+    agrad = x.diff().abs()
+    mean      = x.rolling(w, center=True).mean()
+    maximum   = x.rolling(w, center=True).max()
+    minimum   = x.rolling(w, center=True).min()
+    std       = x.rolling(w, center=True).std()
+    grad_mean = agrad.rolling(w, center=True).mean()
+    grad_max  = agrad.rolling(w, center=True).max()
+    return pd.DataFrame(
+        {'mean': mean, 'max': maximum, 'min': minimum, 'std': std,
+         'grad_mean': grad_mean, 'grad_max': grad_max},
+        index=x.index,
+    )
 
 
 def normalize(s: pd.Series, p5: float, p95: float) -> pd.Series:
@@ -119,9 +95,12 @@ def plot_episode(df: pd.DataFrame, t_start, t_end, auc, tot, config: dict,
     for i, col in enumerate(predictors):
         ax = axes[i]
         dyn_colors = {
-            'mean': 'steelblue', 'std': 'darkorange',
-            'gust_factor': 'forestgreen', 'mann_kendall_tau': 'mediumpurple',
-            'acf_osc': 'crimson',
+            'mean':      'steelblue',
+            'max':       'firebrick',
+            'min':       'royalblue',
+            'std':       'darkorange',
+            'grad_mean': 'forestgreen',
+            'grad_max':  'mediumpurple',
         }
         # raw signal — normalised if percentiles available, otherwise raw
         if pct is not None and col in pct:
