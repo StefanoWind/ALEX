@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 import xarray as xr
 import yaml
@@ -6,8 +7,55 @@ import matplotlib
 import matplotlib.dates as mdates
 from matplotlib import pyplot as plt
 from pathlib import Path
+from scipy import stats
 
 from utils import make_segment_target
+
+def _acf_osc(v):
+    v = v - v.mean()
+    denom = np.dot(v, v)
+    if denom == 0:
+        return np.nan
+    acf = np.correlate(v, v, mode='full')[len(v) - 1:] / denom
+    return -np.min(acf[1:max(2, len(v) // 2 + 1)])
+
+
+def _rolling_mk_tau(x: pd.Series, w: int) -> pd.Series:
+    # [Mann, 1945; Kendall, 1975] — vectorized via stride tricks
+    arr = np.asarray(x, dtype=float)
+    n = len(arr)
+    if n < w:
+        return pd.Series(np.nan, index=x.index)
+    from numpy.lib.stride_tricks import sliding_window_view
+    wins = sliding_window_view(arr, w)          # (n-w+1, w)
+    ii, jj = np.triu_indices(w, k=1)
+    diffs = wins[:, jj] - wins[:, ii]           # (n-w+1, n_pairs)
+    S = np.abs(np.sum(np.sign(diffs), axis=1))
+    tau = S / (w * (w - 1) / 2)
+    result = np.full(n, np.nan)
+    half = w // 2
+    result[half:half + len(tau)] = tau
+    return pd.Series(result, index=x.index)
+
+
+def compute_dynamic_features(x: pd.Series, window: int) -> pd.DataFrame:
+    w = window
+    mean   = x.rolling(w, center=True).mean()
+    std    = x.rolling(w, center=True).std()
+    gf     = (x.rolling(w, center=True).max() - mean) / std
+    mkt    = _rolling_mk_tau(x, w)
+    acf    = x.rolling(w, center=True).apply(_acf_osc, raw=True)
+    return pd.DataFrame({'mean': mean, 'std': std, 'gust_factor': gf,
+                         'mann_kendall_tau': mkt, 'acf_osc': acf},
+                        index=x.index)
+
+
+def normalize(s: pd.Series, p5: float, p95: float) -> pd.Series:
+    denom = p95 - p5
+    if denom == 0:
+        return pd.Series(np.nan, index=s.index)
+    return (s - p5) / denom
+
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
@@ -55,7 +103,8 @@ def _shade_boolean(ax, series: pd.Series, color: str, alpha: float, label: str):
         first = False
 
 
-def plot_episode(df: pd.DataFrame, t_start, t_end, auc, tot, config: dict, out_dir: Path):
+def plot_episode(df: pd.DataFrame, t_start, t_end, auc, tot, config: dict,
+                 out_dir: Path, dyn: dict = None, pct: dict = None):
     buffer = pd.Timedelta(hours=config['buffer_hours'])
     t0 = t_start - buffer
     t1 = t_end + buffer
@@ -69,8 +118,29 @@ def plot_episode(df: pd.DataFrame, t_start, t_end, auc, tot, config: dict, out_d
 
     for i, col in enumerate(predictors):
         ax = axes[i]
-        ax.plot(win.index, win[col], color='k', linewidth=0.8)
-        ax.set_ylabel(col)
+        dyn_colors = {
+            'mean': 'steelblue', 'std': 'darkorange',
+            'gust_factor': 'forestgreen', 'mann_kendall_tau': 'mediumpurple',
+            'acf_osc': 'crimson',
+        }
+        # raw signal — normalised if percentiles available, otherwise raw
+        if pct is not None and col in pct:
+            p5r, p95r = pct[col]['raw']
+            raw_line = normalize(win[col], p5r, p95r)
+        else:
+            raw_line = win[col]
+        ax.plot(win.index, raw_line, color='k', linewidth=0.8, label=col)
+        # dynamic features — normalised
+        if dyn is not None and col in dyn:
+            win_dyn = dyn[col].loc[win.index[0]:win.index[-1]]
+            for feat, color in dyn_colors.items():
+                if feat in win_dyn.columns:
+                    p5f, p95f = pct[col][feat]
+                    ax.plot(win.index,
+                            normalize(win_dyn[feat], p5f, p95f),
+                            color=color, linewidth=0.7, alpha=0.8, label=feat)
+        ax.set_ylabel(f"{col}\n(normalised)")
+        ax.set_ylim(-0.1, 1.1)
         ax.grid(True, alpha=0.3)
 
         if win['weather_event'].any():
@@ -80,7 +150,7 @@ def plot_episode(df: pd.DataFrame, t_start, t_end, auc, tot, config: dict, out_d
                    label='outage period', linewidth=0)
 
         if i == 0:
-            ax.legend(loc='upper right', fontsize=9, framealpha=0.7)
+            ax.legend(loc='upper right', fontsize=7, framealpha=0.7)
 
     ax_target = axes[-1]
     ax_target.plot(win.index, win[target], color='firebrick', linewidth=0.8)
@@ -111,6 +181,27 @@ if __name__ == "__main__":
     df = load_data(cfg)
     df_qc = qc_data(df, cfg)
 
+    w = cfg.get('dynamic_window', 12)
+
+    # compute dynamic features and dataset-wide percentiles for normalisation
+    dyn = {}      # dyn[col] = DataFrame of 5 features for the full dataset
+    pct = {}      # pct[col][feat] = (p5, p95) over full dataset
+    for col in cfg['predictor_cols']:
+        feat_df = compute_dynamic_features(df_qc[col], w)
+        dyn[col] = feat_df
+        pct[col] = {}
+        # also store raw percentiles
+        pct[col]['raw'] = (
+            float(np.nanpercentile(df_qc[col], 0)),
+            float(np.nanpercentile(df_qc[col], 100)),
+        )
+        for feat in feat_df.columns:
+            pct[col][feat] = (
+                float(np.nanpercentile(feat_df[feat], 0)),
+                float(np.nanpercentile(feat_df[feat], 100)),
+            )
+        print(f"{col} completed.")
+
     episodes = find_episodes(df_qc[cfg['target_col']], cfg['outage_threshold'])
     print(f"Found {len(episodes)} outage episode(s)")
 
@@ -135,4 +226,5 @@ if __name__ == "__main__":
 
     for i in selected:
         row = metrics.iloc[i]
-        plot_episode(df_qc, row['t_start'], row['t_end'], row['AUC'], row['TOT'], cfg, out_dir)
+        plot_episode(df_qc, row['t_start'], row['t_end'], row['AUC'], row['TOT'],
+                     cfg, out_dir, dyn=dyn, pct=pct)

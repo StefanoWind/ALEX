@@ -5,10 +5,10 @@ import xarray as xr
 import yaml
 from datetime import datetime
 from pathlib import Path
-from utils import run_pipeline, remove_seasonal_cycle, make_segment_target, plot_segment_zoom, cross_lag_correlation, select_best_lag
+from utils import run_pipeline, remove_seasonal_cycle, make_segment_target, plot_segment_zoom, cross_lag_correlation, select_best_lag, plot_lag_correlation
 
 
-def load_config(path: str = "configs/nws_events.yaml") -> dict:
+def load_config(path: str = "configs/outages_feature_importance.yaml") -> dict:
     with open(path) as f:
         return yaml.safe_load(f)
 
@@ -71,6 +71,8 @@ if __name__ == "__main__":
     corr_df = cross_lag_correlation(df_qc, predictors, target_series, cfg['lag_list'])
     best_lag = select_best_lag(corr_df, cfg)
     print(f"Best lag (all data): {best_lag}")
+    plot_lag_correlation(corr_df, save_path=base / "lag_correlation.png",
+                         target_name=cfg['target_col'])
 
     for flag, label in [(True, 'NWS_true'), (False, 'NWS_false'), (None, 'all')]:
         if flag is None:

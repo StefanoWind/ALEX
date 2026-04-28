@@ -404,6 +404,24 @@ def _acf_osc(v):
     return -np.min(acf[1:max(2, len(v) // 2 + 1)])
 
 
+def _rolling_mk_tau(x: pd.Series, w: int) -> pd.Series:
+    # [Mann, 1945; Kendall, 1975] — vectorized via stride tricks
+    arr = np.asarray(x, dtype=float)
+    n = len(arr)
+    if n < w:
+        return pd.Series(np.nan, index=x.index)
+    from numpy.lib.stride_tricks import sliding_window_view
+    wins = sliding_window_view(arr, w)          # (n-w+1, w)
+    ii, jj = np.triu_indices(w, k=1)
+    diffs = wins[:, jj] - wins[:, ii]           # (n-w+1, n_pairs)
+    S = np.abs(np.sum(np.sign(diffs), axis=1))
+    tau = S / (w * (w - 1) / 2)
+    result = np.full(n, np.nan)
+    half = w // 2
+    result[half:half + len(tau)] = tau
+    return pd.Series(result, index=x.index)
+
+
 # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
 def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
                             lag: dict, window: int) -> tuple[pd.DataFrame, pd.Series]:
@@ -412,11 +430,11 @@ def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
     for col in predictors:
         L = lag[col]
         x = df[col]
-        frames[f"{col}_mean_W{w}"] = x.rolling(w).mean().shift(L)                                                                    # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_std_W{w}"] = x.rolling(w).std().shift(L)                                                                      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_gust_factor_W{w}"] = ((x.rolling(w).max() - x.rolling(w).mean()) / x.rolling(w).std()).shift(L)               # [Durst, 1960]
-        frames[f"{col}_mann_kendall_tau_W{w}"] = x.rolling(w).apply(lambda v: abs(stats.kendalltau(np.arange(len(v)), v)[0]), raw=True).shift(L)  # [Mann, 1945; Kendall, 1975]
-        frames[f"{col}_acf_osc_W{w}"] = x.rolling(w).apply(_acf_osc, raw=True).shift(L)                                             # [Box, Jenkins & Reinsel, 2008]
+        frames[f"{col}_mean_W{w} (lag={L})"] = x.rolling(w, center=True).mean().shift(L)                                                                    # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_std_W{w} (lag={L})"] = x.rolling(w, center=True).std().shift(L)                                                                      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_gust_factor_W{w} (lag={L})"] = ((x.rolling(w, center=True).max() - x.rolling(w, center=True).mean()) / x.rolling(w, center=True).std()).shift(L)               # [Durst, 1960]
+        frames[f"{col}_mann_kendall_tau_W{w} (lag={L})"] = _rolling_mk_tau(x, w).shift(L)  # [Mann, 1945; Kendall, 1975]
+        frames[f"{col}_acf_osc_W{w} (lag={L})"] = x.rolling(w, center=True).apply(_acf_osc, raw=True).shift(L)                                             # [Box, Jenkins & Reinsel, 2008]
 
     X = pd.DataFrame(frames, index=df.index)
     y = df[target_col]
@@ -651,6 +669,48 @@ def plot_importance_comparison(results: pd.DataFrame, rf_result: dict,
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved importance comparison plot → {save_path}")
+
+
+def plot_top_feature_histograms(X: pd.DataFrame, y: pd.Series, results: pd.DataFrame,
+                                config: dict, n_top: int = 5, save_path: Path = None):
+    top_features = results.index[:n_top].tolist()
+    top_features = [f for f in top_features if f in X.columns]
+
+    y_label = config.get('target_col', 'target')
+    bins_y = np.linspace(np.nanpercentile(y, config['perc_bins'][0]),
+                         np.nanpercentile(y, config['perc_bins'][1]),
+                         config['n_bins'])
+
+    fig = plt.figure(figsize=(4 * len(top_features), 4))
+    gs = GridSpec(1, len(top_features) + 1, figure=fig,
+                  width_ratios=len(top_features) * [1] + [0.05])
+
+    for i, feat in enumerate(top_features):
+        x_vals = X[feat].values
+        y_vals = y.values
+        bins_x = np.linspace(np.nanpercentile(x_vals, config['perc_bins'][0]),
+                             np.nanpercentile(x_vals, config['perc_bins'][1]),
+                             config['n_bins'])
+        N = stats.binned_statistic_2d(x_vals, y_vals, x_vals,
+                                      statistic='count',
+                                      bins=(bins_x, bins_y))[0]
+        ax = fig.add_subplot(gs[i])
+        pc = ax.pcolor(mid(bins_x), mid(bins_y), np.log10(N.T / N.max()),
+                       cmap='inferno', vmin=-3, vmax=0)
+        ax.set_facecolor('k')
+        ax.grid()
+        ax.set_xlabel(feat)
+        if i == 0:
+            ax.set_ylabel(y_label)
+
+    cax = fig.add_subplot(gs[-1])
+    cbar = fig.colorbar(pc, cax=cax, label='Normalized count')
+    cbar.set_ticks(np.arange(-3, 1))
+    cbar.set_ticklabels([r'$10^{' + str(i) + '}$' for i in np.arange(-3, 1)])
+    plt.tight_layout()
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close(fig)
 
 
 def lag_sweep_importance(df: pd.DataFrame, predictors: list,
@@ -1016,6 +1076,10 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
 
     plot_importance_comparison(results, rf_result,
                                save_path=OUT / "importance_comparison.png")
+
+    plot_top_feature_histograms(X, y, results, config,
+                                save_path=OUT / "top_feature_histograms.png")
+    print(f"    Saved top-feature histograms → {OUT / 'top_feature_histograms.png'}")
 
     print("\nPipeline complete.")
     return results, corr_df, sweep_df
