@@ -12,16 +12,19 @@ from utils import make_segment_target
 
 def compute_dynamic_features(x: pd.Series, window: int) -> pd.DataFrame:
     w = window
-    agrad = x.diff().abs()
+    grad = x.diff()
     mean      = x.rolling(w, center=True).mean()
     maximum   = x.rolling(w, center=True).max()
     minimum   = x.rolling(w, center=True).min()
     std       = x.rolling(w, center=True).std()
-    grad_mean = agrad.rolling(w, center=True).mean()
-    grad_max  = agrad.rolling(w, center=True).max()
+    grad_mean = grad.rolling(w, center=True).mean()
+    grad_max  = grad.rolling(w, center=True).max()
+    grad_min  = grad.rolling(w, center=True).min()
+    grad_std  = grad.rolling(w, center=True).std()
     return pd.DataFrame(
         {'mean': mean, 'max': maximum, 'min': minimum, 'std': std,
-         'grad_mean': grad_mean, 'grad_max': grad_max},
+         'grad_mean': grad_mean, 'grad_max': grad_max,
+         'grad_min': grad_min, 'grad_std': grad_std},
         index=x.index,
     )
 
@@ -101,6 +104,8 @@ def plot_episode(df: pd.DataFrame, t_start, t_end, auc, tot, config: dict,
             'std':       'darkorange',
             'grad_mean': 'forestgreen',
             'grad_max':  'mediumpurple',
+            'grad_min':  'saddlebrown',
+            'grad_std':  'teal',
         }
         # raw signal — normalised if percentiles available, otherwise raw
         if pct is not None and col in pct:

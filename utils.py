@@ -364,7 +364,7 @@ def plot_lag_correlation(corr_df: dict, save_path: Path = None,
     subset = corr_df[0]
     max_corr = subset.abs().max().max()
 
-    fig, ax = plt.subplots(figsize=(max(18, len(subset.columns) * 0.8), 5))
+    fig, ax = plt.subplots(figsize=(max(18, len(subset.columns) * 0.8), 10))
     im = ax.imshow(subset.T.values, aspect="auto", cmap="RdBu_r",
                    vmin=-max_corr, vmax=max_corr)
     for j in range(len(subset.columns)):
@@ -397,24 +397,21 @@ def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
 
 # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
 def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
-                            lag: dict, window: int) -> tuple[pd.DataFrame, pd.Series]:
+                            window: int) -> tuple[pd.DataFrame, pd.Series]:
     frames = {}
     w = window
     for col in predictors:
-        L = lag[col]
         x = df[col]
-        agrad = x.diff().abs()
-        frames[f"{col}_mean_W{w} (lag={L})"]      = x.rolling(w, center=True).mean().shift(L)      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_max_W{w} (lag={L})"]       = x.rolling(w, center=True).max().shift(L)
-        frames[f"{col}_min_W{w} (lag={L})"]       = x.rolling(w, center=True).min().shift(L)
-        frames[f"{col}_std_W{w} (lag={L})"]       = x.rolling(w, center=True).std().shift(L)       # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_grad_mean_W{w} (lag={L})"] = agrad.rolling(w, center=True).mean().shift(L)
-        frames[f"{col}_grad_max_W{w} (lag={L})"]  = agrad.rolling(w, center=True).max().shift(L)
-
-    X = pd.DataFrame(frames, index=df.index)
-    y = df[target_col]
-    valid = X.notna().all(axis=1) & y.notna()
-    return X[valid], y[valid]
+        grad  = x.diff()
+        frames[f"{col}_mean_W{w}"]       = x.rolling(w, center=True).mean()      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_max_W{w}"]        = x.rolling(w, center=True).max()
+        frames[f"{col}_min_W{w}"]        = x.rolling(w, center=True).min()
+        frames[f"{col}_std_W{w}"]        = x.rolling(w, center=True).std()       # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_grad_mean_W{w}"]  = grad.rolling(w, center=True).mean()
+        frames[f"{col}_grad_max_W{w}"]   = grad.rolling(w, center=True).max()
+        frames[f"{col}_grad_min_W{w}"]  = grad.rolling(w, center=True).min()
+        frames[f"{col}_grad_std_W{w}"]  = grad.rolling(w, center=True).std()
+    return pd.DataFrame(frames, index=df.index), df[target_col]
 
 
 def _mode_label(config: dict) -> str:
@@ -573,7 +570,7 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
 
     if save_path:
         shap.summary_plot(shap_values, X_samp, show=False,
-                          max_display=20, plot_size=(10, 7))
+                          max_display=20, plot_size=(10, 7),plot_type="violin")
         plt.tight_layout()
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
@@ -740,6 +737,16 @@ def _vif_series(X_arr: np.ndarray) -> np.ndarray:
     return vif
 
 
+def _feature_priority(name: str) -> int:
+    if '_mean_' in name:
+        return 1
+    if '_max_' in name:
+        return 2
+    if '_min_' in name:
+        return 3
+    return 4
+
+
 def check_collinearity(X: pd.DataFrame,
                        r_threshold: float = 0.85,
                        vif_threshold: float | None = 10.0,
@@ -811,7 +818,11 @@ def check_collinearity(X: pd.DataFrame,
         for a, b, r in pairs_sorted:
             if a in already_dropped or b in already_dropped:
                 continue
-            to_drop = a if mean_abs_r[a] >= mean_abs_r[b] else b
+            pa, pb = _feature_priority(a), _feature_priority(b)
+            if pa != pb:
+                to_drop = b if pa < pb else a
+            else:
+                to_drop = a if mean_abs_r[a] >= mean_abs_r[b] else b
             already_dropped.add(to_drop)
             dropped.append(to_drop)
             print(f"  Dropping '{to_drop}'  (mean |r| = {mean_abs_r[to_drop]:.3f}, "
@@ -908,8 +919,7 @@ def mid(x):
     return (x[1:] + x[:-1]) / 2
 
 
-def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
-                 best_lag: dict | None = None):
+def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
     """Orchestrate the full variable importance pipeline."""
     if out_dir is None:
         OUT = Path(config['output_dir']) / datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
@@ -978,21 +988,6 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     else:
         print("\n[2] Seasonal detrending skipped.")
 
-    print("\n[2] Cross-lag correlation analysis ...")
-    if best_lag is None:
-        corr_df = cross_lag_correlation(df, predictors, df["__target__"],
-                                        config["lag_list"])
-        plot_lag_correlation(corr_df, save_path=OUT / "lag_correlation.png",
-                             target_name=config['target_col'])
-        best_lag = select_best_lag(corr_df, config)
-        print(f"    Best lag: \n{best_lag} time steps")
-    else:
-        corr_df = None
-        print(f"    Using pre-supplied lag: {best_lag}")
-    plot_histograms(df, config, lag=best_lag,
-                    window={col: 0 for col in best_lag},
-                    save_path=OUT / "histograms_lag.png")
-
     if config['prelim_rf']:
         print("\n[3] Lag sweep (quick RF at each lag) ...")
         sweep_df = lag_sweep_importance(df, predictors, "__target__",
@@ -1001,18 +996,16 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     else:
         sweep_df = None
 
-    print(f"\n[4] Building feature matrix at lag\n{best_lag} ...")
     dynamic_window = config.get('dynamic_window', 0)
-    if dynamic_window:
-        X, y = build_dynamic_features(df, predictors, "__target__",
-                                       lag=best_lag, window=dynamic_window)
-    else:
-        X, y = build_feature_matrix(df, predictors, "__target__", lag=best_lag)
-    print(f"    Feature matrix: {X.shape[0]} samples x {X.shape[1]} features")
+   
+    print(f"\n[4] Building dynamic features (window={dynamic_window}) ...")
+    X0, y0 = build_dynamic_features(df, predictors, "__target__", window=dynamic_window)
+    print(f"    {X0.shape[1]} features built at lag=0")
 
+    valid0 = X0.notna().all(axis=1) & y0.notna()
     print("\n[5] Checking feature collinearity ...")
-    X, dropped_features, collinearity_report = check_collinearity(
-        X,
+    X0_clean, dropped_features, collinearity_report = check_collinearity(
+        X0[valid0],
         r_threshold=config["collinearity_r_threshold"],
         vif_threshold=config["collinearity_vif_threshold"],
         action=config["collinearity_action"],
@@ -1021,12 +1014,29 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     collinearity_report.to_csv(OUT / "collinearity_report.csv")
     print(f"    Saved collinearity report → {OUT / 'collinearity_report.csv'}")
     if dropped_features:
-        print(f"    Proceeding with {X.shape[1]} features "
+        print(f"    Proceeding with {X0_clean.shape[1]} features "
               f"(dropped {len(dropped_features)}: {dropped_features})")
     else:
-        print(f"    No features dropped; proceeding with {X.shape[1]} features.")
+        print(f"    No features dropped; proceeding with {X0_clean.shape[1]} features.")
 
-    print("\n[5] Training RF + permutation importance (CV) ...")
+    surviving = list(X0_clean.columns)
+    print("\n[5b] Cross-lag correlation of surviving dynamic features ...")
+    corr_dyn = cross_lag_correlation(X0[surviving], surviving, y0, config["lag_list"])
+    plot_lag_correlation(corr_dyn, save_path=OUT / "lag_correlation_dynamic.png",
+                         target_name=config['target_col'])
+    best_lag_dyn = select_best_lag(corr_dyn, config)
+    print(f"    Best lag per feature:\n{best_lag_dyn}")
+
+    X = pd.DataFrame(
+        {f"{col} (lag={best_lag_dyn[col]})": X0[col].shift(best_lag_dyn[col])
+         for col in surviving},
+        index=df.index,
+    )
+    valid = X.notna().all(axis=1) & y0.notna()
+    X, y = X[valid], y0[valid]
+   
+    print(f"    Feature matrix: {X.shape[0]} samples x {X.shape[1]} features")
+    print("\n[6] Training RF + permutation importance (CV) ...")
     rf_result = train_rf_importance(X, y, config)
 
     if config["mode"] != "binary" and rf_result["oof_pred"] is not None:
@@ -1057,4 +1067,4 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     print(f"    Saved top-feature histograms → {OUT / 'top_feature_histograms.png'}")
 
     print("\nPipeline complete.")
-    return results, corr_df, sweep_df
+    return results

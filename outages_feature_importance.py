@@ -68,16 +68,11 @@ if __name__ == "__main__":
         target_series = (df_qc[cfg['target_col']] > cfg['outage_threshold']).astype(int)
     else:
         target_series = df_qc[cfg['target_col']]
-    corr_df = cross_lag_correlation(df_qc, predictors, target_series, cfg['lag_list'])
-    best_lag = select_best_lag(corr_df, cfg)
-    print(f"Best lag (all data): {best_lag}")
-    plot_lag_correlation(corr_df, save_path=base / "lag_correlation.png",
-                         target_name=cfg['target_col'])
 
-    for flag, label in [(True, 'NWS_true'), (False, 'NWS_false'), (None, 'all')]:
+    for flag, label in [(True, 'NWS_true'), (None, 'all')]:
         if flag is None:
             subset = df_qc.drop(columns=['weather_event_buffer'])
         else:
             subset = (df_qc[df_qc['weather_event_buffer'] == flag]
                       .drop(columns=['weather_event_buffer']))
-        run_pipeline(config=cfg_run, df=subset, out_dir=base / label, best_lag=best_lag)
+        results=run_pipeline(config=cfg_run, df=subset, out_dir=base / label)
