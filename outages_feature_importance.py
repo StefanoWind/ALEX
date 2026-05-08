@@ -5,7 +5,7 @@ import xarray as xr
 import yaml
 from datetime import datetime
 from pathlib import Path
-from utils import run_pipeline, remove_seasonal_cycle, make_segment_target, plot_segment_zoom, cross_lag_correlation, select_best_lag, plot_lag_correlation
+from utils import run_pipeline, remove_seasonal_cycle, make_segment_target, plot_segment_zoom
 
 
 def load_config(path: str = "configs/outages_feature_importance.yaml") -> dict:

@@ -267,26 +267,23 @@ def plot_seasonal_detrending(df_raw: pd.DataFrame,
 
 def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
                     window: dict = None, save_path: Path = None):
-    """Plot 2-D histogram of feature vs. target."""
     mode = config.get('mode')
     if mode in ('AUC', 'TOT') and '__target__' in df.columns:
         y_series = df['__target__']
         y_label = mode
-        bins_y = np.linspace(0,
-                             np.nanpercentile(y_series, config['perc_bins'][1] + 0.1),
-                             config['n_bins'])
     else:
         y_series = df[config['target_col']]
         y_label = config['target_col']
-        bins_y = np.linspace(config['outage_threshold'],
-                             np.nanpercentile(y_series, config['perc_bins'][1] + 0.1),
-                             config['n_bins'])
 
-    fig = plt.figure(figsize=(18, 4 * config['nrow']))
-    gs = GridSpec(config['nrow'], config['ncol'] + 1, figure=fig,
-                  width_ratios=config['ncol'] * [1] + [0.05])
-    ctr = 0
-    for col in config['predictor_cols']:
+    y_lim = (np.nanpercentile(y_series, config['perc_bins'][0]),
+             np.nanpercentile(y_series, config['perc_bins'][1]))
+
+    fig, axes = plt.subplots(config['nrow'], config['ncol'],
+                             figsize=(5 * config['ncol'], 4 * config['nrow']),
+                             sharey=True, constrained_layout=True)
+    axes = np.array(axes).reshape(-1)
+
+    for ctr, col in enumerate(config['predictor_cols']):
         if window is not None and lag is not None:
             if window[col] > 0:
                 shifted = df[col].rolling(window[col], center=True).mean().shift(lag[col])
@@ -295,42 +292,27 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
         else:
             shifted = df[col]
 
-        bins_x = np.linspace(np.nanpercentile(shifted, config['perc_bins'][0]),
-                              np.nanpercentile(shifted, config['perc_bins'][1] + 0.1),
-                              config['n_bins'])
-
-        N = stats.binned_statistic_2d(shifted.values,
-                                      y_series.values,
-                                      shifted.values,
-                                      statistic='count',
-                                      bins=(bins_x, bins_y))[0]
-
-        ax = fig.add_subplot(gs[ctr + int(ctr / config['ncol'])])
-        pc = plt.pcolor(mid(bins_x), mid(bins_y), np.log10(N.T / N.max()),
-                        cmap='inferno', vmin=-3, vmax=0)
-
+        ax = axes[ctr]
+        ax.scatter(shifted, y_series, s=2, alpha=0.3, color='gray')
+        ax.set_ylim(y_lim)
         if window is not None and lag is not None:
             if window[col] > 0:
-                plt.xlabel(f"{col}_avg (roll={window[col]}, lag={lag[col]})")
+                ax.set_xlabel(f"{col}_avg (roll={window[col]}, lag={lag[col]})")
             else:
-                plt.xlabel(f"{col} (lag={lag[col]})")
+                ax.set_xlabel(f"{col} (lag={lag[col]})")
         else:
-            plt.xlabel(f"{col}")
-        plt.ylabel(y_label)
-        ax.set_facecolor('k')
-        plt.grid()
-        ctr += 1
+            ax.set_xlabel(f"{col}")
+        if ctr % config['ncol'] == 0:
+            ax.set_ylabel(y_label)
+        ax.grid()
 
-    cax = fig.add_subplot(gs[:, -1])
-    cbar = fig.colorbar(pc, cax=cax, label='Normalized count')
-    cbar.set_ticks(np.arange(-3, 1))
-    cbar.set_ticklabels([r'$10^{' + str(i) + '}$' for i in np.arange(-3, 1)])
-    plt.tight_layout()
+    for ax in axes[len(config['predictor_cols']):]:
+        ax.set_visible(False)
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
-        print(f"  Saved histograms plot → {save_path}")
+        print(f"  Saved scatter plot → {save_path}")
 
 
 def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
@@ -404,13 +386,13 @@ def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
         x = df[col]
         grad  = x.diff()
         frames[f"{col}_mean_W{w}"]       = x.rolling(w, center=True).mean()      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_max_W{w}"]        = x.rolling(w, center=True).max()
-        frames[f"{col}_min_W{w}"]        = x.rolling(w, center=True).min()
-        frames[f"{col}_std_W{w}"]        = x.rolling(w, center=True).std()       # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        frames[f"{col}_grad_mean_W{w}"]  = grad.rolling(w, center=True).mean()
-        frames[f"{col}_grad_max_W{w}"]   = grad.rolling(w, center=True).max()
-        frames[f"{col}_grad_min_W{w}"]  = grad.rolling(w, center=True).min()
-        frames[f"{col}_grad_std_W{w}"]  = grad.rolling(w, center=True).std()
+        # frames[f"{col}_max_W{w}"]        = x.rolling(w, center=True).max()
+        # frames[f"{col}_min_W{w}"]        = x.rolling(w, center=True).min()
+        # frames[f"{col}_std_W{w}"]        = x.rolling(w, center=True).std()       # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        # frames[f"{col}_grad_mean_W{w}"]  = grad.rolling(w, center=True).mean()
+        # frames[f"{col}_grad_max_W{w}"]   = grad.rolling(w, center=True).max()
+        # frames[f"{col}_grad_min_W{w}"]  = grad.rolling(w, center=True).min()
+        # frames[f"{col}_grad_std_W{w}"]  = grad.rolling(w, center=True).std()
     return pd.DataFrame(frames, index=df.index), df[target_col]
 
 
@@ -532,8 +514,7 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
 
 
 def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
-                            config: dict, n_sample: int = 2000,
-                            save_path: Path = None) -> pd.Series:
+                            config: dict,out_dir: Path = None) -> pd.Series:
     """
     Compute SHAP feature importances using TreeExplainer. [Lundberg & Lee, 2017]
     """
@@ -556,7 +537,7 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
     model.fit(X, y, sample_weight=sw)
 
     rng = np.random.default_rng(config["random_state"])
-    idx = rng.choice(len(X), size=min(n_sample, len(X)), replace=False)
+    idx = rng.choice(len(X), size=min(config['n_samples_shap'], len(X)), replace=False)
     X_samp = X.iloc[idx]
 
     explainer = shap.TreeExplainer(model)
@@ -568,13 +549,70 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
     mean_shap = pd.Series(np.abs(shap_values).mean(axis=0),
                           index=X.columns, name="mean_abs_SHAP")
 
-    if save_path:
+    if out_dir is not None:
+        expl = shap.Explanation(
+            values=shap_values,
+            data=X_samp.values,
+            feature_names=list(X_samp.columns),
+        )
+
+        # beeswarm summary
         shap.summary_plot(shap_values, X_samp, show=False,
-                          max_display=20, plot_size=(10, 7),plot_type="violin")
+                          max_display=20, plot_size=(10, 7), plot_type="violin")
         plt.tight_layout()
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.savefig(out_dir / "shap_summary.png", dpi=300, bbox_inches="tight")
         plt.close()
-        print(f"  Saved SHAP summary plot → {save_path}")
+        print(f"  Saved SHAP summary plot → {out_dir / 'shap_summary.png'}")
+
+        # bar plot with hierarchical clustering [Lundberg & Lee, 2017]
+        cutoff = config.get("shap_clustering_cutoff", 1.0)
+        clustering = shap.utils.hclust(X_samp)
+        shap.plots.bar(expl, clustering=clustering,
+                       clustering_cutoff=cutoff, show=False)
+        fig = plt.gcf()
+        fig.savefig(out_dir / "shap_bar.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved SHAP bar plot → {out_dir / 'shap_bar.png'}")
+
+        # SHAP dependence plots with histogram [Lundberg & Lee, 2017]
+        n_feats = len(X_samp.columns)
+        n_cols = 3
+        n_feat_rows = int(np.ceil(n_feats / n_cols))
+        height_ratios = [4, 1] * n_feat_rows
+        fig, axes = plt.subplots(n_feat_rows * 2, n_cols,
+                                 figsize=(5 * n_cols, 5 * n_feat_rows),
+                                 gridspec_kw={"height_ratios": height_ratios},
+                                 constrained_layout=True)
+        axes = np.array(axes).reshape(n_feat_rows * 2, n_cols)
+
+        sv_min, sv_max = shap_values.min(), shap_values.max()
+
+        for feat_idx, feat in enumerate(X_samp.columns):
+            feat_row = feat_idx // n_cols
+            feat_col = feat_idx % n_cols
+            feat_vals = X_samp.iloc[:, feat_idx]
+
+            ax_shap = axes[feat_row * 2,     feat_col]
+            ax_hist = axes[feat_row * 2 + 1, feat_col]
+
+            ax_shap.scatter(feat_vals, shap_values[:, feat_idx], s=2, alpha=0.3, color='gray')
+            ax_shap.set_ylabel("SHAP value")
+            ax_shap.set_ylim(sv_min, sv_max)
+            ax_shap.axhline(0, color='black', lw=0.8, ls='--')
+
+            ax_hist.hist(feat_vals, bins=30, color='steelblue', alpha=0.7)
+            ax_hist.set_xlabel(feat)
+            ax_hist.set_yticks([])
+
+        for k in range(n_feats, n_feat_rows * n_cols):
+            r = (k // n_cols) * 2
+            c = k % n_cols
+            for row_offset in range(2):
+                axes[r + row_offset, c].set_visible(False)
+
+        fig.savefig(out_dir / "shap_dependence.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved SHAP dependence plot → {out_dir / 'shap_dependence.png'}")
 
     return mean_shap
 
@@ -649,36 +687,22 @@ def plot_top_feature_histograms(X: pd.DataFrame, y: pd.Series, results: pd.DataF
     top_features = [f for f in top_features if f in X.columns]
 
     y_label = config.get('target_col', 'target')
-    bins_y = np.linspace(np.nanpercentile(y, config['perc_bins'][0]),
-                         np.nanpercentile(y, config['perc_bins'][1]),
-                         config['n_bins'])
+    y_lim = (np.nanpercentile(y, config['perc_bins'][0]),
+             np.nanpercentile(y, config['perc_bins'][1]))
 
-    fig = plt.figure(figsize=(4 * len(top_features), 4))
-    gs = GridSpec(1, len(top_features) + 1, figure=fig,
-                  width_ratios=len(top_features) * [1] + [0.05])
+    fig, axes = plt.subplots(1, len(top_features),
+                             figsize=(4 * len(top_features), 4),
+                             sharey=True, constrained_layout=True)
+    axes = np.array(axes).reshape(-1)
 
     for i, feat in enumerate(top_features):
-        x_vals = X[feat].values
-        y_vals = y.values
-        bins_x = np.linspace(np.nanpercentile(x_vals, config['perc_bins'][0]),
-                             np.nanpercentile(x_vals, config['perc_bins'][1]),
-                             config['n_bins'])
-        N = stats.binned_statistic_2d(x_vals, y_vals, x_vals,
-                                      statistic='count',
-                                      bins=(bins_x, bins_y))[0]
-        ax = fig.add_subplot(gs[i])
-        pc = ax.pcolor(mid(bins_x), mid(bins_y), np.log10(N.T / N.max()),
-                       cmap='inferno', vmin=-3, vmax=0)
-        ax.set_facecolor('k')
-        ax.grid()
-        ax.set_xlabel(feat)
+        axes[i].scatter(X[feat], y, s=2, alpha=0.3, color='gray')
+        axes[i].set_ylim(y_lim)
+        axes[i].set_xlabel(feat)
+        axes[i].grid()
         if i == 0:
-            ax.set_ylabel(y_label)
+            axes[i].set_ylabel(y_label)
 
-    cax = fig.add_subplot(gs[-1])
-    cbar = fig.colorbar(pc, cax=cax, label='Normalized count')
-    cbar.set_ticks(np.arange(-3, 1))
-    cbar.set_ticklabels([r'$10^{' + str(i) + '}$' for i in np.arange(-3, 1)])
     plt.tight_layout()
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -1047,8 +1071,7 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
 
     if config['shap']:
         print("\n[6] Computing SHAP importance ...")
-        shap_imp = compute_shap_importance(X, y, config,
-                                           save_path=OUT / "shap_summary.png")
+        shap_imp = compute_shap_importance(X, y, config, out_dir=OUT)
     else:
         shap_imp = []
 
