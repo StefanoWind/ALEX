@@ -34,6 +34,7 @@ if __name__ == "__main__":
     cfg = load_config()
     df = load_data(cfg)
     df_qc = qc_data(df, cfg)
+    df_raw = df_qc.copy()
 
     ts = datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
     base = Path(cfg['output_dir']) / ts
@@ -72,7 +73,11 @@ if __name__ == "__main__":
     for flag, label in [(True, 'NWS_true'), (None, 'all')]:
         if flag is None:
             subset = df_qc.drop(columns=['weather_event_buffer'])
+            raw_subset = df_raw.drop(columns=['weather_event_buffer'])
         else:
             subset = (df_qc[df_qc['weather_event_buffer'] == flag]
                       .drop(columns=['weather_event_buffer']))
-        results=run_pipeline(config=cfg_run, df=subset, out_dir=base / label)
+            raw_subset = (df_raw[df_raw['weather_event_buffer'] == flag]
+                          .drop(columns=['weather_event_buffer']))
+        results = run_pipeline(config=cfg_run, df=subset, out_dir=base / label,
+                               df_raw=raw_subset)

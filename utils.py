@@ -7,6 +7,7 @@ from pathlib import Path
 from scipy import stats
 from matplotlib.gridspec import GridSpec
 import matplotlib
+import matplotlib.dates as mdates
 import warnings
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.inspection import permutation_importance
@@ -58,6 +59,28 @@ def make_segment_target(series: pd.Series, threshold: float, mode: str) -> pd.Se
         result[idx] = value
 
     return result
+
+
+def _find_episodes(series: pd.Series, threshold: float) -> list[tuple]:
+    flag = series > threshold
+    block_id = (flag != flag.shift()).cumsum()[flag]
+    return [(g.index[0], g.index[-1]) for _, g in flag.groupby(block_id)]
+
+
+def _select_top_episodes(series: pd.Series, threshold: float,
+                          mode: str, n: int) -> pd.DataFrame:
+    episodes = _find_episodes(series, threshold)
+    if not episodes:
+        return pd.DataFrame()
+    seg = make_segment_target(series, threshold, mode)
+    rows = [{'t_start': t0, 't_end': t1,
+             't_center': t0 + (t1 - t0) / 2,
+             'metric': float(seg.loc[t0])}
+            for t0, t1 in episodes]
+    return (pd.DataFrame(rows)
+            .sort_values('metric', ascending=False)
+            .head(n)
+            .reset_index(drop=True))
 
 
 def plot_segment_zoom(series: pd.Series, target: pd.Series, threshold: float,
@@ -513,8 +536,39 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
     }
 
 
+def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
+                          episode_centers: list, out_dir: Path):
+    base_val = explainer.expected_value
+    if isinstance(base_val, (list, np.ndarray)):
+        base_val = float(base_val[1]) if len(base_val) > 1 else float(base_val[0])
+
+    for center in episode_centers:
+        nearest_idx = X.index.get_indexer([center], method='nearest')[0]
+        if nearest_idx < 0 or nearest_idx >= len(X):
+            continue
+        x_row = X.iloc[[nearest_idx]]
+        sv = explainer.shap_values(x_row)
+        if isinstance(sv, list):
+            sv = sv[1]
+        expl = shap.Explanation(
+            values=sv[0],
+            base_values=base_val,
+            data=x_row.values[0],
+            feature_names=list(X.columns),
+        )
+        shap.plots.waterfall(expl, show=False)
+        fig = plt.gcf()
+        ts_str = pd.Timestamp(X.index[nearest_idx]).strftime('%Y%m%d_%H%M')
+        fname = out_dir / f"shap_waterfall_{ts_str}.png"
+        fig.savefig(fname, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        print(f"  Saved SHAP waterfall → {fname}")
+
+
 def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
-                            config: dict,out_dir: Path = None) -> pd.Series:
+                            config: dict, out_dir: Path = None,
+                            episode_centers: list = None,
+                            episodes_out_dir: Path = None) -> pd.Series:
     """
     Compute SHAP feature importances using TreeExplainer. [Lundberg & Lee, 2017]
     """
@@ -614,6 +668,9 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
         plt.close(fig)
         print(f"  Saved SHAP dependence plot → {out_dir / 'shap_dependence.png'}")
 
+    if episode_centers and episodes_out_dir is not None:
+        _plot_shap_waterfalls(explainer, X, episode_centers, episodes_out_dir)
+
     return mean_shap
 
 
@@ -707,6 +764,78 @@ def plot_top_feature_histograms(X: pd.DataFrame, y: pd.Series, results: pd.DataF
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
+
+
+def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
+                    episode: pd.Series, config: dict, out_dir: Path,
+                    oof_pred: pd.Series = None):
+    buffer = pd.Timedelta(hours=config.get('episode_buffer_hours', 12))
+    t0 = episode['t_start'] - buffer
+    t1 = episode['t_end'] + buffer
+
+    orig_preds = config['predictor_cols']
+    target_col = config['target_col']
+    n = len(orig_preds) + 1
+
+    fig, axes = plt.subplots(n, 1, figsize=(14, 2.5 * n), sharex=True)
+
+    for i, col in enumerate(orig_preds):
+        ax = axes[i]
+        if col in df_raw.columns:
+            raw_win = df_raw[col].loc[t0:t1]
+            ax.plot(raw_win.index, raw_win.values, color='k', linewidth=0.8, label='raw')
+
+        feat_col = next((c for c in X.columns if c.startswith(col + '_')), None)
+        if feat_col is not None:
+            feat_win = X[feat_col].loc[t0:t1]
+            ax2 = ax.twinx()
+            ax2.plot(feat_win.index, feat_win.values, color='steelblue',
+                     linewidth=0.9, alpha=0.85, label=feat_col)
+            ax2.set_ylabel(feat_col, fontsize=7, color='steelblue')
+            ax2.tick_params(axis='y', labelcolor='steelblue', labelsize=7)
+            ax2.spines['right'].set_edgecolor('steelblue')
+
+        ax.set_ylabel(col)
+        ax.grid(True, alpha=0.3)
+        ax.axvspan(episode['t_start'], episode['t_end'],
+                   alpha=0.12, color='red', linewidth=0, label='outage')
+        ax.axvline(episode['t_center'], color='red', lw=0.8, ls='--', alpha=0.7)
+        if i == 0:
+            ax.legend(loc='upper left', fontsize=7, framealpha=0.7)
+
+    ax_t = axes[-1]
+    if target_col in df_raw.columns:
+        tgt_win = df_raw[target_col].loc[t0:t1]
+        ax_t.plot(tgt_win.index, tgt_win.values, color='firebrick', lw=0.8, label=target_col)
+    ax_t.axhline(config['outage_threshold'], color='firebrick', ls='--', lw=0.8, alpha=0.6)
+    ax_t.set_ylabel(target_col)
+    ax_t.axvspan(episode['t_start'], episode['t_end'],
+                 alpha=0.12, color='red', linewidth=0)
+    ax_t.grid(True, alpha=0.3)
+    if oof_pred is not None:
+        pred_win = oof_pred.loc[t0:t1]
+        ax_tp = ax_t.twinx()
+        mode = config.get('mode', '')
+        units = {'AUC': 'customer·h', 'TOT': 'min'}.get(mode, '')
+        ax_tp.plot(pred_win.index, pred_win.values, color='steelblue',
+                   lw=0.9, alpha=0.85, label=f'RF pred {mode}')
+        ax_tp.set_ylabel(f'RF predicted {mode} ({units})', fontsize=7, color='steelblue')
+        ax_tp.tick_params(axis='y', labelcolor='steelblue', labelsize=7)
+        ax_tp.spines['right'].set_edgecolor('steelblue')
+    ax_t.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M'))
+    fig.autofmt_xdate(rotation=0, ha='center')
+
+    mode = config.get('mode', '')
+    units = {'AUC': 'customer·h', 'TOT': 'min'}.get(mode, '')
+    axes[0].set_title(
+        f"{mode} = {episode['metric']:.1f} {units}  |  "
+        f"{pd.Timestamp(episode['t_start']).strftime('%Y-%m-%d %H:%M')}"
+    )
+    fig.tight_layout()
+    fname = out_dir / f"episode_{pd.Timestamp(episode['t_start']).strftime('%Y%m%d_%H%M')}.png"
+    fig.savefig(fname, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Saved episode plot → {fname}")
 
 
 def lag_sweep_importance(df: pd.DataFrame, predictors: list,
@@ -943,7 +1072,8 @@ def mid(x):
     return (x[1:] + x[:-1]) / 2
 
 
-def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
+def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
+                 df_raw: pd.DataFrame = None):
     """Orchestrate the full variable importance pipeline."""
     if out_dir is None:
         OUT = Path(config['output_dir']) / datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
@@ -983,6 +1113,21 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
               f"mean (non-zero) = {df['__target__'][nonzero].mean():.2f}")
     else:
         df["__target__"] = df[config["target_col"]]
+
+    # pre-compute top episodes for later time-series and SHAP waterfall plots
+    n_ep = config.get('n_episode_plots', 10)
+    ep_mode = config['mode'] if config['mode'] in ('AUC', 'TOT') else 'AUC'
+    if n_ep > 0 and df_raw is not None:
+        ep_dir = OUT / 'episodes'
+        os.makedirs(ep_dir, exist_ok=True)
+        episodes_df = _select_top_episodes(
+            df[config['target_col']], config['outage_threshold'], ep_mode, n_ep
+        )
+        ep_centers = episodes_df['t_center'].tolist() if not episodes_df.empty else []
+    else:
+        ep_dir = None
+        episodes_df = pd.DataFrame()
+        ep_centers = []
 
     if config.get("detrend_seasonal", False):
         print("\n[2] Removing seasonal cycle ...")
@@ -1069,13 +1214,21 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None):
         plot_rf_timeseries(y, rf_result["oof_pred"], config,
                            save_path=OUT / "rf_timeseries.png")
 
+    if ep_dir is not None and not episodes_df.empty:
+        print(f"\n[7] Plotting top {len(episodes_df)} episode time series ...")
+        oof = rf_result.get('oof_pred')
+        for _, ep in episodes_df.iterrows():
+            plot_episode_ts(df_raw, X, ep, config, ep_dir, oof_pred=oof)
+
     if config['shap']:
-        print("\n[6] Computing SHAP importance ...")
-        shap_imp = compute_shap_importance(X, y, config, out_dir=OUT)
+        print("\n[8] Computing SHAP importance ...")
+        shap_imp = compute_shap_importance(X, y, config, out_dir=OUT,
+                                           episode_centers=ep_centers or None,
+                                           episodes_out_dir=ep_dir)
     else:
         shap_imp = []
 
-    print("\n[7] Compiling results table ...")
+    print("\n[9] Compiling results table ...")
     results = build_results_table(rf_result, shap_imp, predictors)
     results.to_csv(OUT / "importance_results.csv")
     print(f"    Saved importance table → {OUT / 'importance_results.csv'}")
