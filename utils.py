@@ -401,22 +401,37 @@ def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
 
 
 # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str,
-                            window: int) -> tuple[pd.DataFrame, pd.Series]:
+def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str = None,
+                            window: int = 0, rolling: bool = True) -> tuple[pd.DataFrame, pd.Series]:
     frames = {}
     w = window
     for col in predictors:
         x = df[col]
-        grad  = x.diff()
-        frames[f"{col}_mean_W{w}"]       = x.rolling(w, center=True).mean()      # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        # frames[f"{col}_max_W{w}"]        = x.rolling(w, center=True).max()
-        # frames[f"{col}_min_W{w}"]        = x.rolling(w, center=True).min()
-        # frames[f"{col}_std_W{w}"]        = x.rolling(w, center=True).std()       # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-        # frames[f"{col}_grad_mean_W{w}"]  = grad.rolling(w, center=True).mean()
-        # frames[f"{col}_grad_max_W{w}"]   = grad.rolling(w, center=True).max()
-        # frames[f"{col}_grad_min_W{w}"]  = grad.rolling(w, center=True).min()
-        # frames[f"{col}_grad_std_W{w}"]  = grad.rolling(w, center=True).std()
-    return pd.DataFrame(frames, index=df.index), df[target_col]
+        grad = x.diff()
+        if rolling:
+            frames[f"{col}_mean_W{w}"]      = x.rolling(w, center=True).mean()     # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+            # frames[f"{col}_max_W{w}"]       = x.rolling(w, center=True).max()
+            # frames[f"{col}_min_W{w}"]       = x.rolling(w, center=True).min()
+            # frames[f"{col}_std_W{w}"]       = x.rolling(w, center=True).std()    # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+            # frames[f"{col}_grad_mean_W{w}"] = grad.rolling(w, center=True).mean()
+            # frames[f"{col}_grad_max_W{w}"]  = grad.rolling(w, center=True).max()
+            # frames[f"{col}_grad_min_W{w}"]  = grad.rolling(w, center=True).min()
+            # frames[f"{col}_grad_std_W{w}"]  = grad.rolling(w, center=True).std()
+        else:
+            # Whole-window aggregation — scalar statistics over the full input slice
+            frames[f"{col}_mean_W{w}"]      = x.mean()                             # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+            # frames[f"{col}_max_W{w}"]       = x.max()
+            # frames[f"{col}_min_W{w}"]       = x.min()
+            frames[f"{col}_std_W{w}"]       = x.std()                            # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+            frames[f"{col}_grad_mean_W{w}"] = grad.mean()
+            # frames[f"{col}_grad_max_W{w}"]  = grad.max()
+            # frames[f"{col}_grad_min_W{w}"]  = grad.min()
+            frames[f"{col}_grad_std_W{w}"]  = grad.std()
+    y = df[target_col] if target_col is not None else None
+    if rolling:
+        return pd.DataFrame(frames, index=df.index), y
+    else:
+        return pd.DataFrame([frames]), y
 
 
 def _mode_label(config: dict) -> str:
@@ -543,7 +558,7 @@ def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
         base_val = float(base_val[1]) if len(base_val) > 1 else float(base_val[0])
 
     for center in episode_centers:
-        nearest_idx = X.index.get_indexer([center], method='nearest')[0]
+        nearest_idx = int(np.abs((X.index - center).total_seconds()).argmin())
         if nearest_idx < 0 or nearest_idx >= len(X):
             continue
         x_row = X.iloc[[nearest_idx]]
@@ -777,6 +792,13 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
     target_col = config['target_col']
     n = len(orig_preds) + 1
 
+    dt = df_raw.index.to_series().diff().median()
+    pre_w = config.get('pre_window', 0)
+    post_w = config.get('post_window', 0)
+    ev_start = episode['t_start'] - pre_w * dt
+    ev_end = episode['t_start'] + post_w * dt
+    has_event_window = pre_w > 0 or post_w > 0
+
     fig, axes = plt.subplots(n, 1, figsize=(14, 2.5 * n), sharex=True)
 
     for i, col in enumerate(orig_preds):
@@ -785,7 +807,7 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
             raw_win = df_raw[col].loc[t0:t1]
             ax.plot(raw_win.index, raw_win.values, color='k', linewidth=0.8, label='raw')
 
-        feat_col = next((c for c in X.columns if c.startswith(col + '_')), None)
+        feat_col = next((c for c in X.columns if c.startswith(col + '_') or c == col), None)
         if feat_col is not None:
             feat_win = X[feat_col].loc[t0:t1]
             ax2 = ax.twinx()
@@ -799,7 +821,9 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
         ax.grid(True, alpha=0.3)
         ax.axvspan(episode['t_start'], episode['t_end'],
                    alpha=0.12, color='red', linewidth=0, label='outage')
-        ax.axvline(episode['t_center'], color='red', lw=0.8, ls='--', alpha=0.7)
+        if has_event_window:
+            ax.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue',
+                       linewidth=0, label='event window' if i == 0 else '_')
         if i == 0:
             ax.legend(loc='upper left', fontsize=7, framealpha=0.7)
 
@@ -811,6 +835,8 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
     ax_t.set_ylabel(target_col)
     ax_t.axvspan(episode['t_start'], episode['t_end'],
                  alpha=0.12, color='red', linewidth=0)
+    if has_event_window:
+        ax_t.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue', linewidth=0)
     ax_t.grid(True, alpha=0.3)
     if oof_pred is not None:
         pred_win = oof_pred.loc[t0:t1]
@@ -836,6 +862,78 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
     fig.savefig(fname, dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"  Saved episode plot → {fname}")
+
+
+def build_event_matrix(df_preds: pd.DataFrame,
+                       raw_target: pd.Series,
+                       threshold: float,
+                       mode: str,
+                       pre_window: int,
+                       post_window: int) -> tuple[pd.DataFrame, pd.Series]:
+    if mode == 'binary':
+        raise ValueError("build_event_matrix does not support mode='binary'. "
+                         "Use mode='AUC' or 'TOT'.")
+    window_len = pre_window + post_window
+    if window_len <= 0:
+        raise ValueError("pre_window + post_window must be > 0.")
+
+    predictors = list(df_preds.columns)
+    dt = raw_target.index.to_series().diff().median()
+    episodes = _find_episodes(raw_target, threshold)
+    seg = make_segment_target(raw_target, threshold, mode)
+
+    def _agg(window):
+        X_dyn, _ = build_dynamic_features(window, predictors, window=window_len, rolling=False)
+        return X_dyn.iloc[-1]
+
+    # Outage events: fixed window [t_start - pre_window, t_start + post_window]
+    outage_X, outage_y = {}, {}
+    for t_start, _ in episodes:
+        window = df_preds.loc[t_start - pre_window * dt : t_start + post_window * dt]
+        if window.empty:
+            continue
+        outage_X[t_start] = _agg(window)
+        outage_y[t_start] = float(seg.loc[t_start])
+
+    outage_df = pd.DataFrame(outage_X).T
+    outage_df.index = pd.DatetimeIndex(outage_df.index)
+    outage_s = pd.Series(outage_y, name='__target__')
+    outage_s.index = pd.DatetimeIndex(outage_s.index)
+
+    # Non-outage: non-overlapping tiles of same window_len, skipping any tile that
+    # contains an outage timestep [Wanik 2015, Cerrai 2019]
+    outage_mask = raw_target > threshold
+    t_idx = raw_target.index
+    n = len(t_idx)
+
+    non_outage_X, non_outage_y = {}, {}
+    i = 0
+    while i + window_len <= n:
+        w_start = t_idx[i]
+        w_end = t_idx[i + window_len - 1]
+        if not outage_mask.loc[w_start : w_end].any():
+            window = df_preds.loc[w_start : w_end]
+            if not window.empty and not window.isna().all().all():
+                non_outage_X[w_start] = _agg(window)
+                non_outage_y[w_start] = 0.0
+        i += window_len
+
+    non_outage_df = pd.DataFrame(non_outage_X).T
+    non_outage_df.index = pd.DatetimeIndex(non_outage_df.index)
+    non_outage_s = pd.Series(non_outage_y, name='__target__')
+    non_outage_s.index = pd.DatetimeIndex(non_outage_s.index)
+
+    X = pd.concat([outage_df, non_outage_df])
+    y = pd.concat([outage_s, non_outage_s])
+
+    valid = X.notna().all(axis=1) & y.notna()
+    X, y = X[valid], y[valid]
+
+    n_outage = int((y > 0).sum())
+    n_non = int((y == 0).sum())
+    print(f"  Event matrix: {n_outage} outage events + {n_non} non-outage windows = {len(X)} total rows")
+
+    return X, y
 
 
 def lag_sweep_importance(df: pd.DataFrame, predictors: list,
@@ -1224,6 +1322,165 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
         print("\n[8] Computing SHAP importance ...")
         shap_imp = compute_shap_importance(X, y, config, out_dir=OUT,
                                            episode_centers=ep_centers or None,
+                                           episodes_out_dir=ep_dir)
+    else:
+        shap_imp = []
+
+    print("\n[9] Compiling results table ...")
+    results = build_results_table(rf_result, shap_imp, predictors)
+    results.to_csv(OUT / "importance_results.csv")
+    print(f"    Saved importance table → {OUT / 'importance_results.csv'}")
+    print("\n  Top 10 variables:")
+    print(results.head(10).to_string())
+
+    plot_importance_comparison(results, rf_result,
+                               save_path=OUT / "importance_comparison.png")
+
+    plot_top_feature_histograms(X, y, results, config,
+                                save_path=OUT / "top_feature_histograms.png")
+    print(f"    Saved top-feature histograms → {OUT / 'top_feature_histograms.png'}")
+
+    print("\nPipeline complete.")
+    return results
+
+
+def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
+                       df_raw: pd.DataFrame = None):
+    if out_dir is None:
+        OUT = Path(config['output_dir']) / datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
+    else:
+        OUT = Path(out_dir)
+    os.makedirs(OUT, exist_ok=True)
+    with open(OUT / 'config.yaml', 'w') as f:
+        yaml.dump(config, f)
+
+    print("=" * 65)
+    print("  Atmospheric Variable Importance Pipeline (Event-Based)")
+    print("=" * 65)
+    print("\n[1] Using provided DataFrame.")
+
+    plot_time_series(df, config, save_path=OUT / "time_series.png")
+    plot_histograms(df, config, lag=None, save_path=OUT / "histograms.png")
+
+    predictors = config["predictor_cols"] or [
+        c for c in df.columns if c != config["target_col"]
+    ]
+    print(f"    Predictors ({len(predictors)}): {predictors}")
+
+    if config["mode"] == "binary":
+        raise ValueError("run_event_pipeline does not support mode='binary'. "
+                         "Use mode='AUC' or 'TOT'.")
+    elif config["mode"] in ("AUC", "TOT"):
+        if "__target__" not in df.columns:
+            df["__target__"] = make_segment_target(df[config["target_col"]],
+                                                   config["outage_threshold"],
+                                                   config["mode"])
+            plot_segment_zoom(df[config["target_col"]], df["__target__"],
+                              config["outage_threshold"], config["mode"],
+                              save_path=OUT / "segment_zoom.png")
+        nonzero = (df["__target__"] > 0)
+        print(f"    {config['mode']} target: non-zero fraction = {nonzero.mean():.3%}, "
+              f"mean (non-zero) = {df['__target__'][nonzero].mean():.2f}")
+    else:
+        df["__target__"] = df[config["target_col"]]
+
+    n_ep = config.get('n_episode_plots', 10)
+    if n_ep > 0:
+        ep_dir = OUT / 'episodes'
+        os.makedirs(ep_dir, exist_ok=True)
+    else:
+        ep_dir = None
+
+    if config.get("detrend_seasonal", False):
+        print("\n[2] Removing seasonal cycle ...")
+        inplace = config.get("detrend_mode", "anomaly") == "inplace"
+        df, climatology = remove_seasonal_cycle(
+            df,
+            columns=predictors,
+            window_days=config.get("detrend_window_days", 7),
+            min_periods=config.get("detrend_min_periods", 3),
+            inplace=inplace,
+            save_climatology_path=OUT / "climatology.csv",
+        )
+        if not inplace:
+            predictors = [f"{c}_anom" for c in predictors]
+            print("    Predictor columns updated to anomaly variants.")
+
+        first_orig = (config["predictor_cols"][0] if config["predictor_cols"]
+                      else [c for c in df.columns
+                            if c not in ("__target__", config["target_col"])][0])
+        if not inplace and first_orig in df.columns:
+            plot_seasonal_detrending(
+                df_raw=df, df_anom=df, climatology=climatology,
+                column=first_orig,
+                save_path=OUT / f"detrending_{first_orig}.png",
+            )
+        print("    Seasonal detrending complete.")
+    else:
+        print("\n[2] Seasonal detrending skipped.")
+
+    print(f"\n[4] Building event-level feature matrix "
+          f"(pre_window={config.get('pre_window', 0)}, "
+          f"post_window={config.get('post_window', 0)}) ...")
+    X, y = build_event_matrix(
+        df[predictors],
+        df[config['target_col']],
+        threshold=config['outage_threshold'],
+        mode=config['mode'],
+        pre_window=config.get('pre_window', 0),
+        post_window=config.get('post_window', 0),
+    )
+    print(f"    Feature matrix: {X.shape[0]} events x {X.shape[1]} features")
+
+    # Top outage events — authority for both episode plots and SHAP waterfalls
+    top_events = y[y > 0].nlargest(n_ep) if n_ep > 0 else pd.Series(dtype=float)
+    ep_centers_ev = top_events.index.tolist()
+    if df_raw is not None and not top_events.empty:
+        all_eps = dict(_find_episodes(df[config['target_col']], config['outage_threshold']))
+        episodes_df = pd.DataFrame([
+            {'t_start': ts,
+             't_end': all_eps.get(ts, ts),
+             't_center': ts + (all_eps.get(ts, ts) - ts) / 2,
+             'metric': float(top_events.loc[ts])}
+            for ts in ep_centers_ev
+            if ts in all_eps
+        ])
+    else:
+        episodes_df = pd.DataFrame()
+
+    print("\n[5] Checking feature collinearity ...")
+    X_clean, dropped_features, collinearity_report = check_collinearity(
+        X,
+        r_threshold=config["collinearity_r_threshold"],
+        vif_threshold=config["collinearity_vif_threshold"],
+        action=config["collinearity_action"],
+        save_path=OUT / "collinearity_heatmap.png",
+    )
+    collinearity_report.to_csv(OUT / "collinearity_report.csv")
+    print(f"    Saved collinearity report → {OUT / 'collinearity_report.csv'}")
+    if dropped_features:
+        print(f"    Proceeding with {X_clean.shape[1]} features "
+              f"(dropped {len(dropped_features)}: {dropped_features})")
+    else:
+        print(f"    No features dropped; proceeding with {X_clean.shape[1]} features.")
+    X = X[list(X_clean.columns)]
+
+    print("\n[6] Training RF + permutation importance (CV) ...")
+    rf_result = train_rf_importance(X, y, config)
+
+    if rf_result["oof_pred"] is not None:
+        plot_rf_scatter(y, rf_result["oof_pred"], config,
+                        save_path=OUT / "rf_scatter.png")
+
+    if ep_dir is not None and not episodes_df.empty:
+        print(f"\n[7] Plotting top {len(episodes_df)} episode time series ...")
+        for _, ep in episodes_df.iterrows():
+            plot_episode_ts(df_raw, df[predictors], ep, config, ep_dir, oof_pred=None)
+
+    if config['shap']:
+        print("\n[8] Computing SHAP importance ...")
+        shap_imp = compute_shap_importance(X, y, config, out_dir=OUT,
+                                           episode_centers=ep_centers_ev or None,
                                            episodes_out_dir=ep_dir)
     else:
         shap_imp = []
