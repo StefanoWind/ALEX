@@ -8,8 +8,8 @@ ALEX (Automated Logging of EXtremes) detects extreme weather events in the AWAKE
 
 ### Research Phases
 
-1. **Atmospheric driver identification** — correlate power outages with atmospheric signals to determine which variables are most hazardous in this region *(current phase)*
-2. **Automated hazard detection** — develop algorithms to detect identified hazards from the atmospheric data
+1. **Atmospheric driver identification** — correlate power outages with atmospheric signals to determine which variables are most hazardous in this region *(complete)*
+2. **Automated hazard detection** — develop algorithms to detect identified hazards from the atmospheric data *(current phase)*
 3. **Extreme events catalogue** — compile a systematic record of hazard events
 
 ### Phase 1 in Detail
@@ -78,6 +78,48 @@ The codebase is split into three layers:
 ### Predictors (default)
 
 `wind_speed`, `temperature`, `relative_humidity`, `pressure`, `shortwave_radiation`
+
+## Phase 2 Design — AI-Based Hazard Detection
+
+### Scientific narrative
+
+"We used 10 years of surface station + power outage data to identify that outages are driven by wind speed spikes and temperature drops (Phase 1 SHAP analysis). We now use a GMM-based hazard scorer trained on the long-term record to identify those conditions in the AWAKEN multi-sensor dataset."
+
+**Important wording constraint:** the score detects *meteorological precursor conditions*, not outage probability — infrastructure exposure differs between the training station and AWAKEN.
+
+### Recommended method: Per-regime GMM log-likelihood hazard score
+
+Train a **Gaussian Mixture Model** on detrended-anomaly feature windows extracted around outage events from the long-term record, stratified by season × time-of-day regime. Score AWAKEN observations as log-likelihood under the outage-preceding GMM. Cross-check with Phase 1 RF `predict_proba`.
+
+Key design choices:
+- Train and score on **detrended anomalies and gradients** (not raw values) — absorbs sensor and climate differences across datasets
+- Re-fit climatology at the AWAKEN site; do not transfer percentile thresholds from the training station
+- Feature set is anchored to SHAP-validated variables: wind speed spikes, temperature drops, and derived gradients
+
+### Multi-sensor fusion (two-layer approach)
+
+1. **Base detector** — GMM hazard score computed independently per AWAKEN sensor node
+2. **AWAKEN enrichment layer** — coherence features that exploit the multi-sensor network:
+   - Spatial coverage (fraction of nodes flagging simultaneously)
+   - Propagation direction (anomaly sweeping across the 30×30 km domain)
+   - Vertical coherence (lidar wind profile vs. surface station agreement)
+   - Shear/veer anomaly from lidar profiles
+
+Do not bake network topology into the model — too few labeled events and interpretability is lost.
+
+### Validation gate (mandatory before claiming success)
+
+1. Hazard score must show lag-correlation with AWAKEN outage counts comparable to Phase 1 RF performance
+2. Top-K detected events must be meteorologically nameable (front, dryline, MCS, wind ramp)
+
+### Planned file structure
+
+| File | Role |
+|------|------|
+| `event_detection.py` | Phase 2 application script (parallel to `power_outages.py`) |
+| `configs/event_detection.yaml` | Parameters for GMM training and coherence layer |
+
+Reuse from `utils.py`: `remove_seasonal_cycle()`, `build_feature_matrix()`.
 
 ## Dependencies
 

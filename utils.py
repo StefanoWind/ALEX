@@ -316,7 +316,7 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
             shifted = df[col]
 
         ax = axes[ctr]
-        ax.scatter(shifted, y_series, s=2, alpha=0.3, color='gray')
+        ax.scatter(shifted, y_series, s=2, alpha=0.1, color='k')
         ax.set_ylim(y_lim)
         if window is not None and lag is not None:
             if window[col] > 0:
@@ -444,7 +444,8 @@ def plot_rf_scatter(y_true: pd.Series, y_pred: pd.Series, config: dict,
                     save_path: Path = None):
     """Scatter of observed vs OOF RF prediction with 1:1 line and linear regression."""
     valid = ~(y_true.isna() | y_pred.isna())
-    yt, yp = y_true[valid].values, y_pred[valid].values
+    yt_s, yp_s = y_true[valid], y_pred[valid]
+    yt, yp = yt_s.values, yp_s.values
     slope, intercept, r, _, _ = stats.linregress(yt, yp)
     x_line = np.array([yp.min(), yp.max()])
 
@@ -453,6 +454,18 @@ def plot_rf_scatter(y_true: pd.Series, y_pred: pd.Series, config: dict,
     ax.plot(x_line, x_line, 'k--', lw=1, label='1:1')
     ax.plot(x_line, slope * x_line + intercept, 'r-', lw=1,
             label=f'linear fit  r={r:.2f}')
+
+    error = yp_s - yt_s
+    annotate_idx = list(error.nlargest(2).index) + list(error.nsmallest(2).index)
+    offsets = [(10, 10), (10, -20), (10, 10), (10, -20)]
+    for idx, (dx, dy) in zip(annotate_idx, offsets):
+        label_txt = pd.Timestamp(idx).strftime('%Y-%m-%d\n%H:%M')
+        ax.annotate(label_txt,
+                    xy=(yt_s[idx], yp_s[idx]),
+                    xytext=(dx, dy), textcoords='offset points',
+                    fontsize=6, color='dimgray',
+                    arrowprops=dict(arrowstyle='->', color='dimgray', lw=0.8))
+
     label = _mode_label(config)
     ax.set_ylabel(f'RF prediction [{label}]')
     ax.set_xlabel(f'Observed [{label}]')
@@ -557,6 +570,9 @@ def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
     if isinstance(base_val, (list, np.ndarray)):
         base_val = float(base_val[1]) if len(base_val) > 1 else float(base_val[0])
 
+    feat_mean = X.mean().values
+    feat_std = np.where(X.std().values > 0, X.std().values, 1.0)
+
     for center in episode_centers:
         nearest_idx = int(np.abs((X.index - center).total_seconds()).argmin())
         if nearest_idx < 0 or nearest_idx >= len(X):
@@ -565,14 +581,17 @@ def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
         sv = explainer.shap_values(x_row)
         if isinstance(sv, list):
             sv = sv[1]
+        z_scores = (x_row.values[0] - feat_mean) / feat_std
         expl = shap.Explanation(
             values=sv[0],
             base_values=base_val,
-            data=x_row.values[0],
+            data=z_scores,
             feature_names=list(X.columns),
         )
         shap.plots.waterfall(expl, show=False)
         fig = plt.gcf()
+        fig.text(0.5, 0.01, 'Feature values shown as z-scores relative to full dataset',
+                 ha='center', fontsize=8, color='gray')
         ts_str = pd.Timestamp(X.index[nearest_idx]).strftime('%Y%m%d_%H%M')
         fname = out_dir / f"shap_waterfall_{ts_str}.png"
         fig.savefig(fname, dpi=300, bbox_inches='tight')
@@ -644,7 +663,8 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
         print(f"  Saved SHAP bar plot → {out_dir / 'shap_bar.png'}")
 
         # SHAP dependence plots with histogram [Lundberg & Lee, 2017]
-        n_feats = len(X_samp.columns)
+        sorted_feats = mean_shap.sort_values(ascending=False).index.tolist()
+        n_feats = len(sorted_feats)
         n_cols = 3
         n_feat_rows = int(np.ceil(n_feats / n_cols))
         height_ratios = [4, 1] * n_feat_rows
@@ -656,22 +676,31 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
 
         sv_min, sv_max = shap_values.min(), shap_values.max()
 
-        for feat_idx, feat in enumerate(X_samp.columns):
+        y_samp = y.loc[X_samp.index].values.astype(float)
+        y_range = y_samp.max() - y_samp.min()
+        marker_sizes = 2 + 30 * (y_samp - y_samp.min()) / (y_range if y_range > 0 else 1.0)
+
+        col_order = list(X_samp.columns)
+        for feat_idx, feat in enumerate(sorted_feats):
             feat_row = feat_idx // n_cols
             feat_col = feat_idx % n_cols
-            feat_vals = X_samp.iloc[:, feat_idx]
+            orig_idx = col_order.index(feat)
+            feat_vals = X_samp.iloc[:, orig_idx]
 
             ax_shap = axes[feat_row * 2,     feat_col]
             ax_hist = axes[feat_row * 2 + 1, feat_col]
 
-            ax_shap.scatter(feat_vals, shap_values[:, feat_idx], s=2, alpha=0.3, color='gray')
+            ax_shap.scatter(feat_vals, shap_values[:, orig_idx],
+                            s=marker_sizes, alpha=0.5, color='k')
             ax_shap.set_ylabel("SHAP value")
             ax_shap.set_ylim(sv_min, sv_max)
             ax_shap.axhline(0, color='black', lw=0.8, ls='--')
+            ax_shap.grid(True)
 
-            ax_hist.hist(feat_vals, bins=30, color='steelblue', alpha=0.7)
+            ax_hist.hist(feat_vals, bins=30, color='b', alpha=0.7)
             ax_hist.set_xlabel(feat)
             ax_hist.set_yticks([])
+            
 
         for k in range(n_feats, n_feat_rows * n_cols):
             r = (k // n_cols) * 2
@@ -869,7 +898,9 @@ def build_event_matrix(df_preds: pd.DataFrame,
                        threshold: float,
                        mode: str,
                        pre_window: int,
-                       post_window: int) -> tuple[pd.DataFrame, pd.Series]:
+                       post_window: int,
+                       min_duration: int = 1,
+                       min_auc: float = 0.0) -> tuple[pd.DataFrame, pd.Series]:
     if mode == 'binary':
         raise ValueError("build_event_matrix does not support mode='binary'. "
                          "Use mode='AUC' or 'TOT'.")
@@ -881,6 +912,14 @@ def build_event_matrix(df_preds: pd.DataFrame,
     dt = raw_target.index.to_series().diff().median()
     episodes = _find_episodes(raw_target, threshold)
     seg = make_segment_target(raw_target, threshold, mode)
+
+    # Apply duration and AUC filters
+    episodes = [
+        (t0, t1) for t0, t1 in episodes
+        if ((t1 - t0) / dt + 1) >= min_duration and float(seg.loc[t0]) >= min_auc
+    ]
+    print(f"    Episodes after filtering "
+          f"(min_duration={min_duration}, min_auc={min_auc}): {len(episodes)}")
 
     def _agg(window):
         X_dyn, _ = build_dynamic_features(window, predictors, window=window_len, rolling=False)
@@ -1429,6 +1468,8 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
         mode=config['mode'],
         pre_window=config.get('pre_window', 0),
         post_window=config.get('post_window', 0),
+        min_duration=config.get('min_outage_duration', 1),
+        min_auc=config.get('min_event_auc', 0.0),
     )
     print(f"    Feature matrix: {X.shape[0]} events x {X.shape[1]} features")
 

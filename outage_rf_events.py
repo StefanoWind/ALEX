@@ -32,8 +32,16 @@ def load_config(path: str = "configs/outage_rf_events.yaml") -> dict:
 
 def load_data(config: dict) -> pd.DataFrame:
     ds = xr.open_dataset(config["source"])
-    cols = config['predictor_cols'] + [config['target_col'], 'weather_event_buffer']
-    return ds[cols].to_dataframe()
+    if cfg.get('weather_event_flag', False):
+        cols = config['predictor_cols'] + [config['target_col'], 'weather_event_buffer']
+    else: 
+        cols = config['predictor_cols'] + [config['target_col']]
+    
+    if 'TURB' in cols:
+        ds['TURB']=ds['WSSD']/(10**-10+ds['WSPD'])*100
+    df=ds[cols].to_dataframe()
+    df.index=ds.time.values
+    return df
 
 
 def qc_data(df: pd.DataFrame, config: dict) -> pd.DataFrame:
@@ -43,7 +51,8 @@ def qc_data(df: pd.DataFrame, config: dict) -> pd.DataFrame:
                     .where(df[v] >= config['limits'][v][0])
                     .where(df[v] <= config['limits'][v][1]))
     df_qc[config['target_col']] = df[config['target_col']]
-    df_qc['weather_event_buffer'] = df['weather_event_buffer']
+    if 'weather_event_buffer' in df.columns:
+        df_qc['weather_event_buffer'] = df['weather_event_buffer']
     return df_qc
 
 
@@ -59,9 +68,11 @@ if __name__ == "__main__":
 
     if cfg.get('detrend_seasonal', False):
         inplace = cfg.get('detrend_mode', 'anomaly') == 'inplace'
+        exclude = set(cfg.get('detrend_exclude', []))
+        detrend_cols = [c for c in cfg['predictor_cols'] if c not in exclude]
         df_qc, _ = remove_seasonal_cycle(
             df_qc,
-            columns=cfg['predictor_cols'],
+            columns=detrend_cols,
             window_days=cfg.get('detrend_window_days', 7),
             min_periods=cfg.get('detrend_min_periods', 3),
             inplace=inplace,
@@ -79,14 +90,19 @@ if __name__ == "__main__":
     cfg_run = copy.deepcopy(cfg)
     cfg_run['detrend_seasonal']=False
     
-    for flag, label in [(True, 'NWS_true'), (None, 'all')]:
-        if flag is None:
-            subset = df_qc.drop(columns=['weather_event_buffer'])
-            raw_subset = df_raw.drop(columns=['weather_event_buffer'])
-        else:
-            subset = (df_qc[df_qc['weather_event_buffer'] == flag]
-                      .drop(columns=['weather_event_buffer']))
-            raw_subset = (df_raw[df_raw['weather_event_buffer'] == flag]
+    if cfg.get('weather_event_flag', False):
+        for flag, label in [(True, 'NWS_true'), (None, 'all')]:
+            if flag is None:
+                subset = df_qc.drop(columns=['weather_event_buffer'])
+                raw_subset = df_raw.drop(columns=['weather_event_buffer'])
+            else:
+                subset = (df_qc[df_qc['weather_event_buffer'] == flag]
                           .drop(columns=['weather_event_buffer']))
-        results = run_event_pipeline(config=cfg_run, df=subset, out_dir=base / label,
-                                     df_raw=raw_subset)
+                raw_subset = (df_raw[df_raw['weather_event_buffer'] == flag]
+                              .drop(columns=['weather_event_buffer']))
+    else:
+         subset = df_qc
+         raw_subset = df_raw
+         label='all'
+    results = run_event_pipeline(config=cfg_run, df=subset, out_dir=base / label,
+                                 df_raw=raw_subset)
