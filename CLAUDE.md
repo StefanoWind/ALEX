@@ -14,29 +14,25 @@ ALEX (Automated Logging of EXtremes) detects extreme weather events in the AWAKE
 
 ### Phase 1 in Detail
 
-`power_outages.py` identifies which atmospheric variables best predict power outages in the AWAKEN area using data from `data/siteA1_met_outages_15min_v2.nc`:
+`outage_rf_events.py` identifies which atmospheric variables best predict power outages using data from `data/brec.outages_mesonet.nc`:
 
-1. Define target as a binary flag (outage count exceeding a threshold) and predictors as all other atmospheric quantities
-2. Plot 2-D histograms of each predictor vs. the target
+1. Define a list of large outage events
+2. Select a window around the outage start and extract atmopsheric signals as predictors
 3. Remove seasonal and diurnal variability from predictors
-4. Find the lag and averaging window that maximizes predictor–target correlation
+4. Calculate dynamic features for each predictor as windowed statistics
 5. Remove collinear features
 6. Rank remaining features by Random Forest permutation importance
+7. Explain Random Forest prediction thorugh SHAP
 
 ## Running the Code
 
 ```bash
-# Real data run
-python power_outages.py
-
-# Smoke test with synthetic data
-python test.py
+python outage_rf_events.py
 ```
 
-Each run creates a timestamped output directory (e.g., `data/20240501.123456/`) containing:
-- `config.yaml` — snapshot of all parameters used
-- CSV tables: `importance_results.csv`, `collinearity_report.csv`, `climatology.csv`
-- PNG visualizations for each pipeline stage
+Each run creates a timestamped output directory under `results/` containing:
+- `outage_rf_events.yaml` — snapshot of all parameters used
+- CSV tables and PNG visualizations for each pipeline stage
 
 ## Architecture
 
@@ -45,23 +41,20 @@ The codebase is split into three layers:
 | File | Role |
 |------|------|
 | `utils.py` | Generic pipeline functions and `run_pipeline()` orchestrator |
-| `power_outages.py` | Dataset-specific: `load_data()`, `qc_data()`, main block |
-| `test.py` | Synthetic smoke test: `generate_synthetic_data()`, main block |
-| `configs/power_outages.yaml` | All parameters for the real data run |
-| `configs/test.yaml` | Reduced parameters for the synthetic test |
+| `outage_rf_events.py` | Dataset-specific: `load_data()`, `qc_data()`, main block |
+| `configs/outage_rf_events.yaml` | All parameters for the run |
 
-**To add a new dataset:** create a new application script modeled on `power_outages.py` with its own `load_data()`, `qc_data()`, and a `configs/<name>.yaml`. The `run_pipeline()` in `utils.py` requires no changes.
+**To add a new dataset:** create a new application script modeled on `outage_rf_events.py` with its own `load_data()`, `qc_data()`, and a `configs/<name>.yaml`. The `run_pipeline()` in `utils.py` requires no changes.
 
 ### Pipeline Stages (in `utils.run_pipeline()`)
 
 1. **Target conversion** — binary flag when count exceeds `outage_threshold`
 2. **Seasonal detrending** — `remove_seasonal_cycle()`: removes climatological/diurnal cycles; mode `"inplace"` overwrites columns, `"anomaly"` adds `<col>_anom` columns
-3. **Cross-lag correlation** — `cross_lag_correlation()`, `select_best_lag()`: sweeps `lag_list` × `window_list` combinations
-4. **Feature matrix** — `build_feature_matrix()`: lags + rolling mean/std per predictor
-5. **Collinearity check** — `check_collinearity()`: Spearman r + VIF; drops or warns based on `collinearity_action`
-6. **Random Forest** — `train_rf_importance()`: StratifiedKFold CV with balanced class weights, permutation importance
-7. **SHAP** (optional) — `compute_shap_importance()`: disabled by default
-8. **Results** — `build_results_table()`, `plot_importance_comparison()`
+3. **Feature matrix** — `build_feature_matrix()`: lags + rolling mean/std per predictor
+4. **Collinearity check** — `check_collinearity()`: Spearman r + VIF; drops or warns based on `collinearity_action`
+5. **Random Forest** — `train_rf_importance()`: StratifiedKFold CV with balanced class weights, permutation importance
+6. **SHAP** (optional) — `compute_shap_importance()`: disabled by default
+7. **Results** — `build_results_table()`, `plot_importance_comparison()`
 
 `run_pipeline()` creates the timestamped output directory and saves `config.yaml` internally — importing `utils` has no side effects.
 
@@ -69,55 +62,62 @@ The codebase is split into three layers:
 
 | Key | Effect |
 |-----|--------|
-| `prelim_rf` | Run a quick OOB RF importance sweep across lags before full pipeline |
+| `weather_event_flag` | Restrict analysis to timesteps with an active NWS weather event flag |
 | `shap` | Compute SHAP values (slow; requires `shap` package) |
+| `shap_clustering_cutoff` | Minimum mean absolute SHAP value to include a feature in clustering |
 | `collinearity_action` | `"warn"` or `"drop"` redundant features |
-| `mode` | `"binary"` (classification) or `"regression"` |
+| `mode` | Target aggregation mode (e.g. `TOT` for total customers out) |
 | `detrend_mode` | `"inplace"` or `"anomaly"` |
 
 ### Predictors (default)
 
-`wind_speed`, `temperature`, `relative_humidity`, `pressure`, `shortwave_radiation`
+`relh` (relative humidity), `tair` (air temperature), `aavi` (wind speed), `wmax` (wind gust), `rain`, `pres` (pressure), `srad` (shortwave radiation)
 
-## Phase 2 Design — AI-Based Hazard Detection
+## Phase 2 Design — Outage Probability and Event Taxonomy
 
 ### Scientific narrative
 
-"We used 10 years of surface station + power outage data to identify that outages are driven by wind speed spikes and temperature drops (Phase 1 SHAP analysis). We now use a GMM-based hazard scorer trained on the long-term record to identify those conditions in the AWAKEN multi-sensor dataset."
+Phase 1 (RF regression + SHAP) identified which atmospheric variables drive power outages. Phase 2 produces a catalogue with two outputs per timestep: **outage probability** and **event type**. These are computed by two separate models and joined at output — they are not co-trained.
 
-**Important wording constraint:** the score detects *meteorological precursor conditions*, not outage probability — infrastructure exposure differs between the training station and AWAKEN.
+```
+Mesonet data
+    ├── Step 1: RF classifier → outage probability
+    ├── Step 2: SHAP ranking → relevant channel identification
+    └── Step 3: Clustering on SHAP-selected channels → event type
 
-### Recommended method: Per-regime GMM log-likelihood hazard score
+Output table: [timestamp, outage_probability, event_type]
+```
 
-Train a **Gaussian Mixture Model** on detrended-anomaly feature windows extracted around outage events from the long-term record, stratified by season × time-of-day regime. Score AWAKEN observations as log-likelihood under the outage-preceding GMM. Cross-check with Phase 1 RF `predict_proba`.
+### Step 1 — RF Classifier for Outage Probability
+
+Convert the Phase 1 RF regressor to a **binary RF classifier** predicting whether an outage occurs. Wrap in `Fix t` (isotonic regression, nested inside StratifiedKFold) to produce well-calibrated probabilities. Evaluate with Brier score and reliability diagram — raw RF probabilities are overconfident near 0 and 1 and must be calibrated for catalogue use.
+
+### Step 2 — SHAP Ranking for Channel Identification
+
+Run SHAP on the trained RF classifier to rank which meteorological channels carry the most predictive signal. Current Phase 1 findings point to: sustained high winds, wind speed peaks, precipitation, extreme temperatures, and high wind variability. This step selects the channels for clustering — SHAP is used for *feature selection*, not as clustering coordinates.
+
+### Step 3 — Event Taxonomy Clustering
+
+Cluster outage-associated events using the **meteorological feature vectors** of the SHAP-selected channels (not SHAP values). Feature vectors are summary descriptors per event window: mean, peak, ramp rate, onset steepness, duration of peak. Clustering method: k-means or SOM on this meteorological feature space (synoptic-climatology tradition).
 
 Key design choices:
-- Train and score on **detrended anomalies and gradients** (not raw values) — absorbs sensor and climate differences across datasets
-- Re-fit climatology at the AWAKEN site; do not transfer percentile thresholds from the training station
-- Feature set is anchored to SHAP-validated variables: wind speed spikes, temperature drops, and derived gradients
-
-### Multi-sensor fusion (two-layer approach)
-
-1. **Base detector** — GMM hazard score computed independently per AWAKEN sensor node
-2. **AWAKEN enrichment layer** — coherence features that exploit the multi-sensor network:
-   - Spatial coverage (fraction of nodes flagging simultaneously)
-   - Propagation direction (anomaly sweeping across the 30×30 km domain)
-   - Vertical coherence (lidar wind profile vs. surface station agreement)
-   - Shear/veer anomaly from lidar profiles
-
-Do not bake network topology into the model — too few labeled events and interpretability is lost.
+- Cluster on detrended anomalies + temporal shape descriptors (ramp rate, time-to-peak) — these distinguish sustained wind from wind ramp from thunderstorm outflow
+- NWS event flags serve as **external validation** to anchor cluster naming, not as training labels
+- SHAP attribution patterns are checked post-hoc for consistency with cluster membership
 
 ### Validation gate (mandatory before claiming success)
 
-1. Hazard score must show lag-correlation with AWAKEN outage counts comparable to Phase 1 RF performance
-2. Top-K detected events must be meteorologically nameable (front, dryline, MCS, wind ramp)
+1. Calibrated RF probability must show reliability (Brier score, reliability diagram) comparable to Phase 1 RF performance
+2. Clusters must be meteorologically nameable by composite analysis and broadly consistent with NWS flag co-occurrence
+3. Top-K detected events must correspond to recognizable synoptic features (front, dryline, MCS, wind ramp)
 
 ### Planned file structure
 
 | File | Role |
 |------|------|
-| `event_detection.py` | Phase 2 application script (parallel to `power_outages.py`) |
-| `configs/event_detection.yaml` | Parameters for GMM training and coherence layer |
+| `outage_rf_events.py` | RF classifier + SHAP ranking (extends Phase 1) |
+| `event_catalogue.py` | Event taxonomy clustering and catalogue output |
+| `configs/event_catalogue.yaml` | Parameters for clustering step |
 
 Reuse from `utils.py`: `remove_seasonal_cycle()`, `build_feature_matrix()`.
 
@@ -130,4 +130,4 @@ No `requirements.txt` exists; install manually as needed.
 
 ## Data
 
-Input NetCDF and all outputs are excluded from git (`*.nc`, `*.csv`, `*.png`). Config files in `configs/` are tracked (gitignore exception for `configs/*.yaml`). The NetCDF input must be present at `data/siteA1_met_outages_15min_v2.nc` for a real run.
+Input NetCDF and all outputs are excluded from git (`*.nc`, `*.csv`, `*.png`). Config files in `configs/` are tracked (gitignore exception for `configs/*.yaml`). The NetCDF input must be present at `data/brec.outages_mesonet.nc` for a real run.

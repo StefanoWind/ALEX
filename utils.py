@@ -11,7 +11,8 @@ import matplotlib.dates as mdates
 import warnings
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.inspection import permutation_importance
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from sklearn.utils.class_weight import compute_sample_weight
@@ -31,6 +32,38 @@ try:
 except ImportError:
     HAS_SHAP = False
     print("Warning: SHAP not installed. Run `pip install shap` for SHAP importance.")
+
+import re
+
+_VAR_LABELS = {
+    'relh': 'Relative humidity [%]',
+    'tair': 'Air temperature [°C]',
+    'wspd': 'Wind speed [m/s]',
+    'wssd': 'Wind speed std [m/s]',
+    'wdsd': 'Wind dir. std [°]',
+    'aavi': 'Wind variability index',
+    'wmax': 'Maximum wind speed [m/s]',
+    'rain': 'Precipitation [mm]',
+    'pres': 'Pressure [hPa]',
+    'srad': 'Solar radiation [W/m²]',
+    'TURB': 'Turbulence intensity [%]',
+}
+
+_AGG_LABELS = {
+    'grad_std':  'peak',
+    'grad_mean': 'ramp',
+    'std':       'variability',
+    'mean':      'value',
+}
+
+
+def _feat_label(name: str) -> str:
+    """Convert a dynamic feature name to a human-readable label."""
+    m = re.match(r'^(.+?)_(grad_std|grad_mean|std|mean)_W\d+$', name)
+    if m:
+        base, agg = m.group(1), m.group(2)
+        return f'{_VAR_LABELS.get(base, base)} ({_AGG_LABELS[agg]})'
+    return _VAR_LABELS.get(name, name)
 
 
 def make_binary_target(series: pd.Series, threshold: float) -> pd.Series:
@@ -65,6 +98,19 @@ def _find_episodes(series: pd.Series, threshold: float) -> list[tuple]:
     flag = series > threshold
     block_id = (flag != flag.shift()).cumsum()[flag]
     return [(g.index[0], g.index[-1]) for _, g in flag.groupby(block_id)]
+
+
+def _merge_close_episodes(episodes: list[tuple], merge_gap: pd.Timedelta) -> list[tuple]:
+    """Merge consecutive episodes whose inter-event gap is smaller than merge_gap."""
+    if not episodes:
+        return episodes
+    merged = [[episodes[0][0], episodes[0][1]]]
+    for t0, t1 in episodes[1:]:
+        if t0 - merged[-1][1] < merge_gap:
+            merged[-1][1] = max(merged[-1][1], t1)
+        else:
+            merged.append([t0, t1])
+    return [(t0, t1) for t0, t1 in merged]
 
 
 def _select_top_episodes(series: pd.Series, threshold: float,
@@ -120,7 +166,7 @@ def plot_segment_zoom(series: pd.Series, target: pd.Series, threshold: float,
 
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
         plt.close()
         print(f"  Saved segment zoom plot → {save_path}")
 
@@ -149,7 +195,7 @@ def plot_time_series(df: pd.DataFrame, config: dict, save_path: Path = None):
         ctr += 1
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close()
         print(f"  Saved time series plot → {save_path}")
 
@@ -333,7 +379,7 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
         ax.set_visible(False)
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close()
         print(f"  Saved scatter plot → {save_path}")
 
@@ -386,7 +432,7 @@ def plot_lag_correlation(corr_df: dict, save_path: Path = None,
     plt.colorbar(im, ax=ax, label="Pearson r")
     plt.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=300)
+        fig.savefig(save_path, dpi=150)
     plt.close(fig)
     print(f"  Saved lag correlation plot → {save_path}")
 
@@ -450,7 +496,7 @@ def plot_rf_scatter(y_true: pd.Series, y_pred: pd.Series, config: dict,
     x_line = np.array([yp.min(), yp.max()])
 
     fig, ax = plt.subplots(figsize=(6, 6))
-    ax.scatter(yt, yp, s=2, alpha=0.4, color='steelblue')
+    ax.scatter(yt, yp, s=10, alpha=0.4, color='steelblue')
     ax.plot(x_line, x_line, 'k--', lw=1, label='1:1')
     ax.plot(x_line, slope * x_line + intercept, 'r-', lw=1,
             label=f'linear fit  r={r:.2f}')
@@ -473,7 +519,7 @@ def plot_rf_scatter(y_true: pd.Series, y_pred: pd.Series, config: dict,
     ax.grid()
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
         plt.close()
         print(f"  Saved RF scatter plot → {save_path}")
 
@@ -494,7 +540,7 @@ def plot_rf_timeseries(y_true: pd.Series, y_pred: pd.Series, config: dict,
     ax.grid()
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
         plt.close()
         print(f"  Saved RF time series plot → {save_path}")
 
@@ -524,12 +570,13 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
     imp_list = []
     cv_scores = []
     oof_pred = np.full(len(y_arr), np.nan)
+    do_shap = config.get('shap', False) and HAS_SHAP
+    oof_shap = np.full((len(y_arr), X_arr.shape[1]), np.nan) if do_shap else None
+    shap_base_vals = []
 
     for fold_i, (train_idx, val_idx) in enumerate(cv.split(X_arr, y_arr)):
         X_tr, X_val = X_arr[train_idx], X_arr[val_idx]
         y_tr, y_val = y_arr[train_idx], y_arr[val_idx]
-
-        sw = compute_sample_weight("balanced", y_tr) if mode == "binary" else None
 
         model = model_cls(
             n_estimators=config["n_estimators"],
@@ -537,10 +584,24 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
             n_jobs=config["n_jobs"],
             random_state=config["random_state"],
         )
-        model.fit(X_tr, y_tr, sample_weight=sw)
-        cv_scores.append(score_fn(model, X_val, y_val))
 
-        if mode != "binary":
+        if mode == "binary":
+            cal_frac = config.get("calibration_fraction", 0.3)
+            X_fit, X_cal, y_fit, y_cal = train_test_split(
+                X_tr, y_tr, test_size=cal_frac, stratify=y_tr,
+                random_state=config["random_state"],
+            )
+            sw_fit = compute_sample_weight("balanced", y_fit)
+            model.fit(X_fit, y_fit, sample_weight=sw_fit)
+            # [Zadrozny & Elkan, 2002, KDD; Niculescu-Mizil & Caruana, 2005, ICML]
+            calibrated = CalibratedClassifierCV(model, method='isotonic', cv='prefit')
+            calibrated.fit(X_cal, y_cal)
+            val_prob = calibrated.predict_proba(X_val)[:, 1]
+            cv_scores.append(roc_auc_score(y_val, val_prob))
+            oof_pred[val_idx] = val_prob
+        else:
+            model.fit(X_tr, y_tr)
+            cv_scores.append(score_fn(model, X_val, y_val))
             oof_pred[val_idx] = model.predict(X_val)
 
         perm = permutation_importance(model, X_val, y_val,
@@ -550,18 +611,39 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
         imp_list.append(perm.importances_mean)
         print(f"    Fold {fold_i + 1}/{n_folds} | {score_name}: {cv_scores[-1]:.4f}")
 
+        # SHAP on validation fold using the same fold model [Lundberg & Lee, 2017]
+        # For binary mode, SHAP sums to the uncalibrated RF probability (not isotonic-calibrated).
+        if do_shap:
+            explainer_fold = shap.TreeExplainer(model)
+            sv = explainer_fold.shap_values(X_val)
+            if isinstance(sv, list):
+                sv = sv[1]
+            elif isinstance(sv, np.ndarray) and sv.ndim == 3:
+                sv = sv[:, :, 1]
+            oof_shap[val_idx] = sv
+            base = explainer_fold.expected_value
+            if isinstance(base, (list, np.ndarray)):
+                base = float(base[1]) if len(base) > 1 else float(base[0])
+            shap_base_vals.append(float(base))
+
     mean_imp = np.mean(imp_list, axis=0)
     std_imp = np.std(imp_list, axis=0)
     print(f"  Mean CV {score_name}: {np.mean(cv_scores):.4f} ± {np.std(cv_scores):.4f}")
 
-    return {
+    result = {
         "feature_names": list(X.columns),
         "importance_mean": mean_imp,
         "importance_std": std_imp,
         "cv_scores": cv_scores,
         "score_name": score_name,
-        "oof_pred": pd.Series(oof_pred, index=y.index) if mode != "binary" else None,
+        "oof_pred": pd.Series(oof_pred, index=y.index),
     }
+    if do_shap:
+        result["shap_df"]   = pd.DataFrame(oof_shap, index=y.index, columns=X.columns)
+        result["shap_base"] = float(np.mean(shap_base_vals))
+        result["shap_imp"]  = pd.Series(np.abs(oof_shap).mean(axis=0),
+                                        index=X.columns, name="mean_abs_SHAP")
+    return result
 
 
 def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
@@ -581,12 +663,14 @@ def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
         sv = explainer.shap_values(x_row)
         if isinstance(sv, list):
             sv = sv[1]
+        elif isinstance(sv, np.ndarray) and sv.ndim == 3:
+            sv = sv[:, :, 1]
         z_scores = (x_row.values[0] - feat_mean) / feat_std
         expl = shap.Explanation(
             values=sv[0],
             base_values=base_val,
             data=z_scores,
-            feature_names=list(X.columns),
+            feature_names=[re.sub(r'\s*\[.*?\]', '', _feat_label(c)) for c in X.columns],
         )
         shap.plots.waterfall(expl, show=False)
         fig = plt.gcf()
@@ -594,21 +678,17 @@ def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
                  ha='center', fontsize=8, color='gray')
         ts_str = pd.Timestamp(X.index[nearest_idx]).strftime('%Y%m%d_%H%M')
         fname = out_dir / f"shap_waterfall_{ts_str}.png"
-        fig.savefig(fname, dpi=300, bbox_inches='tight')
+        fig.savefig(fname, dpi=150, bbox_inches='tight')
         plt.close(fig)
         print(f"  Saved SHAP waterfall → {fname}")
 
 
 def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
-                            config: dict, out_dir: Path = None,
-                            episode_centers: list = None,
-                            episodes_out_dir: Path = None) -> pd.Series:
-    """
-    Compute SHAP feature importances using TreeExplainer. [Lundberg & Lee, 2017]
-    """
+                            config: dict) -> tuple[pd.Series, pd.DataFrame]:
+    # [Lundberg & Lee, 2017]
     if not HAS_SHAP:
         print("  SHAP skipped (not installed).")
-        return pd.Series(dtype=float)
+        return pd.Series(dtype=float), pd.DataFrame()
 
     mode = config["mode"]
     if mode == "binary":
@@ -623,99 +703,168 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
         sw = None
 
     model.fit(X, y, sample_weight=sw)
-
-    rng = np.random.default_rng(config["random_state"])
-    idx = rng.choice(len(X), size=min(config['n_samples_shap'], len(X)), replace=False)
-    X_samp = X.iloc[idx]
-
     explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X_samp)
 
-    if isinstance(shap_values, list):
-        shap_values = shap_values[1]
+    shap_values_all = explainer.shap_values(X)
+    if isinstance(shap_values_all, list):
+        shap_values_all = shap_values_all[1]
+    elif isinstance(shap_values_all, np.ndarray) and shap_values_all.ndim == 3:
+        shap_values_all = shap_values_all[:, :, 1]
 
-    mean_shap = pd.Series(np.abs(shap_values).mean(axis=0),
+    shap_df = pd.DataFrame(shap_values_all, index=X.index, columns=X.columns)
+    mean_shap = pd.Series(np.abs(shap_values_all).mean(axis=0),
                           index=X.columns, name="mean_abs_SHAP")
 
-    if out_dir is not None:
-        expl = shap.Explanation(
-            values=shap_values,
-            data=X_samp.values,
-            feature_names=list(X_samp.columns),
+    base_val = explainer.expected_value
+    if isinstance(base_val, (list, np.ndarray)):
+        base_val = float(base_val[1]) if len(base_val) > 1 else float(base_val[0])
+
+    return mean_shap, shap_df, float(base_val)
+
+
+def plot_shap_dependence(X: pd.DataFrame, shap_df: pd.DataFrame,
+                         save_path: Path = None):
+    mean_shap = shap_df.abs().mean(axis=0)
+    sorted_feats = mean_shap.sort_values(ascending=False).index.tolist()
+    shap_values = shap_df.values
+
+    n_feats = len(sorted_feats)
+    n_cols = 6
+    n_feat_rows = int(np.ceil(n_feats / n_cols))
+    height_ratios = [4, 1] * n_feat_rows
+    fig, axes = plt.subplots(n_feat_rows * 2, n_cols,
+                             figsize=(5 * n_cols, 7 * n_feat_rows),
+                             gridspec_kw={"height_ratios": height_ratios},
+                             constrained_layout=True)
+    axes = np.array(axes).reshape(n_feat_rows * 2, n_cols)
+
+    sv_min, sv_max = shap_values.min(), shap_values.max()
+    col_order = list(X.columns)
+
+    for feat_idx, feat in enumerate(sorted_feats):
+        feat_row = feat_idx // n_cols
+        feat_col = feat_idx % n_cols
+        orig_idx = col_order.index(feat)
+        feat_vals = X.iloc[:, orig_idx]
+
+        ax_shap = axes[feat_row * 2,     feat_col]
+        ax_hist = axes[feat_row * 2 + 1, feat_col]
+
+        ax_shap.scatter(feat_vals, shap_values[:, orig_idx], s=5, alpha=0.5, color='k')
+        ax_shap.set_ylabel("SHAP value")
+        ax_shap.set_ylim(sv_min, sv_max)
+        ax_shap.axhline(0, color='black', lw=0.8, ls='--')
+        ax_shap.grid(True)
+
+        ax_hist.hist(feat_vals, bins=30, color='b', alpha=0.7)
+        ax_hist.set_xlabel(feat)
+        ax_hist.grid(True)
+        ax_hist.set_yticklabels([])
+
+    for k in range(n_feats, n_feat_rows * n_cols):
+        r = (k // n_cols) * 2
+        c = k % n_cols
+        for row_offset in range(2):
+            axes[r + row_offset, c].set_visible(False)
+
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved SHAP dependence plot → {save_path}")
+    else:
+        plt.show()
+
+
+def plot_shap_waterfall(shap_vals: np.ndarray, feat_vals: np.ndarray,
+                        feat_names: list, base_value: float,
+                        feat_mean: np.ndarray, feat_std: np.ndarray,
+                        save_path: Path = None, title: str = ''):
+    if not HAS_SHAP:
+        print("  SHAP waterfall skipped (shap not installed).")
+        return
+    plt.close('all')
+    z_scores = (feat_vals - feat_mean) / feat_std
+    labels = [re.sub(r'\s*\[.*?\]', '', _feat_label(c)) for c in feat_names]
+    expl = shap.Explanation(
+        values=shap_vals,
+        base_values=base_value,
+        data=z_scores,
+        feature_names=labels,
+    )
+    shap.plots.waterfall(expl, show=False)
+    fig = plt.gcf()
+    if title:
+        fig.suptitle(title, fontsize=10, y=1.01)
+    fig.text(0.5, -0.01, 'Feature values shown as z-scores', ha='center', fontsize=8, color='gray')
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        print(f"  Saved SHAP waterfall → {save_path}")
+    else:
+        plt.tight_layout()
+        plt.show()
+
+
+def save_event_dataset(events_df: pd.DataFrame, X: pd.DataFrame,
+                       shap_df: pd.DataFrame, config: dict,
+                       save_path: Path, rf_result: dict = None,
+                       attrs_extra: dict = None,
+                       shap_base_value: float = None) -> xr.Dataset:
+    data_vars = {
+        'features':  (['event', 'feature'], X.values.astype(np.float32)),
+        'target':    (['event'], events_df['target'].values.astype(np.float32)),
+        'is_outage': (['event'], events_df['is_outage'].values.astype(np.int8)),
+        't_end':     (['event'], events_df['t_end'].values),
+    }
+    if 'rf_prediction' in events_df.columns:
+        data_vars['rf_prediction'] = (
+            ['event'],
+            events_df['rf_prediction'].values.astype(np.float32),
+        )
+    if 'peak_customers_out' in events_df.columns:
+        data_vars['peak_customers_out'] = (
+            ['event'],
+            events_df['peak_customers_out'].values.astype(np.float32),
+        )
+    if not shap_df.empty:
+        data_vars['shap_values'] = (
+            ['event', 'feature'],
+            shap_df.reindex(X.index).values.astype(np.float32),
+        )
+    if rf_result is not None:
+        data_vars['rf_importance'] = (
+            ['feature'],
+            rf_result['importance_mean'].astype(np.float32),
+        )
+        data_vars['rf_importance_std'] = (
+            ['feature'],
+            rf_result['importance_std'].astype(np.float32),
         )
 
-        # beeswarm summary
-        shap.summary_plot(shap_values, X_samp, show=False,
-                          max_display=20, plot_size=(10, 7), plot_type="violin")
-        plt.tight_layout()
-        plt.savefig(out_dir / "shap_summary.png", dpi=300, bbox_inches="tight")
-        plt.close()
-        print(f"  Saved SHAP summary plot → {out_dir / 'shap_summary.png'}")
+    attrs = {
+        'mode':             config['mode'],
+        'target_col':       config['target_col'],
+        'outage_threshold': config['outage_threshold'],
+        'pre_window':       config.get('pre_window', 0),
+        'post_window':      config.get('post_window', 0),
+    }
+    if rf_result is not None:
+        attrs['cv_score_mean'] = float(np.mean(rf_result['cv_scores']))
+        attrs['cv_score_std']  = float(np.std(rf_result['cv_scores']))
+        attrs['score_name']    = rf_result['score_name']
+    if shap_base_value is not None:
+        attrs['shap_base_value'] = float(shap_base_value)
+    if attrs_extra:
+        attrs.update(attrs_extra)
 
-        # bar plot with hierarchical clustering [Lundberg & Lee, 2017]
-        cutoff = config.get("shap_clustering_cutoff", 1.0)
-        clustering = shap.utils.hclust(X_samp)
-        shap.plots.bar(expl, clustering=clustering,
-                       clustering_cutoff=cutoff, show=False)
-        fig = plt.gcf()
-        fig.savefig(out_dir / "shap_bar.png", dpi=300, bbox_inches="tight")
-        plt.close(fig)
-        print(f"  Saved SHAP bar plot → {out_dir / 'shap_bar.png'}")
-
-        # SHAP dependence plots with histogram [Lundberg & Lee, 2017]
-        sorted_feats = mean_shap.sort_values(ascending=False).index.tolist()
-        n_feats = len(sorted_feats)
-        n_cols = 3
-        n_feat_rows = int(np.ceil(n_feats / n_cols))
-        height_ratios = [4, 1] * n_feat_rows
-        fig, axes = plt.subplots(n_feat_rows * 2, n_cols,
-                                 figsize=(5 * n_cols, 5 * n_feat_rows),
-                                 gridspec_kw={"height_ratios": height_ratios},
-                                 constrained_layout=True)
-        axes = np.array(axes).reshape(n_feat_rows * 2, n_cols)
-
-        sv_min, sv_max = shap_values.min(), shap_values.max()
-
-        y_samp = y.loc[X_samp.index].values.astype(float)
-        y_range = y_samp.max() - y_samp.min()
-        marker_sizes = 2 + 30 * (y_samp - y_samp.min()) / (y_range if y_range > 0 else 1.0)
-
-        col_order = list(X_samp.columns)
-        for feat_idx, feat in enumerate(sorted_feats):
-            feat_row = feat_idx // n_cols
-            feat_col = feat_idx % n_cols
-            orig_idx = col_order.index(feat)
-            feat_vals = X_samp.iloc[:, orig_idx]
-
-            ax_shap = axes[feat_row * 2,     feat_col]
-            ax_hist = axes[feat_row * 2 + 1, feat_col]
-
-            ax_shap.scatter(feat_vals, shap_values[:, orig_idx],
-                            s=marker_sizes, alpha=0.5, color='k')
-            ax_shap.set_ylabel("SHAP value")
-            ax_shap.set_ylim(sv_min, sv_max)
-            ax_shap.axhline(0, color='black', lw=0.8, ls='--')
-            ax_shap.grid(True)
-
-            ax_hist.hist(feat_vals, bins=30, color='b', alpha=0.7)
-            ax_hist.set_xlabel(feat)
-            ax_hist.set_yticks([])
-            
-
-        for k in range(n_feats, n_feat_rows * n_cols):
-            r = (k // n_cols) * 2
-            c = k % n_cols
-            for row_offset in range(2):
-                axes[r + row_offset, c].set_visible(False)
-
-        fig.savefig(out_dir / "shap_dependence.png", dpi=300, bbox_inches="tight")
-        plt.close(fig)
-        print(f"  Saved SHAP dependence plot → {out_dir / 'shap_dependence.png'}")
-
-    if episode_centers and episodes_out_dir is not None:
-        _plot_shap_waterfalls(explainer, X, episode_centers, episodes_out_dir)
-
-    return mean_shap
+    ds = xr.Dataset(
+        data_vars,
+        coords={'event': X.index, 'feature': list(X.columns)},
+        attrs=attrs,
+    )
+    ds.to_netcdf(save_path)
+    print(f"  Saved event dataset → {save_path}")
+    return ds
 
 
 def build_results_table(rf_result: dict, shap_imp: pd.Series,
@@ -777,7 +926,7 @@ def plot_importance_comparison(results: pd.DataFrame, rf_result: dict,
     )
     plt.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved importance comparison plot → {save_path}")
 
@@ -806,13 +955,14 @@ def plot_top_feature_histograms(X: pd.DataFrame, y: pd.Series, results: pd.DataF
 
     plt.tight_layout()
     if save_path is not None:
-        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 
 def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
                     episode: pd.Series, config: dict, out_dir: Path,
                     oof_pred: pd.Series = None):
+    
     buffer = pd.Timedelta(hours=config.get('episode_buffer_hours', 12))
     t0 = episode['t_start'] - buffer
     t1 = episode['t_end'] + buffer
@@ -828,25 +978,26 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
     ev_end = episode['t_start'] + post_w * dt
     has_event_window = pre_w > 0 or post_w > 0
 
-    fig, axes = plt.subplots(n, 1, figsize=(14, 2.5 * n), sharex=True)
+    fig, axes = plt.subplots(n, 1, figsize=(18, 3 * n), sharex=True)
 
     for i, col in enumerate(orig_preds):
         ax = axes[i]
         if col in df_raw.columns:
             raw_win = df_raw[col].loc[t0:t1]
-            ax.plot(raw_win.index, raw_win.values, color='k', linewidth=0.8, label='raw')
+            ax.plot(raw_win.index, raw_win.values, color='k', linewidth=1.5, label='raw')
 
         feat_col = next((c for c in X.columns if c.startswith(col + '_') or c == col), None)
         if feat_col is not None:
             feat_win = X[feat_col].loc[t0:t1]
             ax2 = ax.twinx()
             ax2.plot(feat_win.index, feat_win.values, color='steelblue',
-                     linewidth=0.9, alpha=0.85, label=feat_col)
-            ax2.set_ylabel(feat_col, fontsize=7, color='steelblue')
-            ax2.tick_params(axis='y', labelcolor='steelblue', labelsize=7)
+                     linewidth=1.5, alpha=0.85, label='detrended')
+            # ax2.set_ylabel(_feat_label(feat_col), fontsize=18, color='steelblue')
+            ax2.tick_params(axis='y', labelcolor='steelblue', labelsize=18)
             ax2.spines['right'].set_edgecolor('steelblue')
 
-        ax.set_ylabel(col)
+        ax.set_ylabel(_feat_label(col), fontsize=18)
+        ax.tick_params(axis='y', labelsize=18)
         ax.grid(True, alpha=0.3)
         ax.axvspan(episode['t_start'], episode['t_end'],
                    alpha=0.12, color='red', linewidth=0, label='outage')
@@ -854,41 +1005,53 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
             ax.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue',
                        linewidth=0, label='event window' if i == 0 else '_')
         if i == 0:
-            ax.legend(loc='upper left', fontsize=7, framealpha=0.7)
+            h, l = ax.get_legend_handles_labels()
+            if feat_col is not None:
+                h2, l2 = ax2.get_legend_handles_labels()
+                h, l = h + h2, l + l2
+            ax.legend(h, l, loc='upper left', fontsize=18, framealpha=0.7)
 
     ax_t = axes[-1]
     if target_col in df_raw.columns:
         tgt_win = df_raw[target_col].loc[t0:t1]
-        ax_t.plot(tgt_win.index, tgt_win.values, color='firebrick', lw=0.8, label=target_col)
-    ax_t.axhline(config['outage_threshold'], color='firebrick', ls='--', lw=0.8, alpha=0.6)
-    ax_t.set_ylabel(target_col)
+        ax_t.plot(tgt_win.index, tgt_win.values, color='firebrick', lw=1.5, label=target_col)
+    ax_t.axhline(config['outage_threshold'], color='firebrick', ls='--', lw=1.5, alpha=0.6)
+    ax_t.set_ylabel(target_col, fontsize=18)
+    ax_t.tick_params(axis='y', labelsize=18)
     ax_t.axvspan(episode['t_start'], episode['t_end'],
                  alpha=0.12, color='red', linewidth=0)
     if has_event_window:
         ax_t.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue', linewidth=0)
     ax_t.grid(True, alpha=0.3)
-    if oof_pred is not None:
+    _mode = config.get('mode', '')
+    if oof_pred is not None and _mode != 'binary':
         pred_win = oof_pred.loc[t0:t1]
         ax_tp = ax_t.twinx()
-        mode = config.get('mode', '')
-        units = {'AUC': 'customer·h', 'TOT': 'min'}.get(mode, '')
+        units = {'AUC': 'customer·h', 'TOT': 'min'}.get(_mode, '')
         ax_tp.plot(pred_win.index, pred_win.values, color='steelblue',
-                   lw=0.9, alpha=0.85, label=f'RF pred {mode}')
-        ax_tp.set_ylabel(f'RF predicted {mode} ({units})', fontsize=7, color='steelblue')
-        ax_tp.tick_params(axis='y', labelcolor='steelblue', labelsize=7)
+                   lw=1.5, alpha=0.85, label=f'RF pred {_mode}')
+        ax_tp.set_ylabel(f'RF predicted {_mode} ({units})', fontsize=18, color='steelblue')
+        ax_tp.tick_params(axis='y', labelcolor='steelblue', labelsize=18)
         ax_tp.spines['right'].set_edgecolor('steelblue')
     ax_t.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M'))
+    ax_t.tick_params(axis='x', labelsize=18)
     fig.autofmt_xdate(rotation=0, ha='center')
 
     mode = config.get('mode', '')
-    units = {'AUC': 'customer·h', 'TOT': 'min'}.get(mode, '')
-    axes[0].set_title(
-        f"{mode} = {episode['metric']:.1f} {units}  |  "
-        f"{pd.Timestamp(episode['t_start']).strftime('%Y-%m-%d %H:%M')}"
-    )
+    units = {'AUC': 'customer·h', 'TOT': 'min', 'binary': 'min'}.get(mode, '')
+    ts_str = pd.Timestamp(episode['t_start']).strftime('%Y-%m-%d %H:%M')
+    if mode == 'binary':
+        dur_str = f"duration = {episode['metric']:.0f} min"
+        if oof_pred is not None:
+            title = f"{dur_str}  |  RF prob = {float(oof_pred.loc[episode['t_start']]):.2f}  |  {ts_str}"
+        else:
+            title = f"{dur_str}  |  {ts_str}"
+    else:
+        title = f"{mode} = {episode['metric']:.1f} {units}  |  {ts_str}"
+    axes[0].set_title(title)
     fig.tight_layout()
     fname = out_dir / f"episode_{pd.Timestamp(episode['t_start']).strftime('%Y%m%d_%H%M')}.png"
-    fig.savefig(fname, dpi=300, bbox_inches='tight')
+    fig.savefig(fname, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f"  Saved episode plot → {fname}")
 
@@ -900,10 +1063,10 @@ def build_event_matrix(df_preds: pd.DataFrame,
                        pre_window: int,
                        post_window: int,
                        min_duration: int = 1,
-                       min_auc: float = 0.0) -> tuple[pd.DataFrame, pd.Series]:
-    if mode == 'binary':
-        raise ValueError("build_event_matrix does not support mode='binary'. "
-                         "Use mode='AUC' or 'TOT'.")
+                       min_auc: float = 0.0,
+                       min_peak: float = 0.0,
+                       non_outages_ratio: float = None,
+                       random_state: int = None) -> tuple[pd.DataFrame, pd.Series, dict, dict]:
     window_len = pre_window + post_window
     if window_len <= 0:
         raise ValueError("pre_window + post_window must be > 0.")
@@ -911,28 +1074,50 @@ def build_event_matrix(df_preds: pd.DataFrame,
     predictors = list(df_preds.columns)
     dt = raw_target.index.to_series().diff().median()
     episodes = _find_episodes(raw_target, threshold)
-    seg = make_segment_target(raw_target, threshold, mode)
 
-    # Apply duration and AUC filters
+    # Merge episodes whose inter-event gap is less than the event window width
+    merge_gap = (pre_window + post_window) * dt
+    episodes = _merge_close_episodes(episodes, merge_gap)
+    print(f"    Episodes after merging nearby events: {len(episodes)}")
+    
+    # Drop individually insignificant episodes before merging so they cannot
+    # anchor a merged block that inherits a large peak from a later sub-episode.
+    dt_h = dt.total_seconds() / 3600
+    dt_min = dt.total_seconds() / 60
     episodes = [
         (t0, t1) for t0, t1 in episodes
-        if ((t1 - t0) / dt + 1) >= min_duration and float(seg.loc[t0]) >= min_auc
+        if (t1 - t0) / dt + 1 >= min_duration and raw_target.loc[t0:t1].max() >= min_peak
     ]
-    print(f"    Episodes after filtering "
-          f"(min_duration={min_duration}, min_auc={min_auc}): {len(episodes)}")
+    print(f"    Episodes after pre-merge filtering "
+          f"(min_duration={min_duration}, min_peak={min_peak}): {len(episodes)}")
+
+    # Apply AUC/TOT severity filter on the (possibly merged) episode
+    filtered = []
+    for t0, t1 in episodes:
+        seg_vals = raw_target.loc[t0:t1]
+        metric = float(seg_vals.sum() * dt_h if mode == 'AUC' else len(seg_vals) * dt_min)
+        filtered.append((t0, t1, metric))
 
     def _agg(window):
         X_dyn, _ = build_dynamic_features(window, predictors, window=window_len, rolling=False)
         return X_dyn.iloc[-1]
 
-    # Outage events: fixed window [t_start - pre_window, t_start + post_window]
-    outage_X, outage_y = {}, {}
-    for t_start, _ in episodes:
+    # Outage events: fixed window [t_start - pre_window, t_start + post_window].
+    # Require all predictor channels to have complete data within the window.
+    expected_steps = pre_window + post_window + 1
+    outage_X, outage_y, episode_ends, peak_customers = {}, {}, {}, {}
+    skipped = 0
+    for t_start, t_end, metric in filtered:
         window = df_preds.loc[t_start - pre_window * dt : t_start + post_window * dt]
-        if window.empty:
+        if len(window) < expected_steps or window.isna().any().any():
+            skipped += 1
             continue
         outage_X[t_start] = _agg(window)
-        outage_y[t_start] = float(seg.loc[t_start])
+        outage_y[t_start] = 1.0 if mode == 'binary' else metric
+        episode_ends[t_start] = t_end
+        peak_customers[t_start] = float(raw_target.loc[t_start:t_end].max())
+    if skipped:
+        print(f"    Skipped {skipped} episode(s): incomplete data in event window")
 
     outage_df = pd.DataFrame(outage_X).T
     outage_df.index = pd.DatetimeIndex(outage_df.index)
@@ -957,6 +1142,16 @@ def build_event_matrix(df_preds: pd.DataFrame,
                 non_outage_y[w_start] = 0.0
         i += window_len
 
+    if non_outages_ratio is not None and len(non_outage_X) > 0:
+        n_target = int(len(outage_X) * non_outages_ratio)
+        if n_target < len(non_outage_X):
+            rng = np.random.default_rng(random_state)
+            keys = rng.choice(list(non_outage_X.keys()), size=n_target, replace=False)
+            non_outage_X = {k: non_outage_X[k] for k in keys}
+            non_outage_y = {k: 0.0 for k in keys}
+            print(f"    Non-outage windows subsampled to {n_target} "
+                  f"({non_outages_ratio}x outage count)")
+
     non_outage_df = pd.DataFrame(non_outage_X).T
     non_outage_df.index = pd.DatetimeIndex(non_outage_df.index)
     non_outage_s = pd.Series(non_outage_y, name='__target__')
@@ -972,7 +1167,7 @@ def build_event_matrix(df_preds: pd.DataFrame,
     n_non = int((y == 0).sum())
     print(f"  Event matrix: {n_outage} outage events + {n_non} non-outage windows = {len(X)} total rows")
 
-    return X, y
+    return X, y, episode_ends, peak_customers
 
 
 def lag_sweep_importance(df: pd.DataFrame, predictors: list,
@@ -1200,9 +1395,51 @@ def plot_lag_sweep(sweep_df: pd.DataFrame, top_n: int = 8,
 
     plt.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=300)
+        fig.savefig(save_path, dpi=150)
     plt.close(fig)
     print(f"  Saved lag sweep plot → {save_path}")
+
+
+def plot_reliability_diagram(y_true: pd.Series, y_prob: pd.Series,
+                              config: dict, save_path: Path = None):
+    # [DeGroot & Fienberg, 1983; Wilks, 2011; Brier, 1950]
+    n_bins = config.get("reliability_bins", 10)
+    y_t = y_true.values.astype(float)
+    y_p = y_prob.reindex(y_true.index).values.astype(float)
+
+    bin_edges = np.unique(np.percentile(y_p, np.linspace(0, 100, n_bins + 1)))
+    mean_pred, frac_pos = [], []
+    for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
+        mask = (y_p >= lo) & (y_p < hi)
+        if mask.sum() > 0:
+            mean_pred.append(y_p[mask].mean())
+            frac_pos.append(y_t[mask].mean())
+
+    brier = float(np.mean((y_p - y_t) ** 2))
+
+    fig, (ax_cal, ax_hist) = plt.subplots(
+        2, 1, figsize=(6, 8),
+        gridspec_kw={"height_ratios": [3, 1]}, sharex=True,
+    )
+    ax_cal.plot([0, 1], [0, 1], 'k--', lw=1, label='Perfect calibration')
+    ax_cal.plot(mean_pred, frac_pos, 'o-', color='steelblue', lw=1.5,
+                label='RF (isotonic calibration)')
+    ax_cal.set_ylabel('Observed outage fraction')
+    ax_cal.set_title(f'Reliability diagram  |  Brier score = {brier:.4f}')
+    ax_cal.legend(fontsize=9)
+    ax_cal.set_ylim([0, 1])
+    ax_cal.grid()
+
+    ax_hist.hist(y_p, bins=bin_edges, color='steelblue', alpha=0.7)
+    ax_hist.set_xlabel('Predicted probability')
+    ax_hist.set_ylabel('Count')
+    ax_hist.grid()
+
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved reliability diagram → {save_path}")
 
 
 def mid(x):
@@ -1359,11 +1596,9 @@ def run_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
 
     if config['shap']:
         print("\n[8] Computing SHAP importance ...")
-        shap_imp = compute_shap_importance(X, y, config, out_dir=OUT,
-                                           episode_centers=ep_centers or None,
-                                           episodes_out_dir=ep_dir)
+        shap_imp, _, _ = compute_shap_importance(X, y, config)
     else:
-        shap_imp = []
+        shap_imp = pd.Series(dtype=float)
 
     print("\n[9] Compiling results table ...")
     results = build_results_table(rf_result, shap_imp, predictors)
@@ -1407,8 +1642,8 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     print(f"    Predictors ({len(predictors)}): {predictors}")
 
     if config["mode"] == "binary":
-        raise ValueError("run_event_pipeline does not support mode='binary'. "
-                         "Use mode='AUC' or 'TOT'.")
+        outage_rate = (df[config['target_col']] > config['outage_threshold']).mean()
+        print(f"    Binary target: outage rate = {outage_rate:.3%}")
     elif config["mode"] in ("AUC", "TOT"):
         if "__target__" not in df.columns:
             df["__target__"] = make_segment_target(df[config["target_col"]],
@@ -1422,13 +1657,6 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
               f"mean (non-zero) = {df['__target__'][nonzero].mean():.2f}")
     else:
         df["__target__"] = df[config["target_col"]]
-
-    n_ep = config.get('n_episode_plots', 10)
-    if n_ep > 0:
-        ep_dir = OUT / 'episodes'
-        os.makedirs(ep_dir, exist_ok=True)
-    else:
-        ep_dir = None
 
     if config.get("detrend_seasonal", False):
         print("\n[2] Removing seasonal cycle ...")
@@ -1461,7 +1689,7 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     print(f"\n[4] Building event-level feature matrix "
           f"(pre_window={config.get('pre_window', 0)}, "
           f"post_window={config.get('post_window', 0)}) ...")
-    X, y = build_event_matrix(
+    X, y, episode_ends, peak_customers = build_event_matrix(
         df[predictors],
         df[config['target_col']],
         threshold=config['outage_threshold'],
@@ -1470,24 +1698,11 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
         post_window=config.get('post_window', 0),
         min_duration=config.get('min_outage_duration', 1),
         min_auc=config.get('min_event_auc', 0.0),
+        min_peak=config.get('min_peak_customers_out', 0.0),
+        non_outages_ratio=config.get('non_outages_ratio', None),
+        random_state=config.get('random_state', None),
     )
     print(f"    Feature matrix: {X.shape[0]} events x {X.shape[1]} features")
-
-    # Top outage events — authority for both episode plots and SHAP waterfalls
-    top_events = y[y > 0].nlargest(n_ep) if n_ep > 0 else pd.Series(dtype=float)
-    ep_centers_ev = top_events.index.tolist()
-    if df_raw is not None and not top_events.empty:
-        all_eps = dict(_find_episodes(df[config['target_col']], config['outage_threshold']))
-        episodes_df = pd.DataFrame([
-            {'t_start': ts,
-             't_end': all_eps.get(ts, ts),
-             't_center': ts + (all_eps.get(ts, ts) - ts) / 2,
-             'metric': float(top_events.loc[ts])}
-            for ts in ep_centers_ev
-            if ts in all_eps
-        ])
-    else:
-        episodes_df = pd.DataFrame()
 
     print("\n[5] Checking feature collinearity ...")
     X_clean, dropped_features, collinearity_report = check_collinearity(
@@ -1509,22 +1724,57 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     print("\n[6] Training RF + permutation importance (CV) ...")
     rf_result = train_rf_importance(X, y, config)
 
-    if rf_result["oof_pred"] is not None:
+    if config["mode"] == "binary":
+        plot_reliability_diagram(y, rf_result["oof_pred"], config,
+                                 save_path=OUT / "reliability_diagram.png")
+    elif rf_result["oof_pred"] is not None:
         plot_rf_scatter(y, rf_result["oof_pred"], config,
                         save_path=OUT / "rf_scatter.png")
 
-    if ep_dir is not None and not episodes_df.empty:
-        print(f"\n[7] Plotting top {len(episodes_df)} episode time series ...")
-        for _, ep in episodes_df.iterrows():
-            plot_episode_ts(df_raw, df[predictors], ep, config, ep_dir, oof_pred=None)
+    # Build complete events table — single source of truth for plots and nc output
+    oof = rf_result['oof_pred']
+    events_df = pd.DataFrame({
+        't_end':              pd.DatetimeIndex([episode_ends.get(ts, pd.NaT) for ts in X.index]),
+        'target':             y.reindex(X.index).values.astype(float),
+        'is_outage':          (y.reindex(X.index).values > 0).astype(int),
+        'rf_prediction':      oof.reindex(X.index).values.astype(float),
+        'peak_customers_out': [peak_customers.get(ts, np.nan) for ts in X.index],
+    }, index=X.index)
+
+    n_ep = config.get('n_episode_plots', 10)
+    ep_dir = None
+    ep_centers_ev = []
+    if n_ep > 0 and df_raw is not None:
+        ep_dir = OUT / 'episodes'
+        os.makedirs(ep_dir, exist_ok=True)
+        outage_ev = events_df[events_df['is_outage'] == 1].copy()
+        outage_ev['duration'] = (
+            (outage_ev['t_end'] - outage_ev.index.to_series()).dt.total_seconds() / 60
+        )
+        top_idx = (outage_ev.nlargest(n_ep, 'duration').index
+                   .union(outage_ev.nlargest(n_ep, 'peak_customers_out').index))
+        top_ev = outage_ev.loc[top_idx]
+        t_starts = top_ev.index.values
+        t_ends = top_ev['t_end'].values
+        metrics = ((t_ends - t_starts) / np.timedelta64(1, 'm')
+                   if config.get('mode') == 'binary' else top_ev['target'].values)
+        episodes_df = pd.DataFrame({
+            't_start':  t_starts,
+            't_end':    t_ends,
+            't_center': t_starts + (t_ends - t_starts) / 2,
+            'metric':   metrics,
+        })
+        ep_centers_ev = list(top_ev.index)
+        if not episodes_df.empty:
+            print(f"\n[7] Plotting top {len(episodes_df)} episode time series ...")
+            for _, ep in episodes_df.iterrows():
+                plot_episode_ts(df_raw, df[predictors], ep, config, ep_dir, oof_pred=oof)
 
     if config['shap']:
         print("\n[8] Computing SHAP importance ...")
-        shap_imp = compute_shap_importance(X, y, config, out_dir=OUT,
-                                           episode_centers=ep_centers_ev or None,
-                                           episodes_out_dir=ep_dir)
+        shap_imp, shap_df, _ = compute_shap_importance(X, y, config)
     else:
-        shap_imp = []
+        shap_imp, shap_df = pd.Series(dtype=float), pd.DataFrame()
 
     print("\n[9] Compiling results table ...")
     results = build_results_table(rf_result, shap_imp, predictors)
@@ -1539,6 +1789,10 @@ def run_event_pipeline(config: dict, df: pd.DataFrame, out_dir: Path = None,
     plot_top_feature_histograms(X, y, results, config,
                                 save_path=OUT / "top_feature_histograms.png")
     print(f"    Saved top-feature histograms → {OUT / 'top_feature_histograms.png'}")
+
+    print("\n[10] Saving event dataset ...")
+    save_event_dataset(events_df, X, shap_df, config, save_path=OUT / "events.nc",
+                       rf_result=rf_result)
 
     print("\nPipeline complete.")
     return results

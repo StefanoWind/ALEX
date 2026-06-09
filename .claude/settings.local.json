@@ -4,7 +4,9 @@
       "Bash(python3 test.py)",
       "Bash(python *)",
       "WebSearch",
-      "WebFetch(domain:arxiv.org)"
+      "WebFetch(domain:arxiv.org)",
+      "PowerShell(head *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\mesonet\" | ForEach-Object { $_.FullName })"
     ]
   }
 }
