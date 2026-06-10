@@ -1,5 +1,6 @@
 import re
 import os
+import sys
 import yaml
 import numpy as np
 import pandas as pd
@@ -7,6 +8,8 @@ import xarray as xr
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import tkinter
+import tkinter.filedialog
 from pathlib import Path
 from utils import (_VAR_LABELS, _AGG_LABELS, plot_importance_comparison,
                    plot_reliability_diagram, plot_shap_dependence,
@@ -14,17 +17,32 @@ from utils import (_VAR_LABELS, _AGG_LABELS, plot_importance_comparison,
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 18
+matplotlib.rcParams['font.size'] = 14
 matplotlib.rcParams['savefig.dpi'] = 300
 plt.close('all')
 
+root = tkinter.Tk()
+root.withdraw()
+root.attributes('-topmost', True)
+root.update()
+
+
 #%% Inputs
-source='./results/20260608.171511/all/events.nc'
+source = tkinter.filedialog.askopenfilename(
+    title='Select events.nc',
+    initialdir='./results/',
+    filetypes=[('NetCDF files', '*.nc')],
+)
+
+
+if not source:
+    print('No file selected. Exiting.')
+    sys.exit()
 
 # ── load ──────────────────────────────────────────────────────────
 
 ds = xr.open_dataset(source)
-out_dir = os.path.dirname(source)
+out_dir =  Path(os.path.dirname(source))
 
 events     = pd.DatetimeIndex(ds.event.values)
 target     = ds['target'].values.astype(float)
@@ -39,6 +57,10 @@ colors={'aavi':'yellow', 'pres':'k', 'rain':'gray', 'relh':'g', 'srad':'orange',
 feat_arr  = ds['features'].values.astype(float)
 rf_pred   = ds['rf_prediction'].values.astype(float) if 'rf_prediction' in ds else None
 shap_vals = ds['shap_values'].values.astype(float)   if 'shap_values'   in ds else None
+
+global_shap_vals     = ds['global_shap_values'].values.astype(float)     if 'global_shap_values'     in ds else None
+global_rf_importance = ds['global_rf_importance'].values.astype(float)    if 'global_rf_importance'    in ds else None
+global_rf_imp_std    = ds['global_rf_importance_std'].values.astype(float) if 'global_rf_importance_std' in ds else None
 
 # ── plot 1: bar chart observed vs. predicted ──────────────────────
 events_num = mdates.date2num(events.to_pydatetime())
@@ -62,31 +84,8 @@ fig.savefig(out_dir / 'bar_target_vs_pred.png', dpi=300, bbox_inches='tight')
 plt.close(fig)
 print(f"Saved → {out_dir / 'bar_target_vs_pred.png'}")
 
-# ── plot 2: scatter – TOT vs. dominant-SHAP feature ───────────
-if shap_vals is not None:
-    mask       = is_outage*(np.max(shap_vals, axis=1)>0)
-    tot_out      = tot[mask]
-    feat_out   = feat_arr[mask]
-    shap_out   = shap_vals[mask]
-    n_out      = mask.sum()
-
-    abs_shap  = np.abs(shap_out)
-    dom_idx   = np.argmax(abs_shap, axis=1)
-    dom_names = [feat_names[i] for i in dom_idx]
-
-    feat_mean = feat_arr.mean(axis=0)
-    feat_std  = np.where(feat_arr.std(axis=0) > 0, feat_arr.std(axis=0), 1.0)
-    feat_norm = (feat_out - feat_mean) / feat_std
-
-    y_vals = np.array([feat_norm[i, dom_idx[i]] for i in range(n_out)])
-
-    dom_shap = abs_shap[np.arange(n_out), dom_idx]
-    sizes = 10 + 270 * (dom_shap / dom_shap.max())
-
-    unique_feats = sorted(set(dom_names))
-    n_uf = len(unique_feats)
-    cmap = plt.get_cmap('tab10' if n_uf <= 10 else 'tab20' if n_uf <= 20 else 'hsv', n_uf)
-    color_map = {f: cmap(i) for i, f in enumerate(unique_feats)}
+def _dominant_shap_scatter(ax, shap_v, feat_arr, tot, is_outage, rf_pred, feat_names, colors):
+    from matplotlib.lines import Line2D
 
     def _feat_type(name):
         if '_grad_std_'  in name: return 'grad_std'
@@ -98,13 +97,28 @@ if shap_vals is not None:
     def _base_var(name):
         return re.sub(r'_(grad_std|grad_mean|std|mean)_W\d+$', '', name)
 
-    type_marker = {'mean': 'o', 'std': '*', 'grad_mean': 's', 'grad_std': 'D'}
-    dom_types = [_feat_type(f) for f in dom_names]
-    dom_bases = [_base_var(f) for f in dom_names]
+    mask     = is_outage * (rf_pred>0.25)*(np.max(shap_v, axis=1) > 0)
+    tot_out  = tot[mask]
+    feat_out = feat_arr[mask]
+    shap_out = shap_v[mask]
+    n_out    = mask.sum()
 
+    dom_idx   = np.argmax(shap_out, axis=1)
+    dom_names = [feat_names[i] for i in dom_idx]
+
+    feat_mean = feat_arr.mean(axis=0)
+    feat_std  = np.where(feat_arr.std(axis=0) > 0, feat_arr.std(axis=0), 1.0)
+    feat_norm = (feat_out - feat_mean) / feat_std
+
+    y_vals   = np.array([feat_norm[i, dom_idx[i]] for i in range(n_out)])
+    dom_shap = shap_out[np.arange(n_out), dom_idx]
+    sizes    = 10 + 270 * (dom_shap-dom_shap.min()) / (dom_shap.max()-dom_shap.min())
+    
+    type_marker = {'mean': 'o', 'std': '*', 'grad_mean': 's', 'grad_std': 'D'}
+    dom_types   = [_feat_type(f) for f in dom_names]
+    dom_bases   = [_base_var(f)  for f in dom_names]
     unique_bases = sorted(set(dom_bases))
 
-    fig, ax = plt.subplots(figsize=(9, 6))
     for base in unique_bases:
         for ftype, marker in type_marker.items():
             sel = [i for i, (b, t) in enumerate(zip(dom_bases, dom_types))
@@ -113,15 +127,11 @@ if shap_vals is not None:
                 continue
             ax.scatter(
                 tot_out[sel], y_vals[sel],
-                s=sizes[sel],
-                marker=marker,
-                color=colors[base],
-                alpha=0.75,
-                edgecolors='k', linewidths=0.4,
-                zorder=3,
+                s=sizes[sel], marker=marker,
+                color=colors[base], alpha=0.75,
+                edgecolors='k', linewidths=0.4, zorder=3,
             )
 
-    from matplotlib.lines import Line2D
     color_handles = [
         Line2D([0], [0], marker='o', linestyle='none',
                markerfacecolor=colors[b], markeredgecolor='k',
@@ -141,14 +151,27 @@ if shap_vals is not None:
     ax.add_artist(leg1)
     ax.legend(handles=marker_handles, title='Type', bbox_to_anchor=(1.00, 0),
               loc='lower left', fontsize=8, framealpha=0.8)
-
     ax.set_xlabel('TOT (min)')
     ax.set_ylabel('Dominant feature value (z-score)')
-    ax.set_title('Target vs. dominant SHAP feature\n'
-                 '(size = |SHAP|, colour = variable, marker = aggregation type)')
     ax.grid(alpha=0.3)
+
+# ── plot 2: scatter – TOT vs. dominant-SHAP feature ───────────
+_have_oof    = shap_vals is not None
+_have_global = global_shap_vals is not None
+
+if _have_oof or _have_global:
+    _panels = []
+    if _have_oof:    _panels.append(('OOF SHAP',    shap_vals))
+    if _have_global: _panels.append(('Global SHAP', global_shap_vals))
+
+    fig, axes = plt.subplots(1, len(_panels), figsize=(9 * len(_panels), 6),
+                             squeeze=False)
+    for ax, (title, sv) in zip(axes[0], _panels):
+        _dominant_shap_scatter(ax, sv, feat_arr, tot, is_outage, rf_pred, feat_names, colors)
+        ax.set_title(f'Dominant SHAP feature — {title}\n'
+                     '(size = |SHAP|, colour = variable, marker = aggregation type)')
     plt.tight_layout()
-    plt.subplots_adjust(right=0.72)
+    plt.subplots_adjust(right=0.88)
     plt.show()
     fig.savefig(out_dir / 'scatter_dominant_feature.png', dpi=300, bbox_inches='tight')
     plt.close(fig)
@@ -160,26 +183,31 @@ else:
 rf_importance     = ds['rf_importance'].values     if 'rf_importance'     in ds else None
 rf_importance_std = ds['rf_importance_std'].values if 'rf_importance_std' in ds else None
 
+_importance_cases = []
 if rf_importance is not None:
-    rf_result_pp = {
+    _importance_cases.append(('oof', rf_importance, rf_importance_std, shap_vals))
+if global_rf_importance is not None:
+    _importance_cases.append(('global', global_rf_importance, global_rf_imp_std, global_shap_vals))
+
+for _tag, _imp, _imp_std, _sv in _importance_cases:
+    _rf_result_pp = {
         'feature_names':   feat_names,
-        'importance_mean': rf_importance,
-        'importance_std':  rf_importance_std if rf_importance_std is not None
-                           else np.zeros(len(feat_names)),
+        'importance_mean': _imp,
+        'importance_std':  _imp_std if _imp_std is not None else np.zeros(len(feat_names)),
         'cv_scores':       [ds.attrs.get('cv_score_mean', np.nan)],
         'score_name':      ds.attrs.get('score_name', ''),
     }
-    results_pp = pd.DataFrame({
-        'RF_perm_importance': rf_result_pp['importance_mean'],
-        'RF_perm_std':        rf_result_pp['importance_std'],
+    _results_pp = pd.DataFrame({
+        'RF_perm_importance': _rf_result_pp['importance_mean'],
+        'RF_perm_std':        _rf_result_pp['importance_std'],
     }, index=feat_names).sort_values('RF_perm_importance', ascending=False)
-    results_pp['RF_rank'] = range(1, len(results_pp) + 1)
-    if shap_vals is not None:
-        mean_shap_pp = pd.Series(np.abs(shap_vals).mean(axis=0), index=feat_names)
-        results_pp['SHAP_mean_abs'] = mean_shap_pp
-        results_pp['SHAP_rank'] = results_pp['SHAP_mean_abs'].rank(ascending=False).astype(int)
-    plot_importance_comparison(results_pp, rf_result_pp,
-                               save_path=Path(out_dir) / 'importance_comparison.png')
+    _results_pp['RF_rank'] = range(1, len(_results_pp) + 1)
+    if _sv is not None:
+        _mean_shap = pd.Series(np.abs(_sv).mean(axis=0), index=feat_names)
+        _results_pp['SHAP_mean_abs'] = _mean_shap
+        _results_pp['SHAP_rank'] = _results_pp['SHAP_mean_abs'].rank(ascending=False).astype(int)
+    plot_importance_comparison(_results_pp, _rf_result_pp,
+                               save_path=out_dir / f'importance_comparison_{_tag}.png')
 
 # ── plot 4: reliability diagram ───────────────────────────────────
 if mode == 'binary' and rf_pred is not None:
@@ -205,85 +233,136 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
     else:
         cfg_pp = {}
 
-    det_src = ds.attrs['detrended_source']
-    if Path(det_src).exists():
-        ds_raw = xr.open_dataset(det_src)
-        pred_cols = cfg_pp.get('predictor_cols', feat_names)
-        available = [c for c in pred_cols if c in ds_raw]
-        tgt_col = cfg_pp.get('target_col', 'customers_out')
-        load_cols = available + ([tgt_col] if tgt_col in ds_raw else [])
-        df_detrended_pp = ds_raw[load_cols].to_dataframe()
-        df_detrended_pp.index = pd.DatetimeIndex(ds_raw.time.values)
-        ds_raw.close()
+    det_srcs = [s.strip() for s in ds.attrs['detrended_source'].split(';')]
+    raw_sources = cfg_pp.get('sources', cfg_pp.get('source', []))
+    if isinstance(raw_sources, str):
+        raw_sources = [raw_sources]
+    while len(raw_sources) < len(det_srcs):
+        raw_sources.append('')
 
-        # Load original undetrended data for the black raw signal
-        raw_src = cfg_pp.get('source', '')
-        if Path(raw_src).exists():
+    pred_cols = cfg_pp.get('predictor_cols', list(feat_names))
+    tgt_col = cfg_pp.get('target_col', 'customers_out')
+    load_cols = pred_cols + [tgt_col]
+    station_names = [Path(p).name.split('.')[0] for p in det_srcs]
+
+    df_det_list, df_raw_list = [], []
+    for det_src, raw_src in zip(det_srcs, raw_sources):
+        if Path(det_src).exists():
+            ds_det = xr.open_dataset(det_src)
+            avail = [c for c in load_cols if c in ds_det]
+            df_det = ds_det[avail].to_dataframe()
+            df_det.index = pd.DatetimeIndex(ds_det.time.values)
+            ds_det.close()
+        else:
+            df_det = pd.DataFrame()
+        df_det_list.append(df_det)
+
+        if raw_src and Path(raw_src).exists():
             ds_orig = xr.open_dataset(raw_src)
             if 'aavi' in load_cols:
-                ds_orig['aavi'] = ds_orig['wssd'] / ds_orig['wssd'].mean() * ds_orig['wdsd'] / ds_orig['wdsd'].mean()
-
-            df_raw_pp = ds_orig[load_cols].to_dataframe()
-            df_raw_pp.index = pd.DatetimeIndex(ds_orig.time.values)
+                ds_orig['aavi'] = (ds_orig['wssd'] / ds_orig['wssd'].mean()
+                                   * ds_orig['wdsd'] / ds_orig['wdsd'].mean())
+            avail_raw = [c for c in load_cols if c in ds_orig]
+            df_raw_c = ds_orig[avail_raw].to_dataframe()
+            df_raw_c.index = pd.DatetimeIndex(ds_orig.time.values)
             ds_orig.close()
         else:
-            df_raw_pp = df_detrended_pp
+            df_raw_c = df_det
+        df_raw_list.append(df_raw_c)
 
-        t_end_arr = ds['t_end'].values              if 't_end'              in ds else None
-        pk_arr    = ds['peak_customers_out'].values  if 'peak_customers_out' in ds else None
+    # County indicator per event (matches county column added during pooling)
+    county_feat_idx = list(feat_names).index('county') if 'county' in list(feat_names) else None
+    ev_county = (feat_arr[:, county_feat_idx].astype(int)
+                 if county_feat_idx is not None
+                 else np.zeros(len(events), dtype=int))
 
-        if t_end_arr is not None:
-            out_mask     = is_outage
-            t_starts_out = events[out_mask]
-            t_ends_out   = pd.DatetimeIndex(t_end_arr[out_mask])
-            durations    = (t_ends_out - t_starts_out).total_seconds() / 60
+    t_end_arr = ds['t_end'].values              if 't_end'              in ds else None
+    pk_arr    = ds['peak_customers_out'].values  if 'peak_customers_out' in ds else None
 
-            ev_df = pd.DataFrame({
-                't_start':            t_starts_out,
-                't_end':              t_ends_out,
-                'duration':           durations,
-                'peak_customers_out': pk_arr[out_mask] if pk_arr is not None
-                                      else np.full(out_mask.sum(), np.nan),
-                'rf_prediction':      rf_pred[out_mask],
-            }).set_index('t_start')
+    if t_end_arr is not None:
+        out_mask     = is_outage
+        t_starts_out = events[out_mask]
+        t_ends_out   = pd.DatetimeIndex(t_end_arr[out_mask])
+        durations    = (t_ends_out - t_starts_out).total_seconds() / 60
 
-            n_ep    = cfg_pp.get('n_episode_plots', 10)
-            top_dur = ev_df.nlargest(n_ep, 'duration').index
-            top_pk  = ev_df.nlargest(n_ep, 'peak_customers_out').index
-            top_ev  = ev_df.loc[top_dur.union(top_pk)]
+        ev_df = pd.DataFrame({
+            't_start':            t_starts_out,
+            't_end':              t_ends_out,
+            'duration':           durations,
+            'peak_customers_out': pk_arr[out_mask] if pk_arr is not None
+                                  else np.full(out_mask.sum(), np.nan),
+            'target':             target[out_mask],
+            'rf_prediction':      rf_pred[out_mask],
+            'county':             ev_county[out_mask],
+        }).set_index('t_start')
 
-            oof_pp    = pd.Series(rf_pred, index=events)
-            ep_dir_pp = Path(out_dir) / 'episodes'
-            os.makedirs(ep_dir_pp, exist_ok=True)
+        n_ep   = cfg_pp.get('n_episode_plots', 20)
+        top_ev = ev_df.nlargest(n_ep, 'peak_customers_out')
 
-            shap_base_pp = ds.attrs.get('shap_base_value', float(np.mean(rf_pred)))
-            if shap_vals is not None:
-                shap_pp_df = pd.DataFrame(shap_vals, index=events, columns=feat_names)
-                X_ev_pp    = pd.DataFrame(feat_arr, index=events, columns=feat_names)
-                feat_mean_pp = X_ev_pp.mean().values
-                feat_std_pp  = np.where(X_ev_pp.std().values > 0, X_ev_pp.std().values, 1.0)
+        # Per-county Series to avoid duplicate-timestamp issues when two counties
+        # share an identical t_start (positional filter ensures scalar .loc access)
+        def _county_series(vals, ci):
+            mask = (ev_county == ci)
+            return pd.Series(vals[mask], index=events[mask])
 
-            for ts_ep, row in top_ev.iterrows():
-                ep = pd.Series({
-                    't_start':  ts_ep,
-                    't_end':    row['t_end'],
-                    't_center': ts_ep + (row['t_end'] - ts_ep) / 2,
-                    'metric':   row['duration'],
-                })
-                # df_raw_pp = original signal (black); df_detrended_pp = full detrended time series (blue)
-                plot_episode_ts(df_raw_pp, df_detrended_pp, ep, cfg_pp, ep_dir_pp, oof_pred=oof_pp)
+        target_by_county = [_county_series(target,  ci) for ci in range(len(det_srcs))]
+        oof_by_county    = [_county_series(rf_pred, ci) for ci in range(len(det_srcs))]
 
-                if shap_vals is not None and ts_ep in shap_pp_df.index:
-                    ts_str = pd.Timestamp(ts_ep).strftime('%Y%m%d_%H%M')
-                    prob   = float(oof_pp.loc[ts_ep])
+        ep_dir_pp = Path(out_dir) / 'episodes'
+        os.makedirs(ep_dir_pp, exist_ok=True)
+
+        shap_base_pp = ds.attrs.get('shap_base_value', float(np.mean(rf_pred)))
+        if shap_vals is not None:
+            X_full_df    = pd.DataFrame(feat_arr,  index=events, columns=feat_names)
+            feat_mean_pp = X_full_df.mean().values
+            feat_std_pp  = np.where(X_full_df.std().values > 0, X_full_df.std().values, 1.0)
+            shap_by_county = [
+                pd.DataFrame(shap_vals[ev_county == ci],
+                             index=events[ev_county == ci], columns=feat_names)
+                for ci in range(len(det_srcs))
+            ]
+            X_by_county = [
+                pd.DataFrame(feat_arr[ev_county == ci],
+                             index=events[ev_county == ci], columns=feat_names)
+                for ci in range(len(det_srcs))
+            ]
+
+        # County 0 = solid lines, county 1 = dashed lines (fixed, not relative to outage county)
+        label1  = station_names[0] if len(station_names) > 0 else ''
+        label2  = station_names[1] if len(station_names) > 1 else ''
+        df_raw2 = df_raw_list[1]   if len(df_raw_list)  > 1 else None
+        df_det2 = df_det_list[1]   if len(df_det_list)  > 1 else None
+
+        for ts_ep, row in top_ev.iterrows():
+            ep = pd.Series({
+                't_start':  ts_ep,
+                't_end':    row['t_end'],
+                't_center': ts_ep + (row['t_end'] - ts_ep) / 2,
+            })
+            ci        = int(row['county'])
+            oof_ep    = oof_by_county[ci]
+            target_ep = target_by_county[ci]
+
+            plot_episode_ts(
+                df_raw_list[0], df_det_list[0], ep, cfg_pp, ep_dir_pp,
+                target=target_ep, oof_pred=oof_ep,
+                df_raw2=df_raw2, X2=df_det2,
+                label1=label1, label2=label2,
+            )
+
+            if shap_vals is not None and ts_ep in shap_by_county[ci].index:
+                ts_str = pd.Timestamp(ts_ep).strftime('%Y%m%d_%H%M')
+                if mode == 'binary':
+                    pred = float(oof_ep.loc[ts_ep])
                     plot_shap_waterfall(
-                        shap_vals   = shap_pp_df.loc[ts_ep].values,
-                        feat_vals   = X_ev_pp.loc[ts_ep].values,
-                        feat_names  = feat_names,
-                        base_value  = shap_base_pp,
-                        feat_mean   = feat_mean_pp,
-                        feat_std    = feat_std_pp,
-                        save_path   = ep_dir_pp / f"shap_waterfall_{ts_str}.png",
-                        title       = f"{ts_str}  |  RF prob = {prob:.2f}",
+                        shap_vals  = shap_by_county[ci].loc[ts_ep].values,
+                        feat_vals  = X_by_county[ci].loc[ts_ep].values,
+                        feat_names = feat_names,
+                        base_value = shap_base_pp,
+                        feat_mean  = feat_mean_pp,
+                        feat_std   = feat_std_pp,
+                        save_path  = ep_dir_pp / f"shap_waterfall_{ts_str}.png",
+                        title      = f"{ts_str}  |  RF pred = {pred:.2f}",
                     )
+
 # 

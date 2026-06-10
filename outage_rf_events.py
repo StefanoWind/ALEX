@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from utils import (remove_seasonal_cycle, make_segment_target,
                    build_event_matrix, check_collinearity,
-                   train_rf_importance, save_event_dataset)
+                   train_rf_importance, train_rf_full, save_event_dataset)
 
 
 def load_config(path: str = "configs/outage_rf_events.yaml") -> dict:
@@ -32,9 +32,10 @@ def load_config(path: str = "configs/outage_rf_events.yaml") -> dict:
         return yaml.safe_load(f)
 
 
-def load_data(config: dict) -> pd.DataFrame:
-    ds = xr.open_dataset(config["source"])
-    if cfg.get('weather_event_flag', False):
+def load_data(config: dict, source: str = None) -> pd.DataFrame:
+    src = source or config["source"]
+    ds = xr.open_dataset(src)
+    if config.get('weather_event_flag', False):
         cols = config['predictor_cols'] + [config['target_col'], 'weather_event_buffer']
     else:
         cols = config['predictor_cols'] + [config['target_col']]
@@ -46,6 +47,7 @@ def load_data(config: dict) -> pd.DataFrame:
 
     df = ds[cols].to_dataframe()
     df.index = ds.time.values
+    ds.close()
     return df
 
 
@@ -61,23 +63,50 @@ def qc_data(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     return df_qc
 
 
-def _run_subset(subset: pd.DataFrame, df_raw_subset: pd.DataFrame,
-                cfg_run: dict, out_dir: Path,
-                detrended_path: Path, source_path: Path):
-    os.makedirs(out_dir, exist_ok=True)
-    with open(out_dir / 'config.yaml', 'w') as f:
-        yaml.dump(cfg_run, f)
+def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
+    source_path = Path(source_str)
+    detrended_path = source_path.with_name(source_path.stem + '.detrended.nc')
 
+    df = load_data(cfg, source=source_str)
+    df_qc = qc_data(df, cfg)
+
+    if detrended_path.exists():
+        print(f"  Loading detrended cache ← {detrended_path}")
+        ds_det = xr.open_dataset(detrended_path)
+        df_qc = ds_det.to_dataframe()
+        df_qc.index = pd.DatetimeIndex(ds_det.time.values)
+        ds_det.close()
+    else:
+        if cfg.get('detrend_seasonal', False):
+            inplace = cfg.get('detrend_mode', 'anomaly') == 'inplace'
+            exclude = set(cfg.get('detrend_exclude', []))
+            detrend_cols = [c for c in cfg['predictor_cols'] if c not in exclude]
+            df_qc, _ = remove_seasonal_cycle(
+                df_qc,
+                columns=detrend_cols,
+                window_days=cfg.get('detrend_window_days', 7),
+                min_periods=cfg.get('detrend_min_periods', 3),
+                inplace=inplace,
+                save_climatology_path=base / f'climatology_{source_path.stem}.csv',
+            )
+        df_qc.index.name = 'time'
+        xr.Dataset.from_dataframe(df_qc).to_netcdf(detrended_path)
+        print(f"  Saved detrended cache → {detrended_path}")
+
+    return df_qc, detrended_path, source_path
+
+
+def _get_event_matrix(subset: pd.DataFrame, cfg_run: dict,
+                      source_path: Path) -> tuple:
     predictors = cfg_run['predictor_cols']
-
-    # ── Event matrix cache ────────────────────────────────────────────
     thr  = cfg_run['outage_threshold']
     dur  = cfg_run.get('min_outage_duration', 1)
     pk   = cfg_run.get('min_peak_customers_out', 0.0)
     pre  = cfg_run.get('pre_window', 0)
     post = cfg_run.get('post_window', 0)
-    matrix_path = source_path.with_suffix('').with_suffix('').with_name(
-        f"{source_path.stem}.{thr}.{dur}.{pk}.{pre}.{post}.events_matrix.nc"
+    mode = cfg_run.get('mode', 'binary')
+    matrix_path = source_path.with_name(
+        f"{source_path.stem}.{thr}.{dur}.{pk}.{pre}.{post}.{mode}.events_matrix.nc"
     )
 
     if matrix_path.exists():
@@ -105,7 +134,7 @@ def _run_subset(subset: pd.DataFrame, df_raw_subset: pd.DataFrame,
             subset[predictors],
             subset[cfg_run['target_col']],
             threshold=thr,
-            mode=cfg_run['mode'],
+            mode=mode,
             pre_window=pre,
             post_window=post,
             min_duration=dur,
@@ -132,6 +161,18 @@ def _run_subset(subset: pd.DataFrame, df_raw_subset: pd.DataFrame,
         ds_m.to_netcdf(matrix_path)
         print(f"  Saved event matrix cache → {matrix_path}")
 
+    return X, y, episode_ends, peak_customers
+
+
+def _run_subset(X: pd.DataFrame, y: pd.Series,
+                episode_ends: dict, peak_customers: dict,
+                cfg_run: dict, out_dir: Path,
+                groups_arr: np.ndarray = None,
+                detrended_paths: list = None):
+    os.makedirs(out_dir, exist_ok=True)
+    with open(out_dir / 'config.yaml', 'w') as f:
+        yaml.dump(cfg_run, f)
+
     # ── Collinearity ──────────────────────────────────────────────────
     print("\n[5] Checking feature collinearity ...")
     X_clean, dropped_features, collinearity_report = check_collinearity(
@@ -149,9 +190,17 @@ def _run_subset(subset: pd.DataFrame, df_raw_subset: pd.DataFrame,
         print(f"    No features dropped; proceeding with {X_clean.shape[1]} features.")
     X = X[list(X_clean.columns)]
 
+    # ── Groups array for grouped CV ───────────────────────────────────
+    if groups_arr is not None:
+        # Align groups_arr to X after collinearity drop (index unchanged, only columns dropped)
+        print(f"  Using grouped CV: {len(np.unique(groups_arr))} groups for {len(X)} events")
+
     # ── RF ────────────────────────────────────────────────────────────
     print("\n[6] Training RF + permutation importance (CV) ...")
-    rf_result = train_rf_importance(X, y, cfg_run)
+    rf_result = train_rf_importance(X, y, cfg_run, groups=groups_arr)
+
+    print("\n[7] Training RF on full dataset (global importance + SHAP) ...")
+    global_rf_result = train_rf_full(X, y, cfg_run)
 
     oof = rf_result['oof_pred']
     events_df = pd.DataFrame({
@@ -162,81 +211,143 @@ def _run_subset(subset: pd.DataFrame, df_raw_subset: pd.DataFrame,
         'peak_customers_out': [peak_customers.get(ts, np.nan) for ts in X.index],
     }, index=X.index)
 
-    # ── SHAP ──────────────────────────────────────────────────────────
     shap_df   = rf_result.get('shap_df',   pd.DataFrame())
     shap_base = rf_result.get('shap_base', None)
-    shap_imp  = rf_result.get('shap_imp',  pd.Series(dtype=float))
 
-    # ── Save events.nc ────────────────────────────────────────────────
+    det_attr = ';'.join(str(p) for p in detrended_paths) if detrended_paths else ''
+
     print("\n[9] Saving event dataset ...")
     save_event_dataset(
         events_df, X, shap_df, cfg_run,
         save_path=out_dir / "events.nc",
         rf_result=rf_result,
-        attrs_extra={'detrended_source': str(detrended_path)},
+        attrs_extra={'detrended_source': det_attr},
         shap_base_value=shap_base,
+        global_rf_result=global_rf_result,
+        global_shap_base_value=global_rf_result.get('shap_base', None),
     )
     print("\nPipeline complete.")
 
 
 if __name__ == "__main__":
     cfg = load_config()
-    df = load_data(cfg)
-    df_qc = qc_data(df, cfg)
-    df_raw = df_qc.copy()
 
-    source_path = Path(cfg['source'])
-    detrended_path = source_path.with_suffix('').with_name(
-        source_path.stem + '.detrended.nc'
-    )
+    # Accept source as string (single) or list (multi-county)
+    raw_sources = cfg.get('sources', cfg.get('source'))
+    sources = [raw_sources] if isinstance(raw_sources, str) else list(raw_sources)
+    station_names = [Path(s).name.split('.')[0] for s in sources]
 
-    ts = datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
-    base = Path(cfg['output_dir']) / ts
+    ts_run = datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
+    base = Path(cfg['output_dir']) / ts_run
     os.makedirs(base, exist_ok=True)
-
-    # ── Detrended cache ───────────────────────────────────────────────
-    if detrended_path.exists():
-        print(f"  Loading detrended cache ← {detrended_path}")
-        ds_det = xr.open_dataset(detrended_path)
-        df_qc = ds_det.to_dataframe()
-        df_qc.index = pd.DatetimeIndex(ds_det.time.values)
-        ds_det.close()
-    else:
-        if cfg.get('detrend_seasonal', False):
-            inplace = cfg.get('detrend_mode', 'anomaly') == 'inplace'
-            exclude = set(cfg.get('detrend_exclude', []))
-            detrend_cols = [c for c in cfg['predictor_cols'] if c not in exclude]
-            df_qc, _ = remove_seasonal_cycle(
-                df_qc,
-                columns=detrend_cols,
-                window_days=cfg.get('detrend_window_days', 7),
-                min_periods=cfg.get('detrend_min_periods', 3),
-                inplace=inplace,
-                save_climatology_path=base / 'climatology.csv',
-            )
-        df_qc.index.name = 'time'
-        xr.Dataset.from_dataframe(df_qc).to_netcdf(detrended_path)
-        print(f"  Saved detrended cache → {detrended_path}")
-
-    if cfg.get('mode') in ('AUC', 'TOT'):
-        df_qc['__target__'] = make_segment_target(
-            df_qc[cfg['target_col']], cfg['outage_threshold'], cfg['mode']
-        )
 
     cfg_run = copy.deepcopy(cfg)
     cfg_run['detrend_seasonal'] = False
 
+    # ── Load, QC, detrend each source independently ───────────────────
+    loaded = [_load_and_detrend(s, cfg, base) for s in sources]
+
+    # ── Build event matrices per source, add county indicator, pool ───
+    X_parts, y_parts, county_rows = [], [], []
+    episode_ends, peak_customers = {}, {}
+    episode_ends_per_county = []
+    detrended_paths = []
+
+    for county_i, (df_qc, detrended_path, source_path) in enumerate(loaded):
+        if cfg.get('mode') in ('AUC', 'TOT'):
+            df_qc = df_qc.copy()
+            df_qc['__target__'] = make_segment_target(
+                df_qc[cfg['target_col']], cfg['outage_threshold'], cfg['mode']
+            )
+
+        print(f"\n── Source {county_i+1}/{len(sources)}: {source_path.name} ──")
+        X_i, y_i, ep_i, pk_i = _get_event_matrix(df_qc, cfg_run, source_path)
+
+        X_i = X_i.copy()
+        X_i['county'] = county_i          # binary county indicator [Roberts et al., 2017, Ecography]
+
+        X_parts.append(X_i)
+        y_parts.append(y_i)
+        county_rows.extend([county_i] * len(X_i))
+        episode_ends.update(ep_i)
+        episode_ends_per_county.append(ep_i)
+        peak_customers.update(pk_i)
+        detrended_paths.append(detrended_path)
+
+    X = pd.concat(X_parts)
+    y = pd.concat(y_parts)
+
+    # ── Compute event group IDs via union-find on the overlap graph ───
+    # [Roberts et al., 2017, Ecography]
+    dt      = loaded[0][0].index.to_series().diff().median()
+    pre_dt  = cfg_run.get('pre_window', 0) * dt
+    post_dt = cfg_run.get('post_window', 0) * dt
+
+    parent = {}
+
+    def _uf_find(x):
+        if x not in parent:
+            parent[x] = x
+        if parent[x] != x:
+            parent[x] = _uf_find(parent[x])
+        return parent[x]
+
+    def _uf_union(x, y):
+        px, py = _uf_find(x), _uf_find(y)
+        if px != py:
+            parent[px] = py
+
+    for ci, ep in enumerate(episode_ends_per_county):
+        for ts in ep:
+            _uf_find((ci, ts))
+
+    for ci in range(len(sources)):
+        for cj in range(ci + 1, len(sources)):
+            for ts_i, te_i in episode_ends_per_county[ci].items():
+                for ts_j, te_j in episode_ends_per_county[cj].items():
+                    if (te_i + post_dt > ts_j - pre_dt and
+                            ts_i - pre_dt < te_j + post_dt):
+                        _uf_union((ci, ts_i), (cj, ts_j))
+
+    root_to_id, next_id = {}, 0
+    outage_group = {}
+    for ci, ep in enumerate(episode_ends_per_county):
+        for ts in ep:
+            root = _uf_find((ci, ts))
+            if root not in root_to_id:
+                root_to_id[root] = next_id
+                next_id += 1
+            outage_group[(ci, ts)] = root_to_id[root]
+
+    singleton = next_id
+    groups_list = []
+    for ci, ts in zip(county_rows, X.index):
+        key = (ci, pd.Timestamp(ts))
+        if key in outage_group:
+            groups_list.append(outage_group[key])
+        else:
+            groups_list.append(singleton)
+            singleton += 1
+    groups_arr = np.array(groups_list)
+    print(f"  Event groups: {next_id} cross-county groups, "
+          f"{len(np.unique(groups_arr))} total for {len(X)} events")
+
+    # ── weather_event_flag subsetting (single-source only) ────────────
     if cfg.get('weather_event_flag', False):
+        if len(sources) > 1:
+            raise ValueError("weather_event_flag subsetting is not supported with multiple sources.")
+        df_qc_single = loaded[0][0]
         for flag, label in [(True, 'NWS_true'), (None, 'all')]:
             if flag is None:
-                subset = df_qc.drop(columns=['weather_event_buffer'])
+                sub = df_qc_single.drop(columns=['weather_event_buffer'])
             else:
-                subset = (df_qc[df_qc['weather_event_buffer'] == flag]
-                          .drop(columns=['weather_event_buffer']))
-            _run_subset(subset, None, cfg_run, base / label,
-                        detrended_path, source_path)
+                sub = (df_qc_single[df_qc_single['weather_event_buffer'] == flag]
+                       .drop(columns=['weather_event_buffer']))
+            X_s, y_s, ep_s, pk_s = _get_event_matrix(sub, cfg_run, loaded[0][2])
+            X_s = X_s.copy()
+            X_s['county'] = 0
+            _run_subset(X_s, y_s, ep_s, pk_s, cfg_run, base / label,
+                        groups_arr=groups_arr, detrended_paths=detrended_paths)
     else:
-        subset = df_qc
-        label = 'all'
-        _run_subset(subset, None, cfg_run, base / label,
-                    detrended_path, source_path)
+        _run_subset(X, y, episode_ends, peak_customers, cfg_run, base / 'all',
+                    groups_arr=groups_arr, detrended_paths=detrended_paths)
