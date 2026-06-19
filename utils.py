@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import (StratifiedKFold, KFold, train_test_split,
                                      StratifiedGroupKFold, GroupKFold)
-from sklearn.calibration import CalibratedClassifierCV
+from sklearn.isotonic import IsotonicRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from sklearn.utils.class_weight import compute_sample_weight
@@ -618,9 +618,9 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict,
             sw_fit = compute_sample_weight("balanced", y_fit)
             model.fit(X_fit, y_fit, sample_weight=sw_fit)
             # [Zadrozny & Elkan, 2002, KDD; Niculescu-Mizil & Caruana, 2005, ICML]
-            calibrated = CalibratedClassifierCV(model, method='isotonic', cv='prefit')
-            calibrated.fit(X_cal, y_cal)
-            val_prob = calibrated.predict_proba(X_val)[:, 1]
+            iso = IsotonicRegression(out_of_bounds='clip')
+            iso.fit(model.predict_proba(X_cal)[:, 1], y_cal)
+            val_prob = iso.predict(model.predict_proba(X_val)[:, 1])
             cv_scores.append(roc_auc_score(y_val, val_prob))
             oof_pred[val_idx] = val_prob
         else:
