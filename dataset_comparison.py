@@ -23,8 +23,8 @@ colors = {'Garfield (BREC)': 'steelblue', 'Noble (REDR)': 'firebrick'}
 PREDICTORS = ['relh', 'tair', 'aavi', 'wmax', 'rain', 'pres', 'srad']
 TARGET = 'customers_out'
 OUTAGE_THRESHOLD = 37
-
-out_dir = Path('results')
+MAX_OUTAGES=1000
+out_dir = Path('figures/comparison')
 out_dir.mkdir(exist_ok=True)
 
 
@@ -49,7 +49,7 @@ aligned = pd.concat(
 
 # ── Plot 1: time series per variable ─────────────────────────────────────────
 all_vars = [TARGET] + PREDICTORS
-years = list(range(2015, 2026))
+years = list(range(2016, 2026))
 
 for var in all_vars:
     var_label = _VAR_LABELS.get(var, var)
@@ -82,9 +82,6 @@ for var in all_vars:
             ax.plot(s.index, s.values, color=colors[name], alpha=0.7, lw=0.5,
                     label=name if not legend_drawn else '_')
 
-        if var == TARGET:
-            ax.axhline(OUTAGE_THRESHOLD, color='black', lw=1, ls='--')
-
         if not legend_drawn:
             ax.legend(fontsize=9, loc='upper right')
             legend_drawn = True
@@ -110,7 +107,65 @@ for var in all_vars:
     print(f'  Saved → {save_path}')
 
 
-# ── Plot 2: Spearman correlation bar chart (county A vs county B per variable) ─
+# ── Plot 2: yearly histograms per variable ────────────────────────────────────
+short_name = {name: name.split('(')[1].rstrip(')') for name in counties}
+
+for var in all_vars:
+    var_label = _VAR_LABELS.get(var, var)
+
+    all_vals = pd.concat([df[var].dropna() for df in data.values()])
+    if var == TARGET:
+        bins = np.arange(-0.5, MAX_OUTAGES+1, 1)
+    else:
+        bins = np.linspace(np.nanpercentile(all_vals,1) , np.nanpercentile(all_vals,99) , 101)
+
+    fig, axes = plt.subplots(len(years), 1, figsize=(10, 4 * len(years)),
+                             sharex=True)
+    fig.suptitle(var_label, fontsize=13)
+
+    legend_drawn = False
+
+    for row_i, yr in enumerate(years):
+        ax = axes[row_i]
+        yr_data = {name: df.loc[df.index.year == yr, var].dropna()
+                   for name, df in data.items()}
+
+        if all(len(s) == 0 for s in yr_data.values()):
+            ax.set_visible(False)
+            continue
+
+        stats_parts = []
+        for name, s in yr_data.items():
+            if len(s) == 0:
+                continue
+            ax.hist(s.values, bins=bins, color=colors[name], alpha=0.5,
+                    label=short_name[name] if not legend_drawn else '_')
+            stats_parts.append(f'{short_name[name]}: {s.mean():.2f}±{s.std():.2f}')
+            
+        if not legend_drawn:
+            ax.legend(fontsize=8, loc='upper right')
+            legend_drawn = True
+        
+        if var in ['customers_out','rain','srad']:
+            ax.set_yscale('symlog')
+        ax.set_title(f'{yr}   ' + '   '.join(stats_parts), fontsize=8, loc='left')
+        ax.set_ylabel('Count', fontsize=8)
+        ax.tick_params(axis='both', labelsize=8)
+        
+
+    for row_i in range(len(years) - 1, -1, -1):
+        if axes[row_i].get_visible():
+            axes[row_i].set_xlabel(var_label)
+            break
+    
+    plt.tight_layout()
+    save_path = out_dir / f'comparison_hist_{var}.png'
+    fig.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f'  Saved → {save_path}')
+
+
+# ── Plot 3: Spearman correlation bar chart (county A vs county B per variable) ─
 # [von Storch & Zwiers, 1999]
 county_names = list(counties.keys())
 corr_vars = [TARGET] + PREDICTORS

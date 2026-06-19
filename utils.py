@@ -281,6 +281,24 @@ def remove_seasonal_cycle(df: pd.DataFrame,
     return df_out, climatology
 
 
+def apply_climatology(df: pd.DataFrame, climatology: pd.DataFrame,
+                      columns: list, inplace: bool = False) -> pd.DataFrame:
+    """Apply a pre-computed climatology to detrend a DataFrame. [Wilks, 2011]"""
+    df_out = df if inplace else df.copy()
+    cols = [c for c in columns if c in climatology.columns]
+    doy = df_out.index.day_of_year
+    tod = df_out.index.hour * 3600 + df_out.index.minute * 60 + df_out.index.second
+    key_index = pd.MultiIndex.from_tuples(zip(doy, tod), names=['__doy__', '__tod__'])
+    clim_vals = climatology[cols].reindex(key_index).values
+    for i, col in enumerate(cols):
+        raw = df_out[col].values.astype(float)
+        clim = clim_vals[:, i]
+        anom = raw - clim
+        anom[np.isnan(clim)] = raw[np.isnan(clim)]
+        df_out[col] = anom
+    return df_out
+
+
 def plot_seasonal_detrending(df_raw: pd.DataFrame,
                              df_anom: pd.DataFrame,
                              climatology: pd.DataFrame,
@@ -1041,7 +1059,8 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
                     episode: pd.Series, config: dict, out_dir: Path,
                     target: pd.Series = None, oof_pred: pd.Series = None,
                     df_raw2: pd.DataFrame = None, X2: pd.DataFrame = None,
-                    label1: str = '', label2: str = ''):
+                    label1: str = '', label2: str = '',
+                    title_extra: str = ''):
 
     buffer = pd.Timedelta(hours=config.get('episode_buffer_hours', 12))
     t0 = episode['t_start'] - buffer
@@ -1145,6 +1164,8 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
             title = f"{ts_str}"
     else:
         title = f"{mode} = {float(target.loc[episode['t_start']]):.1f} {units} | RF pred = {float(oof_pred.loc[episode['t_start']]):.1f} {units} | {ts_str}"
+    if title_extra:
+        title = f"{title}  |  {title_extra}"
     axes[0].set_title(title)
     fig.tight_layout()
     fname = out_dir / f"episode_{pd.Timestamp(episode['t_start']).strftime('%Y%m%d_%H%M')}.png"
@@ -1177,8 +1198,7 @@ def build_event_matrix(df_preds: pd.DataFrame,
     episodes = _merge_close_episodes(episodes, merge_gap)
     print(f"    Episodes after merging nearby events: {len(episodes)}")
     
-    # Drop individually insignificant episodes before merging so they cannot
-    # anchor a merged block that inherits a large peak from a later sub-episode.
+    # Drop individually insignificant episodes 
     dt_h = dt.total_seconds() / 3600
     dt_min = dt.total_seconds() / 60
     episodes = [
@@ -1188,7 +1208,7 @@ def build_event_matrix(df_preds: pd.DataFrame,
     print(f"    Episodes after pre-merge filtering "
           f"(min_duration={min_duration}, min_peak={min_peak}): {len(episodes)}")
 
-    # Apply AUC/TOT severity filter on the (possibly merged) episode
+    # Add target
     filtered = []
     for t0, t1 in episodes:
         seg_vals = raw_target.loc[t0:t1]
