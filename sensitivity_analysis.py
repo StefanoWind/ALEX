@@ -36,10 +36,11 @@ plt.close('all')
 
 # ── Parameter grid ─────────────────────────────────────────────────────────
 OUTAGE_THRESHOLDS       = [10, 20, 50, 100]
-MIN_OUTAGE_DURATIONS    = [0*4, 1*4, 2*4, 3*4, 6*4, 12*4, 24*4]       # timesteps (1 ts = 15 min)
+MIN_OUTAGE_DURATIONS    = [0*4, 3*4, 6*4, 12*4, 24*4]       # timesteps (1 ts = 15 min)
 MIN_PEAK_CUSTOMERS_OUTS = [0, 100, 200, 500, 1000]
 
 MIN_OUTAGES = 10 # minimum outages threshold (for data quality ensurance)
+MODE = 'serial'  # 'serial' | 'parallel'
 
 # ── Config ─────────────────────────────────────────────────────────────────
 with open('configs/outage_rf_events.yaml') as f:
@@ -85,13 +86,8 @@ for df_qc, _, source_path in loaded:
     dur_baseline_h += _total_duration_h(ep_base)
 print(f"  dur_baseline = {dur_baseline_h:.1f} h\n")
 
-# ── Grid sweep ─────────────────────────────────────────────────────────────
-records = []
-combos = list(itertools.product(OUTAGE_THRESHOLDS, MIN_OUTAGE_DURATIONS, MIN_PEAK_CUSTOMERS_OUTS))
-print(f"Running {len(combos)} configurations ...\n")
-
-for idx, (thr, dur, peak) in enumerate(combos, 1):
-    print(f"[{idx}/{len(combos)}]  threshold={thr}  min_dur={dur}  min_peak={peak}")
+def _run_combo(idx, total, thr, dur, peak, cfg, loaded, dur_baseline_h, dt, n_jobs):
+    print(f"[{idx}/{total}]  threshold={thr}  min_dur={dur}  min_peak={peak}")
 
     cfg_run = copy.deepcopy(cfg)
     cfg_run['outage_threshold']       = thr
@@ -100,6 +96,7 @@ for idx, (thr, dur, peak) in enumerate(combos, 1):
     cfg_run['detrend_seasonal']       = False
     cfg_run['shap']                   = False
     cfg_run['importance_reps']        = 1
+    cfg_run['n_jobs']                 = n_jobs
 
     X_parts, y_parts = [], []
     dur_config_h = 0.0
@@ -109,7 +106,8 @@ for idx, (thr, dur, peak) in enumerate(combos, 1):
         X_i['county'] = county_i
         X_parts.append(X_i)
         y_parts.append(y_i)
-        dur_config_h += _total_duration_h(ep_i)
+        dur_config_h += sum((t_end - t_start + dt).total_seconds() / 3600
+                            for t_start, t_end in ep_i.items())
 
     X = pd.concat(X_parts)
     y = pd.concat(y_parts)
@@ -124,10 +122,9 @@ for idx, (thr, dur, peak) in enumerate(combos, 1):
                    'coverage': coverage}
 
     if n_outage < cfg_run['n_cv_folds'] or n_non_outage < cfg_run['n_cv_folds']:
-        print(f"  Skipped: too few samples "
-              f"(outage={n_outage}, non-outage={n_non_outage})\n")
-        records.append({**base_record, 'brier_score': np.nan, 'roc_auc': np.nan})
-        continue
+        print(f"  [{idx}] Skipped: too few samples "
+              f"(outage={n_outage}, non-outage={n_non_outage})")
+        return {**base_record, 'brier_score': np.nan, 'roc_auc': np.nan}
 
     rf    = train_rf_importance(X, y, cfg_run)
     oof   = rf['oof_pred'].reindex(y.index)
@@ -136,9 +133,28 @@ for idx, (thr, dur, peak) in enumerate(combos, 1):
     brier   = float(np.mean((oof.values - y_bin.values) ** 2))
     roc_auc = float(np.mean(rf['cv_scores']))
 
-    print(f"  Brier={brier:.4f}  ROC-AUC={roc_auc:.4f}  coverage={coverage:.3f}  "
-          f"n_outage={n_outage}  n_total={len(y)}\n")
-    records.append({**base_record, 'brier_score': brier, 'roc_auc': roc_auc})
+    print(f"  [{idx}] Brier={brier:.4f}  ROC-AUC={roc_auc:.4f}  coverage={coverage:.3f}  "
+          f"n_outage={n_outage}  n_total={len(y)}")
+    return {**base_record, 'brier_score': brier, 'roc_auc': roc_auc}
+
+
+# ── Grid sweep ─────────────────────────────────────────────────────────────
+combos = list(itertools.product(OUTAGE_THRESHOLDS, MIN_OUTAGE_DURATIONS, MIN_PEAK_CUSTOMERS_OUTS))
+print(f"Running {len(combos)} configurations ({MODE}) ...\n")
+
+if MODE == 'parallel':
+    from joblib import Parallel, delayed
+    # n_jobs=1 per worker avoids CPU over-subscription when combos run concurrently
+    records = Parallel(n_jobs=-1)(
+        delayed(_run_combo)(idx, len(combos), thr, dur, peak, cfg, loaded, dur_baseline_h, dt, 1)
+        for idx, (thr, dur, peak) in enumerate(combos, 1)
+    )
+else:
+    records = [
+        _run_combo(idx, len(combos), thr, dur, peak, cfg, loaded, dur_baseline_h, dt,
+                   cfg.get('n_jobs', -1))
+        for idx, (thr, dur, peak) in enumerate(combos, 1)
+    ]
 
 # ── Save results ───────────────────────────────────────────────────────────
 df_res = pd.DataFrame(records)
@@ -149,7 +165,7 @@ print(f"Saved → {csv_path}")
 valid = df_res.dropna(subset=['brier_score', 'coverage'])
 if not valid.empty:
     best_brier = valid.nsmallest(1, 'brier_score').iloc[0]
-    print(f"\nBest configuration (lowest Brier score):")
+    print("\nBest configuration (lowest Brier score):")
     print(f"  thr={int(best_brier['outage_threshold'])}  "
           f"dur={int(best_brier['min_outage_duration'])}  "
           f"peak={int(best_brier['min_peak_customers_out'])}  "
@@ -158,7 +174,7 @@ if not valid.empty:
     valid_c = valid[valid['coverage'] > 0].copy()
     valid_c['composite'] = valid_c['brier_score'] / valid_c['coverage']
     best_comp = valid_c.nsmallest(1, 'composite').iloc[0]
-    print(f"\nBest configuration (lowest Brier/coverage composite):")
+    print("\nBest configuration (lowest Brier/coverage composite):")
     print(f"  thr={int(best_comp['outage_threshold'])}  "
           f"dur={int(best_comp['min_outage_duration'])}  "
           f"peak={int(best_comp['min_peak_customers_out'])}  "

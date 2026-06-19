@@ -97,7 +97,7 @@ def _dominant_shap_scatter(ax, shap_v, feat_arr, tot, is_outage, rf_pred, feat_n
     def _base_var(name):
         return re.sub(r'_(grad_std|grad_mean|std|mean)_W\d+$', '', name)
 
-    mask     = is_outage * (rf_pred>0.25)*(np.max(shap_v, axis=1) > 0)
+    mask     = is_outage * (rf_pred>0)*(np.max(shap_v, axis=1) > 0)
     tot_out  = tot[mask]
     feat_out = feat_arr[mask]
     shap_out = shap_v[mask]

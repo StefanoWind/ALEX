@@ -96,6 +96,29 @@ def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
     return df_qc, detrended_path, source_path
 
 
+def _compute_additional_means(event_idx: pd.DatetimeIndex, source_path: Path,
+                              cfg: dict, dt) -> pd.DataFrame:
+    additional_cols = cfg.get('additional_cols', [])
+    if not additional_cols:
+        return pd.DataFrame(index=event_idx)
+    ds_raw = xr.open_dataset(str(source_path))
+    avail = [c for c in additional_cols if c in ds_raw]
+    if not avail:
+        ds_raw.close()
+        return pd.DataFrame(index=event_idx)
+    df_add = ds_raw[avail].to_dataframe()
+    df_add.index = pd.DatetimeIndex(ds_raw.time.values)
+    ds_raw.close()
+    for v in avail:
+        lims = cfg.get('limits', {}).get(v)
+        if lims:
+            df_add[v] = df_add[v].where(df_add[v] >= lims[0]).where(df_add[v] <= lims[1])
+    pre_dt  = cfg.get('pre_window',  0) * dt
+    post_dt = cfg.get('post_window', 0) * dt
+    rows = {ts: df_add.loc[ts - pre_dt : ts + post_dt].mean() for ts in event_idx}
+    return pd.DataFrame(rows).T[avail]
+
+
 def _get_event_matrix(subset: pd.DataFrame, cfg_run: dict,
                       source_path: Path) -> tuple:
     predictors = cfg_run['predictor_cols']
@@ -105,9 +128,9 @@ def _get_event_matrix(subset: pd.DataFrame, cfg_run: dict,
     pre  = cfg_run.get('pre_window', 0)
     post = cfg_run.get('post_window', 0)
     mode = cfg_run.get('mode', 'binary')
-    matrix_path = source_path.with_name(
-        f"{source_path.stem}.{thr}.{dur}.{pk}.{pre}.{post}.{mode}.events_matrix.nc"
-    )
+    matrix_dir = source_path.parent / 'event_matrices'
+    matrix_dir.mkdir(exist_ok=True)
+    matrix_path = matrix_dir / f"{source_path.stem}.{thr}.{dur}.{pk}.{pre}.{post}.{mode}.events_matrix.nc"
 
     if matrix_path.exists():
         print(f"  Loading event matrix cache ← {matrix_path}")
@@ -168,7 +191,8 @@ def _run_subset(X: pd.DataFrame, y: pd.Series,
                 episode_ends: dict, peak_customers: dict,
                 cfg_run: dict, out_dir: Path,
                 groups_arr: np.ndarray = None,
-                detrended_paths: list = None):
+                detrended_paths: list = None,
+                additional_means_df: pd.DataFrame = None):
     os.makedirs(out_dir, exist_ok=True)
     with open(out_dir / 'config.yaml', 'w') as f:
         yaml.dump(cfg_run, f)
@@ -225,6 +249,7 @@ def _run_subset(X: pd.DataFrame, y: pd.Series,
         shap_base_value=shap_base,
         global_rf_result=global_rf_result,
         global_shap_base_value=global_rf_result.get('shap_base', None),
+        additional_means_df=additional_means_df,
     )
     print("\nPipeline complete.")
 
@@ -252,6 +277,9 @@ if __name__ == "__main__":
     episode_ends, peak_customers = {}, {}
     episode_ends_per_county = []
     detrended_paths = []
+    add_means_parts = []
+
+    dt = loaded[0][0].index.to_series().diff().median()
 
     for county_i, (df_qc, detrended_path, source_path) in enumerate(loaded):
         if cfg.get('mode') in ('AUC', 'TOT'):
@@ -273,13 +301,15 @@ if __name__ == "__main__":
         episode_ends_per_county.append(ep_i)
         peak_customers.update(pk_i)
         detrended_paths.append(detrended_path)
+        add_means_parts.append(_compute_additional_means(X_i.index, source_path, cfg, dt))
 
     X = pd.concat(X_parts)
     y = pd.concat(y_parts)
+    additional_means_df = (pd.concat(add_means_parts) if add_means_parts
+                           else pd.DataFrame(index=X.index))
 
     # ── Compute event group IDs via union-find on the overlap graph ───
     # [Roberts et al., 2017, Ecography]
-    dt      = loaded[0][0].index.to_series().diff().median()
     pre_dt  = cfg_run.get('pre_window', 0) * dt
     post_dt = cfg_run.get('post_window', 0) * dt
 
@@ -346,8 +376,11 @@ if __name__ == "__main__":
             X_s, y_s, ep_s, pk_s = _get_event_matrix(sub, cfg_run, loaded[0][2])
             X_s = X_s.copy()
             X_s['county'] = 0
+            add_means_s = _compute_additional_means(X_s.index, loaded[0][2], cfg, dt)
             _run_subset(X_s, y_s, ep_s, pk_s, cfg_run, base / label,
-                        groups_arr=groups_arr, detrended_paths=detrended_paths)
+                        groups_arr=groups_arr, detrended_paths=detrended_paths,
+                        additional_means_df=add_means_s)
     else:
         _run_subset(X, y, episode_ends, peak_customers, cfg_run, base / 'all',
-                    groups_arr=groups_arr, detrended_paths=detrended_paths)
+                    groups_arr=groups_arr, detrended_paths=detrended_paths,
+                    additional_means_df=additional_means_df)

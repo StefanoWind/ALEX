@@ -888,7 +888,8 @@ def save_event_dataset(events_df: pd.DataFrame, X: pd.DataFrame,
                        attrs_extra: dict = None,
                        shap_base_value: float = None,
                        global_rf_result: dict = None,
-                       global_shap_base_value: float = None) -> xr.Dataset:
+                       global_shap_base_value: float = None,
+                       additional_means_df: pd.DataFrame = None) -> xr.Dataset:
     data_vars = {
         'features':  (['event', 'feature'], X.values.astype(np.float32)),
         'target':    (['event'], events_df['target'].values.astype(np.float32)),
@@ -953,11 +954,16 @@ def save_event_dataset(events_df: pd.DataFrame, X: pd.DataFrame,
     if attrs_extra:
         attrs.update(attrs_extra)
 
-    ds = xr.Dataset(
-        data_vars,
-        coords={'event': X.index, 'feature': list(X.columns)},
-        attrs=attrs,
-    )
+    coords_dict = {'event': X.index, 'feature': list(X.columns)}
+    if additional_means_df is not None and not additional_means_df.empty:
+        add_cols = list(additional_means_df.columns)
+        data_vars['additional_col_means'] = (
+            ['event', 'additional_col'],
+            additional_means_df.reindex(X.index).values.astype(np.float32),
+        )
+        coords_dict['additional_col'] = add_cols
+
+    ds = xr.Dataset(data_vars, coords=coords_dict, attrs=attrs)
     ds.to_netcdf(save_path)
     print(f"  Saved event dataset → {save_path}")
     return ds
