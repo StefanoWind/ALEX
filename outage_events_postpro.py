@@ -62,6 +62,12 @@ global_shap_vals     = ds['global_shap_values'].values.astype(float)     if 'glo
 global_rf_importance = ds['global_rf_importance'].values.astype(float)    if 'global_rf_importance'    in ds else None
 global_rf_imp_std    = ds['global_rf_importance_std'].values.astype(float) if 'global_rf_importance_std' in ds else None
 
+rain_means = None
+if 'additional_col_means' in ds and 'additional_col' in ds.coords:
+    add_cols = list(ds.additional_col.values)
+    if 'rain' in add_cols:
+        rain_means = ds['additional_col_means'].values[:, add_cols.index('rain')].astype(float)
+
 # ── plot 1: bar chart observed vs. predicted ──────────────────────
 events_num = mdates.date2num(events.to_pydatetime())
 bar_w = 0.35 * np.median(np.diff(events_num)) if len(events_num) > 1 else 1.0
@@ -84,7 +90,8 @@ fig.savefig(out_dir / 'bar_target_vs_pred.png', dpi=300, bbox_inches='tight')
 plt.close(fig)
 print(f"Saved → {out_dir / 'bar_target_vs_pred.png'}")
 
-def _dominant_shap_scatter(ax, shap_v, feat_arr, tot, is_outage, rf_pred, feat_names, colors):
+def _dominant_shap_scatter(axes, shap_v, feat_arr, tot, is_outage, rf_pred, feat_names, colors,
+                           rain_means=None):
     from matplotlib.lines import Line2D
 
     def _feat_type(name):
@@ -97,63 +104,96 @@ def _dominant_shap_scatter(ax, shap_v, feat_arr, tot, is_outage, rf_pred, feat_n
     def _base_var(name):
         return re.sub(r'_(grad_std|grad_mean|std|mean)_W\d+$', '', name)
 
-    mask     = is_outage * (rf_pred>0)*(np.max(shap_v, axis=1) > 0)
+    mask     = is_outage * (rf_pred > 0.5) * (np.max(shap_v, axis=1) > 0)
     tot_out  = tot[mask]
     feat_out = feat_arr[mask]
     shap_out = shap_v[mask]
     n_out    = mask.sum()
+    rain_out = rain_means[mask] if rain_means is not None else None
 
-    dom_idx   = np.argmax(shap_out, axis=1)
-    dom_names = [feat_names[i] for i in dom_idx]
+    feat_mean  = feat_arr.mean(axis=0)
+    feat_std   = np.where(feat_arr.std(axis=0) > 0, feat_arr.std(axis=0), 1.0)
+    feat_norm  = (feat_out - feat_mean) / feat_std
 
-    feat_mean = feat_arr.mean(axis=0)
-    feat_std  = np.where(feat_arr.std(axis=0) > 0, feat_arr.std(axis=0), 1.0)
-    feat_norm = (feat_out - feat_mean) / feat_std
+    # Rank features by SHAP descending for each event
+    rank_idx  = np.argsort(shap_out, axis=1)[:, ::-1]
+    n_ranks   = min(len(axes), shap_out.shape[1])
+    type_marker  = {'mean': 'o', 'std': '*', 'grad_mean': 's', 'grad_std': 'D'}
+    rank_labels  = ['1st', '2nd', '3rd'] + [f'{k+1}th' for k in range(3, n_ranks)]
 
-    y_vals   = np.array([feat_norm[i, dom_idx[i]] for i in range(n_out)])
-    dom_shap = shap_out[np.arange(n_out), dom_idx]
-    sizes    = 10 + 270 * (dom_shap-dom_shap.min()) / (dom_shap.max()-dom_shap.min())
-    
-    type_marker = {'mean': 'o', 'std': '*', 'grad_mean': 's', 'grad_std': 'D'}
-    dom_types   = [_feat_type(f) for f in dom_names]
-    dom_bases   = [_base_var(f)  for f in dom_names]
-    unique_bases = sorted(set(dom_bases))
+    # Collect bases and types across all ranks for a complete legend
+    all_unique_bases, all_active_types = set(), set()
+    for k in range(n_ranks):
+        dom_idx_k  = rank_idx[:, k]
+        dom_names_k = [feat_names[i] for i in dom_idx_k]
+        all_unique_bases.update(_base_var(f) for f in dom_names_k)
+        all_active_types.update(t for f in dom_names_k
+                                for t in [_feat_type(f)] if t in type_marker)
+    all_unique_bases = sorted(all_unique_bases)
+    all_active_types = sorted(all_active_types)
 
-    for base in unique_bases:
-        for ftype, marker in type_marker.items():
-            sel = [i for i, (b, t) in enumerate(zip(dom_bases, dom_types))
-                   if b == base and t == ftype]
-            if not sel:
-                continue
-            ax.scatter(
-                tot_out[sel], y_vals[sel],
-                s=sizes[sel], marker=marker,
-                color=colors[base], alpha=0.75,
-                edgecolors='k', linewidths=0.4, zorder=3,
-            )
+    for k, ax in enumerate(axes[:n_ranks]):
+        dom_idx      = rank_idx[:, k]
+        dom_names    = [feat_names[i] for i in dom_idx]
+        dom_types    = [_feat_type(f) for f in dom_names]
+        dom_bases    = [_base_var(f)  for f in dom_names]
+        unique_bases = sorted(set(dom_bases))
 
-    color_handles = [
-        Line2D([0], [0], marker='o', linestyle='none',
-               markerfacecolor=colors[b], markeredgecolor='k',
-               markersize=8,
-               label=re.sub(r'\s*\[.*?\]', '', _VAR_LABELS.get(b, b)))
-        for b in unique_bases
-    ]
-    active_types = sorted({t for t in dom_types if t in type_marker})
-    marker_handles = [
-        Line2D([0], [0], marker=type_marker[t], linestyle='none',
-               markerfacecolor='gray', markeredgecolor='k',
-               markersize=8, label=_AGG_LABELS.get(t, t).capitalize())
-        for t in active_types
-    ]
-    leg1 = ax.legend(handles=color_handles, title='Variable', bbox_to_anchor=(1.00, 1),
-                     loc='upper left', fontsize=8, framealpha=0.8)
-    ax.add_artist(leg1)
-    ax.legend(handles=marker_handles, title='Type', bbox_to_anchor=(1.00, 0),
-              loc='lower left', fontsize=8, framealpha=0.8)
-    ax.set_xlabel('TOT (min)')
-    ax.set_ylabel('Dominant feature value (z-score)')
-    ax.grid(alpha=0.3)
+        y_vals   = np.array([feat_norm[i, dom_idx[i]] for i in range(n_out)])
+        dom_shap = shap_out[np.arange(n_out), dom_idx]
+        sizes    = 10 + 1000 * dom_shap
+
+        for base in unique_bases:
+            for ftype, marker in type_marker.items():
+                sel = [i for i, (b, t, s) in enumerate(zip(dom_bases, dom_types,sizes))
+                       if b == base and t == ftype and s>0]
+                if not sel:
+                    continue
+                if rain_out is not None:
+                    ec = ['green' if rain_out[i] > 0 else 'k' for i in sel]
+                    lw = [2      if rain_out[i] > 0 else 0.4 for i in sel]
+                else:
+                    ec, lw = 'k', 0.4
+                ax.scatter(
+                    tot_out[sel], y_vals[sel],
+                    s=sizes[sel], marker=marker,
+                    color=colors[base], alpha=0.75,
+                    edgecolors=ec, linewidths=lw, zorder=3,
+                )
+
+        ax.set_ylabel(f'{rank_labels[k]} driver\n(z-score)')
+        ax.grid(alpha=0.3)
+
+        # Legends on first panel only, using all ranks' bases and types
+        if k == 0:
+            color_handles = [
+                Line2D([0], [0], marker='o', linestyle='none',
+                       markerfacecolor=colors[b], markeredgecolor='k',
+                       markersize=8,
+                       label=re.sub(r'\s*\[.*?\]', '', _VAR_LABELS.get(b, b)))
+                for b in all_unique_bases
+            ]
+            marker_handles = [
+                Line2D([0], [0], marker=type_marker[t], linestyle='none',
+                       markerfacecolor='gray', markeredgecolor='k',
+                       markersize=8, label=_AGG_LABELS.get(t, t).capitalize())
+                for t in all_active_types
+            ]
+            if rain_out is not None:
+                marker_handles.append(
+                    Line2D([0], [0], marker='o', linestyle='none',
+                           markerfacecolor='gray', markeredgecolor='green',
+                           markeredgewidth=1.2, markersize=8, label='rain > 0')
+                )
+            leg1 = ax.legend(handles=color_handles, title='Variable',
+                             bbox_to_anchor=(1.00, 1), loc='upper left',
+                             fontsize=8, framealpha=0.8)
+            ax.add_artist(leg1)
+            ax.legend(handles=marker_handles, title='Type',
+                      bbox_to_anchor=(1.00, 0), loc='lower left',
+                      fontsize=8, framealpha=0.8)
+
+    axes[-1].set_xlabel('TOT (min)')
 
 # ── plot 2: scatter – TOT vs. dominant-SHAP feature ───────────
 _have_oof    = shap_vals is not None
@@ -161,21 +201,22 @@ _have_global = global_shap_vals is not None
 
 if _have_oof or _have_global:
     _panels = []
-    if _have_oof:    _panels.append(('OOF SHAP',    shap_vals))
-    if _have_global: _panels.append(('Global SHAP', global_shap_vals))
+    if _have_oof:    _panels.append(('OOF SHAP',    'oof',    shap_vals))
+    if _have_global: _panels.append(('Global SHAP', 'global', global_shap_vals))
 
-    fig, axes = plt.subplots(1, len(_panels), figsize=(9 * len(_panels), 6),
-                             squeeze=False)
-    for ax, (title, sv) in zip(axes[0], _panels):
-        _dominant_shap_scatter(ax, sv, feat_arr, tot, is_outage, rf_pred, feat_names, colors)
-        ax.set_title(f'Dominant SHAP feature — {title}\n'
-                     '(size = |SHAP|, colour = variable, marker = aggregation type)')
-    plt.tight_layout()
-    plt.subplots_adjust(right=0.88)
-    plt.show()
-    fig.savefig(out_dir / 'scatter_dominant_feature.png', dpi=300, bbox_inches='tight')
-    plt.close(fig)
-    print(f"Saved → {out_dir / 'scatter_dominant_feature.png'}")
+    for title, tag, sv in _panels:
+        fig, axes = plt.subplots(3, 1, figsize=(9, 18), sharex=True)
+        _dominant_shap_scatter(axes, sv, feat_arr, tot, is_outage, rf_pred, feat_names, colors,
+                               rain_means=rain_means)
+        axes[0].set_title(f'Dominant SHAP feature — {title}\n'
+                          '(size = |SHAP|, colour = variable, marker = aggregation type)')
+        plt.tight_layout()
+        plt.subplots_adjust(right=0.88)
+        plt.show()
+        png = out_dir / f'scatter_dominant_feature_{tag}.png'
+        fig.savefig(png, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        print(f"Saved → {png}")
 else:
     print("SHAP values not in dataset; scatter plot skipped.")
 

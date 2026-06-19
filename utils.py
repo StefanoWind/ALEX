@@ -859,7 +859,6 @@ def plot_shap_waterfall(shap_vals: np.ndarray, feat_vals: np.ndarray,
     if not HAS_SHAP:
         print("  SHAP waterfall skipped (shap not installed).")
         return
-    plt.close('all')
     z_scores = (feat_vals - feat_mean) / feat_std
     labels = [re.sub(r'\s*\[.*?\]', '', _feat_label(c)) for c in feat_names]
     expl = shap.Explanation(
@@ -868,8 +867,9 @@ def plot_shap_waterfall(shap_vals: np.ndarray, feat_vals: np.ndarray,
         data=z_scores,
         feature_names=labels,
     )
+    fig = plt.figure()
     shap.plots.waterfall(expl, show=False)
-    fig = plt.gcf()
+    fig = plt.gcf()  # shap may replace the figure internally
     if title:
         fig.suptitle(title, fontsize=10, y=1.01)
     fig.text(0.5, -0.01, 'Feature values shown as z-scores', ha='center', fontsize=8, color='gray')
@@ -1062,7 +1062,7 @@ def plot_top_feature_histograms(X: pd.DataFrame, y: pd.Series, results: pd.DataF
 
 
 def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
-                    episode: pd.Series, config: dict, out_dir: Path,
+                    episode: pd.Series, config: dict, out_dir: Path = None,
                     target: pd.Series = None, oof_pred: pd.Series = None,
                     df_raw2: pd.DataFrame = None, X2: pd.DataFrame = None,
                     label1: str = '', label2: str = '',
@@ -1174,10 +1174,13 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
         title = f"{title}  |  {title_extra}"
     axes[0].set_title(title)
     fig.tight_layout()
-    fname = out_dir / f"episode_{pd.Timestamp(episode['t_start']).strftime('%Y%m%d_%H%M')}.png"
-    fig.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    print(f"  Saved episode plot → {fname}")
+    if out_dir is not None:
+        fname = out_dir / f"episode_{pd.Timestamp(episode['t_start']).strftime('%Y%m%d_%H%M')}.png"
+        fig.savefig(fname, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        print(f"  Saved episode plot → {fname}")
+    else:
+        plt.show()
 
 
 def build_event_matrix(df_preds: pd.DataFrame,
