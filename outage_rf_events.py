@@ -26,13 +26,17 @@ from utils import (remove_seasonal_cycle, make_segment_target,
                    build_event_matrix, check_collinearity,
                    train_rf_importance, train_rf_full, save_event_dataset)
 
-
 def load_config(path: str = "configs/outage_rf_events.yaml") -> dict:
+    '''
+    Load configuration
+    '''
     with open(path) as f:
         return yaml.safe_load(f)
 
-
 def load_data(config: dict, source: str = None) -> pd.DataFrame:
+    '''
+    Load dataset
+    '''
     src = source or config["source"]
     ds = xr.open_dataset(src)
     if config.get('weather_event_flag', False):
@@ -40,8 +44,6 @@ def load_data(config: dict, source: str = None) -> pd.DataFrame:
     else:
         cols = config['predictor_cols'] + [config['target_col']]
 
-    if 'TURB' in cols:
-        ds['TURB'] = ds['WSSD'] / (10**-10 + ds['WSPD']) * 100
     if 'aavi' in cols:
         ds['aavi'] = ds['wssd'] / ds['wssd'].mean() * ds['wdsd'] / ds['wdsd'].mean()
 
@@ -52,6 +54,9 @@ def load_data(config: dict, source: str = None) -> pd.DataFrame:
 
 
 def qc_data(df: pd.DataFrame, config: dict) -> pd.DataFrame:
+    '''
+    Quality-control of the signals
+    '''
     df_qc = pd.DataFrame(index=df.index)
     for v in config['predictor_cols']:
         df_qc[v] = (df[v]
@@ -64,6 +69,9 @@ def qc_data(df: pd.DataFrame, config: dict) -> pd.DataFrame:
 
 
 def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
+    '''
+    Detrend atmopsheric data from seasonal and daily patterns
+    '''
     source_path = Path(source_str)
     detrended_path = source_path.with_name(source_path.stem + '.detrended.nc')
 
@@ -98,6 +106,9 @@ def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
 
 def _compute_additional_means(event_idx: pd.DatetimeIndex, source_path: Path,
                               cfg: dict, dt) -> pd.DataFrame:
+    '''
+    
+    '''
     additional_cols = cfg.get('additional_cols', [])
     if not additional_cols:
         return pd.DataFrame(index=event_idx)
@@ -254,6 +265,7 @@ def _run_subset(X: pd.DataFrame, y: pd.Series,
     print("\nPipeline complete.")
 
 
+#%% Main
 if __name__ == "__main__":
     cfg = load_config()
 
@@ -262,6 +274,7 @@ if __name__ == "__main__":
     sources = [raw_sources] if isinstance(raw_sources, str) else list(raw_sources)
     station_names = [Path(s).name.split('.')[0] for s in sources]
 
+    #filesystem
     ts_run = datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
     base = Path(cfg['output_dir']) / ts_run
     os.makedirs(base, exist_ok=True)

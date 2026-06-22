@@ -1,3 +1,4 @@
+import re
 import sys
 import numpy as np
 import pandas as pd
@@ -5,14 +6,15 @@ import xarray as xr
 import yaml
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from pathlib import Path
 import tkinter
 import tkinter.filedialog
-from utils import plot_episode_ts, plot_shap_waterfall
+from utils import plot_episode_ts, plot_shap_waterfall, _VAR_LABELS
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 10
+matplotlib.rcParams['font.size'] = 14
 plt.close('all')
 
 root = tkinter.Tk()
@@ -52,6 +54,8 @@ mode             = ds.attrs.get('mode', 'binary')
 shap_base        = float(ds.attrs.get('shap_base_value',
                          np.nanmean(rf_pred) if rf_pred is not None else 0.0))
 global_shap_base = float(ds.attrs.get('global_shap_base_value', shap_base))
+colors = {'aavi': 'yellow', 'pres': 'k', 'rain': 'gray', 'relh': 'g',
+          'srad': 'orange', 'tair': 'r', 'wmax': 'b'}
 
 # ── Find nearest event ─────────────────────────────────────────────────────
 target_ts = pd.Timestamp(date_str)
@@ -149,6 +153,65 @@ if df_det_list and not df_det_list[0].empty:
     )
 else:
     print("No detrended time-series data found; episode plot skipped.")
+
+# ── Plot 1b: simplified raw time series (top-3 SHAP features) ────────────
+if shap_vals is not None:
+    shap_df_ci = pd.DataFrame(shap_vals[ev_county == ci],
+                              index=events[ev_county == ci], columns=feat_names)
+    if ts_ep in shap_df_ci.index:
+        shap_ev    = shap_df_ci.loc[ts_ep].values
+        df_raw_ci  = df_raw_list[ci]
+        buf_h      = pd.Timedelta(hours=cfg.get('episode_buffer_hours', 12))
+        t0_s, t1_s = ts_ep - buf_h, ep['t_end'] + buf_h
+
+        seen_b, top3_bases = set(), []
+        for _idx in np.argsort(shap_ev)[::-1]:
+            base = re.sub(r'_(grad_std|grad_mean|std|mean)_W\d+$', '', feat_names[_idx])
+            if base not in seen_b and base in df_raw_ci.columns:
+                seen_b.add(base)
+                top3_bases.append(base)
+            if len(top3_bases) == 3:
+                break
+
+        dt       = df_raw_ci.index.to_series().diff().median()
+        pre_w    = cfg.get('pre_window', 0)
+        post_w   = cfg.get('post_window', 0)
+        ev_start = ts_ep - pre_w * dt
+        ev_end   = ts_ep + post_w * dt
+        has_ev_win = pre_w > 0 or post_w > 0
+
+        n_s = len(top3_bases) + 1
+        fig_s, axes_s = plt.subplots(n_s, 1, figsize=(12, 2.5 * n_s), sharex=True)
+        if n_s == 1:
+            axes_s = [axes_s]
+
+        for j, base in enumerate(top3_bases):
+            ax_s = axes_s[j]
+            win = df_raw_ci[base].loc[t0_s:t1_s]
+            ax_s.plot(win.index, win.values, color='k', lw=1.5)
+            ax_s.axvspan(ts_ep, ep['t_end'], alpha=0.12, color='red', linewidth=0)
+            if has_ev_win:
+                ax_s.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue', linewidth=0)
+            ax_s.set_ylabel(_VAR_LABELS.get(base, base))
+            ax_s.grid(True, alpha=0.3)
+
+        ax_tgt = axes_s[-1]
+        if tgt_col in df_raw_ci.columns:
+            ax_tgt.plot(df_raw_ci[tgt_col].loc[t0_s:t1_s], color='firebrick', lw=1.5)
+        ax_tgt.axhline(cfg.get('outage_threshold', 0), color='firebrick', ls='--', lw=1, alpha=0.6)
+        ax_tgt.axvspan(ts_ep, ep['t_end'], alpha=0.12, color='red', linewidth=0)
+        if has_ev_win:
+            ax_tgt.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue', linewidth=0)
+        ax_tgt.set_ylabel(_VAR_LABELS.get(tgt_col, tgt_col))
+        ax_tgt.grid(True, alpha=0.3)
+        ax_tgt.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M'))
+        fig_s.autofmt_xdate(rotation=0, ha='center')
+        station_ci = station_names[ci] if ci < len(station_names) else ''
+        axes_s[0].set_title(f"Top-3 SHAP features (raw) | {ts_ep.strftime('%Y%m%d_%H%M')} | {station_ci}")
+        fig_s.tight_layout()
+        plt.show()
+    else:
+        print("SHAP values not available for this event; simplified plot skipped.")
 
 # ── SHAP feature stats (shared across waterfall plots) ────────────────────
 X_full    = pd.DataFrame(feat_arr, index=events, columns=feat_names)

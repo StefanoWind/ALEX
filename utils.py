@@ -38,12 +38,13 @@ _VAR_LABELS = {
     'wspd': 'Wind speed [m/s]',
     'wssd': 'Wind speed std [m/s]',
     'wdsd': 'Wind dir. std [°]',
-    'aavi': 'Wind variability index',
-    'wmax': 'Maximum wind speed [m/s]',
+    'aavi': 'Wind variability \n index',
+    'wmax': 'Maximum \n wind speed [m/s]',
     'rain': 'Precipitation [mm]',
     'pres': 'Pressure [hPa]',
     'srad': 'Solar radiation [W/m²]',
-    'TURB': 'Turbulence intensity [%]',
+    'TURB': 'Turbulence \n intensity [%]',
+    'customers_out':' Customers out',
 }
 
 _AGG_LABELS = {

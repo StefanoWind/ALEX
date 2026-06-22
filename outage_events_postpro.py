@@ -26,14 +26,13 @@ root.withdraw()
 root.attributes('-topmost', True)
 root.update()
 
-
 #%% Inputs
 source = tkinter.filedialog.askopenfilename(
     title='Select events.nc',
     initialdir='./results/',
     filetypes=[('NetCDF files', '*.nc')],
 )
-
+MIN_RF_PRED=0.5#minimum value of RF prediction in scatter plot
 
 if not source:
     print('No file selected. Exiting.')
@@ -90,7 +89,7 @@ fig.savefig(out_dir / 'bar_target_vs_pred.png', dpi=300, bbox_inches='tight')
 plt.close(fig)
 print(f"Saved → {out_dir / 'bar_target_vs_pred.png'}")
 
-def _dominant_shap_scatter(axes, shap_v, feat_arr, tot, is_outage, rf_pred, feat_names, colors,
+def _dominant_shap_scatter(axes, shap_v, feat_arr, tot, is_outage, rf_pred, min_ref_pred, feat_names, colors,
                            rain_means=None):
     from matplotlib.lines import Line2D
 
@@ -104,7 +103,7 @@ def _dominant_shap_scatter(axes, shap_v, feat_arr, tot, is_outage, rf_pred, feat
     def _base_var(name):
         return re.sub(r'_(grad_std|grad_mean|std|mean)_W\d+$', '', name)
 
-    mask     = is_outage * (rf_pred > 0.5) * (np.max(shap_v, axis=1) > 0)
+    mask     = is_outage * (rf_pred > min_ref_pred) * (np.max(shap_v, axis=1) > 0)
     tot_out  = tot[mask]
     feat_out = feat_arr[mask]
     shap_out = shap_v[mask]
@@ -193,7 +192,7 @@ def _dominant_shap_scatter(axes, shap_v, feat_arr, tot, is_outage, rf_pred, feat
                       bbox_to_anchor=(1.00, 0), loc='lower left',
                       fontsize=8, framealpha=0.8)
 
-    axes[-1].set_xlabel('TOT (min)')
+    axes[-1].set_xlabel('Duration (min)')
 
 # ── plot 2: scatter – TOT vs. dominant-SHAP feature ───────────
 _have_oof    = shap_vals is not None
@@ -205,17 +204,15 @@ if _have_oof or _have_global:
     if _have_global: _panels.append(('Global SHAP', 'global', global_shap_vals))
 
     for title, tag, sv in _panels:
-        fig, axes = plt.subplots(3, 1, figsize=(9, 18), sharex=True)
-        _dominant_shap_scatter(axes, sv, feat_arr, tot, is_outage, rf_pred, feat_names, colors,
+        fig, axes = plt.subplots(3, 1, figsize=(18, 10), sharex=True)
+        _dominant_shap_scatter(axes, sv, feat_arr, tot, is_outage, rf_pred,MIN_RF_PRED, feat_names, colors,
                                rain_means=rain_means)
-        axes[0].set_title(f'Dominant SHAP feature — {title}\n'
-                          '(size = |SHAP|, colour = variable, marker = aggregation type)')
-        plt.tight_layout()
-        plt.subplots_adjust(right=0.88)
+        axes[0].set_title(f'Dominant SHAP feature — {title}')
+        plt.tight_layout(rect=[0, 0, 0.85, 1])
         plt.show()
         png = out_dir / f'scatter_dominant_feature_{tag}.png'
-        fig.savefig(png, dpi=300, bbox_inches='tight')
-        plt.close(fig)
+        fig.savefig(png, dpi=300)
+        # plt.close(fig)
         print(f"Saved → {png}")
 else:
     print("SHAP values not in dataset; scatter plot skipped.")
@@ -338,7 +335,7 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
         }).set_index('t_start')
 
         n_ep   = cfg_pp.get('n_episode_plots', 20)
-        top_ev = ev_df.nlargest(n_ep, 'peak_customers_out')
+        top_ev = ev_df.nlargest(n_ep, 'duration')
 
         # Per-county Series to avoid duplicate-timestamp issues when two counties
         # share an identical t_start (positional filter ensures scalar .loc access)
@@ -389,6 +386,7 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
                 target=target_ep, oof_pred=oof_ep,
                 df_raw2=df_raw2, X2=df_det2,
                 label1=label1, label2=label2,
+                title_extra=f"duration = {row['duration']:.0f} min",
             )
 
             if shap_vals is not None and ts_ep in shap_by_county[ci].index:
