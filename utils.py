@@ -7,13 +7,12 @@ from scipy import stats
 import matplotlib
 import matplotlib.dates as mdates
 import warnings
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.inspection import permutation_importance
-from sklearn.model_selection import (StratifiedKFold, KFold, train_test_split,
-                                     StratifiedGroupKFold, GroupKFold)
+from sklearn.model_selection import (StratifiedKFold, train_test_split,
+                                     StratifiedGroupKFold)
 from sklearn.isotonic import IsotonicRegression
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import roc_auc_score, mean_squared_error
+from sklearn.metrics import roc_auc_score
 from sklearn.utils.class_weight import compute_sample_weight
 
 plt.close('all')
@@ -64,35 +63,60 @@ def _feat_label(name: str) -> str:
     return _VAR_LABELS.get(name, name)
 
 
-def make_binary_target(series: pd.Series, threshold: float) -> pd.Series:
-    """Convert count column to binary flag."""
-    return (series > threshold).astype(int)
+def _uf_find(x, parent):
+    """Path-compressed union-find lookup."""
+    if x not in parent:
+        parent[x] = x
+    if parent[x] != x:
+        parent[x] = _uf_find(parent[x], parent)
+    return parent[x]
+
+def _uf_union(x, y, parent):
+    """Union-find merge of two elements."""
+    px, py = _uf_find(x, parent), _uf_find(y, parent)
+    if px != py:
+        parent[px] = py
 
 
-def make_segment_target(series: pd.Series, threshold: float, mode: str) -> pd.Series:
-    """
-    For each contiguous segment where series > threshold compute a severity metric
-    and broadcast it to every timestep in that segment; assign 0 elsewhere.
+def _build_groups_arr(episode_ends_per_county: list, county_rows: list,
+                      events_index: pd.DatetimeIndex, pre_dt, post_dt) -> np.ndarray:
+    """Assign a group ID to every event so temporally overlapping cross-county episodes share a fold. [Roberts et al., 2017, Ecography]"""
+    parent = {}
+    for ci, ep in enumerate(episode_ends_per_county):
+        for ts in ep:
+            _uf_find((ci, ts), parent)
 
-    mode='AUC': integral of the outage curve (customer·h) over the segment.
-    mode='TOT': total duration of the segment in minutes.
-    """
-    result = pd.Series(0.0, index=series.index)
-    above = series > threshold
-    segment_id = (above != above.shift()).cumsum()
-    dt_minutes = series.index.to_series().diff().median().total_seconds() / 60
+    for ci in range(len(episode_ends_per_county)):
+        for cj in range(ci + 1, len(episode_ends_per_county)):
+            for ts_i, te_i in episode_ends_per_county[ci].items():
+                for ts_j, te_j in episode_ends_per_county[cj].items():
+                    if te_i + post_dt > ts_j - pre_dt and ts_i - pre_dt < te_j + post_dt:
+                        _uf_union((ci, ts_i), (cj, ts_j), parent)
 
-    for seg_id, idx in above.groupby(segment_id).groups.items():
-        if not above[idx[0]]:
-            continue
-        seg = series[idx]
-        value = seg.sum() * dt_minutes / 60 if mode == 'AUC' else len(seg) * dt_minutes
-        result[idx] = value
+    root_to_id, next_id = {}, 0
+    outage_group = {}
+    for ci, ep in enumerate(episode_ends_per_county):
+        for ts in ep:
+            root = _uf_find((ci, ts), parent)
+            if root not in root_to_id:
+                root_to_id[root] = next_id
+                next_id += 1
+            outage_group[(ci, ts)] = root_to_id[root]
 
-    return result
+    singleton = next_id
+    groups_list = []
+    for ci, ts in zip(county_rows, events_index):
+        key = (ci, pd.Timestamp(ts))
+        if key in outage_group:
+            groups_list.append(outage_group[key])
+        else:
+            groups_list.append(singleton)
+            singleton += 1
+    return np.array(groups_list)
 
 
 def _find_episodes(series: pd.Series, threshold: float) -> list[tuple]:
+    """Find contiguous episodes where series > threshold."""
     flag = series > threshold
     block_id = (flag != flag.shift()).cumsum()[flag]
     return [(g.index[0], g.index[-1]) for _, g in flag.groupby(block_id)]
@@ -109,22 +133,6 @@ def _merge_close_episodes(episodes: list[tuple], merge_gap: pd.Timedelta) -> lis
         else:
             merged.append([t0, t1])
     return [(t0, t1) for t0, t1 in merged]
-
-
-def _select_top_episodes(series: pd.Series, threshold: float,
-                          mode: str, n: int) -> pd.DataFrame:
-    episodes = _find_episodes(series, threshold)
-    if not episodes:
-        return pd.DataFrame()
-    seg = make_segment_target(series, threshold, mode)
-    rows = [{'t_start': t0, 't_end': t1,
-             't_center': t0 + (t1 - t0) / 2,
-             'metric': float(seg.loc[t0])}
-            for t0, t1 in episodes]
-    return (pd.DataFrame(rows)
-            .sort_values('metric', ascending=False)
-            .head(n)
-            .reset_index(drop=True))
 
 
 def plot_segment_zoom(series: pd.Series, target: pd.Series, threshold: float,
@@ -170,23 +178,14 @@ def plot_segment_zoom(series: pd.Series, target: pd.Series, threshold: float,
 
 
 def plot_time_series(df: pd.DataFrame, config: dict, save_path: Path = None):
+    """Time series scatter plot of predictors colored by target."""
     plt.figure(figsize=(18, 10))
     ctr = 1
-    mode = config.get('mode')
-    if mode == 'binary':
-        flag = df[config['target_col']] > config.get('outage_threshold', 0)
-    elif mode in ('AUC', 'TOT'):
-        c_vals = df['__target__'] if '__target__' in df.columns else df[config['target_col']]
+    flag = df[config['target_col']] > config.get('outage_threshold', 0)
     for col in config['predictor_cols']:
         plt.subplot(len(config['predictor_cols']), 1, ctr)
-        if mode == 'binary':
-            plt.scatter(df.index[~flag], df[col][~flag], s=1, c='green')
-            plt.scatter(df.index[flag], df[col][flag], s=1, c='red')
-        elif mode in ('AUC', 'TOT'):
-            plt.scatter(df.index, df[col], s=1, c=c_vals, cmap='RdYlGn_r')
-        else:
-            plt.scatter(df.index, df[col], s=1,
-                        c=np.log10(df[config['target_col']]), cmap='RdYlGn_r')
+        plt.scatter(df.index[~flag], df[col][~flag], s=1, c='green')
+        plt.scatter(df.index[flag], df[col][flag], s=1, c='red')
         plt.ylabel(col)
         plt.xlim([df.index[0], df.index[-1]])
         plt.grid()
@@ -352,13 +351,9 @@ def plot_seasonal_detrending(df_raw: pd.DataFrame,
 
 def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
                     window: dict = None, save_path: Path = None):
-    mode = config.get('mode')
-    if mode in ('AUC', 'TOT') and '__target__' in df.columns:
-        y_series = df['__target__']
-        y_label = mode
-    else:
-        y_series = df[config['target_col']]
-        y_label = config['target_col']
+    """Scatter plot of top predictors vs target."""
+    y_series = df[config['target_col']]
+    y_label = config['target_col']
 
     y_lim = (np.nanpercentile(y_series, config['perc_bins'][0]),
              np.nanpercentile(y_series, config['perc_bins'][1]))
@@ -402,7 +397,7 @@ def plot_histograms(df: pd.DataFrame, config: dict, lag: dict = None,
 
 def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
                           lag_list: list) -> dict:
-    # [von Storch & Zwiers, 1999]
+    """Compute Spearman correlation at each lag. [von Storch & Zwiers, 1999]"""
     mirror_lags = np.unique(np.concat([-np.array(lag_list), np.array(lag_list)]))
     records = []
     for lag in mirror_lags:
@@ -416,6 +411,7 @@ def cross_lag_correlation(df: pd.DataFrame, predictors: list, target: pd.Series,
 
 
 def select_best_lag(corr_df: dict, config: dict) -> dict[str, int]:
+    """Select lag with maximum absolute correlation for each predictor."""
     subset = corr_df[0]
     lag_max = {}
     for col in subset.columns:
@@ -428,6 +424,7 @@ def select_best_lag(corr_df: dict, config: dict) -> dict[str, int]:
 
 def plot_lag_correlation(corr_df: dict, save_path: Path = None,
                          target_name: str = "target"):
+    """Heatmap of Spearman r vs lag."""
     subset = corr_df[0]
     max_corr = subset.abs().max().max()
 
@@ -455,6 +452,7 @@ def plot_lag_correlation(corr_df: dict, save_path: Path = None,
 
 def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
                          lag: dict) -> tuple[pd.DataFrame, pd.Series]:
+    """Build feature matrix with lag-shifted predictors."""
     frames = {f"{col} (lag={lag[col]})": df[col].shift(lag[col]) for col in predictors}
     X = pd.DataFrame(frames, index=df.index)
     y = df[target_col]
@@ -462,9 +460,9 @@ def build_feature_matrix(df: pd.DataFrame, predictors: list, target_col: str,
     return X[valid], y[valid]
 
 
-# [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
 def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str = None,
                             window: int = 0, rolling: bool = True) -> tuple[pd.DataFrame, pd.Series]:
+    """Aggregate features over a window (mean, std, gradient). [Bossavy et al., 2013; Bianco et al., 2016]"""
     frames = {}
     w = window
     for col in predictors:
@@ -496,98 +494,20 @@ def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str =
         return pd.DataFrame([frames]), y
 
 
-def _mode_label(config: dict) -> str:
-    mode = config.get('mode', '')
-    units = {'AUC': 'customer·h', 'TOT': 'min'}
-    return f"{mode} ({units[mode]})" if mode in units else mode
-
-
-def plot_rf_scatter(y_true: pd.Series, y_pred: pd.Series, config: dict,
-                    save_path: Path = None):
-    """Scatter of observed vs OOF RF prediction with 1:1 line and linear regression."""
-    valid = ~(y_true.isna() | y_pred.isna())
-    yt_s, yp_s = y_true[valid], y_pred[valid]
-    yt, yp = yt_s.values, yp_s.values
-    slope, intercept, r, _, _ = stats.linregress(yt, yp)
-    x_line = np.array([yp.min(), yp.max()])
-
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.scatter(yt, yp, s=10, alpha=0.4, color='steelblue')
-    ax.plot(x_line, x_line, 'k--', lw=1, label='1:1')
-    ax.plot(x_line, slope * x_line + intercept, 'r-', lw=1,
-            label=f'linear fit  r={r:.2f}')
-
-    error = yp_s - yt_s
-    annotate_idx = list(error.nlargest(2).index) + list(error.nsmallest(2).index)
-    offsets = [(10, 10), (10, -20), (10, 10), (10, -20)]
-    for idx, (dx, dy) in zip(annotate_idx, offsets):
-        label_txt = pd.Timestamp(idx).strftime('%Y-%m-%d\n%H:%M')
-        ax.annotate(label_txt,
-                    xy=(yt_s[idx], yp_s[idx]),
-                    xytext=(dx, dy), textcoords='offset points',
-                    fontsize=6, color='dimgray',
-                    arrowprops=dict(arrowstyle='->', color='dimgray', lw=0.8))
-
-    label = _mode_label(config)
-    ax.set_ylabel(f'RF prediction [{label}]')
-    ax.set_xlabel(f'Observed [{label}]')
-    ax.legend()
-    ax.grid()
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"  Saved RF scatter plot → {save_path}")
-
-
-def plot_rf_timeseries(y_true: pd.Series, y_pred: pd.Series, config: dict,
-                       save_path: Path = None):
-    """Time series of observed vs OOF RF prediction."""
-    valid = ~(y_true.isna() | y_pred.isna())
-    label = _mode_label(config)
-
-    fig, ax = plt.subplots(figsize=(18, 4))
-    ax.plot(y_true[valid].index, y_true[valid].values,
-            '.-k', lw=0.8, label='Observed')
-    ax.plot(y_pred[valid].index, y_pred[valid].values,
-            '.-r', lw=0.8, label='RF prediction')
-    ax.set_ylabel(label)
-    ax.legend()
-    ax.grid()
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"  Saved RF time series plot → {save_path}")
 
 
 def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict,
                         groups: np.ndarray = None) -> dict:
-    """
-    Train RF with cross-validation and return permutation importances. [Breiman, 2001]
-    """
-    mode = config["mode"]
+    """Train RF classifier with CV and return permutation importances. [Breiman, 2001]"""
     n_folds = config["n_cv_folds"]
-
-    if mode == "binary":
-        model_cls = RandomForestClassifier
-        score_fn = lambda m, Xt, yt: roc_auc_score(yt, m.predict_proba(Xt)[:, 1])
-        score_name = "ROC-AUC"
-        if groups is not None:
-            cv = StratifiedGroupKFold(n_splits=n_folds, shuffle=True,
-                                      random_state=config["random_state"])
-        else:
-            cv = StratifiedKFold(n_splits=n_folds, shuffle=True,
-                                 random_state=config["random_state"])
+    model_cls = RandomForestClassifier
+    score_name = "ROC-AUC"
+    if groups is not None:
+        cv = StratifiedGroupKFold(n_splits=n_folds, shuffle=True,
+                                  random_state=config["random_state"])
     else:
-        model_cls = RandomForestRegressor
-        score_fn = lambda m, Xt, yt: -mean_squared_error(yt, m.predict(Xt))
-        score_name = "neg-RMSE"
-        if groups is not None:
-            cv = GroupKFold(n_splits=n_folds)
-        else:
-            cv = KFold(n_splits=n_folds, shuffle=True,
-                       random_state=config["random_state"])
+        cv = StratifiedKFold(n_splits=n_folds, shuffle=True,
+                             random_state=config["random_state"])
 
     X_arr = X.values
     y_arr = y.values
@@ -610,24 +530,18 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict,
             random_state=config["random_state"],
         )
 
-        if mode == "binary":
-            cal_frac = config.get("calibration_fraction", 0.3)
-            X_fit, X_cal, y_fit, y_cal = train_test_split(
-                X_tr, y_tr, test_size=cal_frac, stratify=y_tr,
-                random_state=config["random_state"],
-            )
-            sw_fit = compute_sample_weight("balanced", y_fit)
-            model.fit(X_fit, y_fit, sample_weight=sw_fit)
-            # [Zadrozny & Elkan, 2002, KDD; Niculescu-Mizil & Caruana, 2005, ICML]
-            iso = IsotonicRegression(out_of_bounds='clip')
-            iso.fit(model.predict_proba(X_cal)[:, 1], y_cal)
-            val_prob = iso.predict(model.predict_proba(X_val)[:, 1])
-            cv_scores.append(roc_auc_score(y_val, val_prob))
-            oof_pred[val_idx] = val_prob
-        else:
-            model.fit(X_tr, y_tr)
-            cv_scores.append(score_fn(model, X_val, y_val))
-            oof_pred[val_idx] = model.predict(X_val)
+        cal_frac = config.get("calibration_fraction", 0.3)
+        X_fit, X_cal, y_fit, y_cal = train_test_split(
+            X_tr, y_tr, test_size=cal_frac, stratify=y_tr,
+            random_state=config["random_state"],
+        )
+        sw_fit = compute_sample_weight("balanced", y_fit)
+        model.fit(X_fit, y_fit, sample_weight=sw_fit)
+        iso = IsotonicRegression(out_of_bounds='clip')
+        iso.fit(model.predict_proba(X_cal)[:, 1], y_cal)
+        val_prob = iso.predict(model.predict_proba(X_val)[:, 1])
+        cv_scores.append(roc_auc_score(y_val, val_prob))
+        oof_pred[val_idx] = val_prob
 
         perm = permutation_importance(model, X_val, y_val,
                                       n_repeats=config["importance_reps"],
@@ -672,25 +586,14 @@ def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict,
 
 
 def train_rf_full(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
-    # [Breiman, 2001; Lundberg & Lee, 2017]
-    mode = config["mode"]
-    if mode == "binary":
-        model = RandomForestClassifier(
-            n_estimators=config["n_estimators"],
-            max_features=config["max_features"],
-            n_jobs=config["n_jobs"],
-            random_state=config["random_state"],
-        )
-        sw = compute_sample_weight("balanced", y.values)
-    else:
-        model = RandomForestRegressor(
-            n_estimators=config["n_estimators"],
-            max_features=config["max_features"],
-            n_jobs=config["n_jobs"],
-            random_state=config["random_state"],
-        )
-        sw = None
-
+    """Train RF classifier on full data and compute importance. [Breiman, 2001; Lundberg & Lee, 2017]"""
+    model = RandomForestClassifier(
+        n_estimators=config["n_estimators"],
+        max_features=config["max_features"],
+        n_jobs=config["n_jobs"],
+        random_state=config["random_state"],
+    )
+    sw = compute_sample_weight("balanced", y.values)
     X_arr, y_arr = X.values, y.values
     model.fit(X_arr, y_arr, sample_weight=sw)
 
@@ -724,61 +627,17 @@ def train_rf_full(X: pd.DataFrame, y: pd.Series, config: dict) -> dict:
     return result
 
 
-def _plot_shap_waterfalls(explainer, X: pd.DataFrame,
-                          episode_centers: list, out_dir: Path):
-    base_val = explainer.expected_value
-    if isinstance(base_val, (list, np.ndarray)):
-        base_val = float(base_val[1]) if len(base_val) > 1 else float(base_val[0])
-
-    feat_mean = X.mean().values
-    feat_std = np.where(X.std().values > 0, X.std().values, 1.0)
-
-    for center in episode_centers:
-        nearest_idx = int(np.abs((X.index - center).total_seconds()).argmin())
-        if nearest_idx < 0 or nearest_idx >= len(X):
-            continue
-        x_row = X.iloc[[nearest_idx]]
-        sv = explainer.shap_values(x_row)
-        if isinstance(sv, list):
-            sv = sv[1]
-        elif isinstance(sv, np.ndarray) and sv.ndim == 3:
-            sv = sv[:, :, 1]
-        z_scores = (x_row.values[0] - feat_mean) / feat_std
-        expl = shap.Explanation(
-            values=sv[0],
-            base_values=base_val,
-            data=z_scores,
-            feature_names=[re.sub(r'\s*\[.*?\]', '', _feat_label(c)) for c in X.columns],
-        )
-        shap.plots.waterfall(expl, show=False)
-        fig = plt.gcf()
-        fig.text(0.5, 0.01, 'Feature values shown as z-scores relative to full dataset',
-                 ha='center', fontsize=8, color='gray')
-        ts_str = pd.Timestamp(X.index[nearest_idx]).strftime('%Y%m%d_%H%M')
-        fname = out_dir / f"shap_waterfall_{ts_str}.png"
-        fig.savefig(fname, dpi=150, bbox_inches='tight')
-        plt.close(fig)
-        print(f"  Saved SHAP waterfall → {fname}")
-
-
 def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
                             config: dict) -> tuple[pd.Series, pd.DataFrame]:
-    # [Lundberg & Lee, 2017]
+    """Compute SHAP importances via TreeExplainer. [Lundberg & Lee, 2017]"""
     if not HAS_SHAP:
         print("  SHAP skipped (not installed).")
         return pd.Series(dtype=float), pd.DataFrame()
 
-    mode = config["mode"]
-    if mode == "binary":
-        model = RandomForestClassifier(n_estimators=config["n_estimators"],
-                                       n_jobs=config["n_jobs"],
-                                       random_state=config["random_state"])
-        sw = compute_sample_weight("balanced", y)
-    else:
-        model = RandomForestRegressor(n_estimators=config["n_estimators"],
-                                      n_jobs=config["n_jobs"],
-                                      random_state=config["random_state"])
-        sw = None
+    model = RandomForestClassifier(n_estimators=config["n_estimators"],
+                                   n_jobs=config["n_jobs"],
+                                   random_state=config["random_state"])
+    sw = compute_sample_weight("balanced", y)
 
     model.fit(X, y, sample_weight=sw)
     explainer = shap.TreeExplainer(model)
@@ -802,6 +661,7 @@ def compute_shap_importance(X: pd.DataFrame, y: pd.Series,
 
 def plot_shap_dependence(X: pd.DataFrame, shap_df: pd.DataFrame,
                          save_path: Path = None):
+    """Dependence plot grid of top SHAP features."""
     mean_shap = shap_df.abs().mean(axis=0)
     sorted_feats = mean_shap.sort_values(ascending=False).index.tolist()
     shap_values = shap_df.values
@@ -883,91 +743,6 @@ def plot_shap_waterfall(shap_vals: np.ndarray, feat_vals: np.ndarray,
         plt.show()
 
 
-def save_event_dataset(events_df: pd.DataFrame, X: pd.DataFrame,
-                       shap_df: pd.DataFrame, config: dict,
-                       save_path: Path, rf_result: dict = None,
-                       attrs_extra: dict = None,
-                       shap_base_value: float = None,
-                       global_rf_result: dict = None,
-                       global_shap_base_value: float = None,
-                       additional_means_df: pd.DataFrame = None) -> xr.Dataset:
-    data_vars = {
-        'features':  (['event', 'feature'], X.values.astype(np.float32)),
-        'target':    (['event'], events_df['target'].values.astype(np.float32)),
-        'is_outage': (['event'], events_df['is_outage'].values.astype(np.int8)),
-        't_end':     (['event'], events_df['t_end'].values),
-    }
-    if 'rf_prediction' in events_df.columns:
-        data_vars['rf_prediction'] = (
-            ['event'],
-            events_df['rf_prediction'].values.astype(np.float32),
-        )
-    if 'peak_customers_out' in events_df.columns:
-        data_vars['peak_customers_out'] = (
-            ['event'],
-            events_df['peak_customers_out'].values.astype(np.float32),
-        )
-    if not shap_df.empty:
-        data_vars['shap_values'] = (
-            ['event', 'feature'],
-            shap_df.reindex(X.index).values.astype(np.float32),
-        )
-    if rf_result is not None:
-        data_vars['rf_importance'] = (
-            ['feature'],
-            rf_result['importance_mean'].astype(np.float32),
-        )
-        data_vars['rf_importance_std'] = (
-            ['feature'],
-            rf_result['importance_std'].astype(np.float32),
-        )
-    if global_rf_result is not None:
-        data_vars['global_rf_importance'] = (
-            ['feature'],
-            global_rf_result['importance_mean'].astype(np.float32),
-        )
-        data_vars['global_rf_importance_std'] = (
-            ['feature'],
-            global_rf_result['importance_std'].astype(np.float32),
-        )
-        if 'shap_df' in global_rf_result:
-            data_vars['global_shap_values'] = (
-                ['event', 'feature'],
-                global_rf_result['shap_df'].reindex(X.index).values.astype(np.float32),
-            )
-
-    attrs = {
-        'mode':             config['mode'],
-        'target_col':       config['target_col'],
-        'outage_threshold': config['outage_threshold'],
-        'pre_window':       config.get('pre_window', 0),
-        'post_window':      config.get('post_window', 0),
-        'predictor_cols':   config.get('predictor_cols', []),
-    }
-    if rf_result is not None:
-        attrs['cv_score_mean'] = float(np.mean(rf_result['cv_scores']))
-        attrs['cv_score_std']  = float(np.std(rf_result['cv_scores']))
-        attrs['score_name']    = rf_result['score_name']
-    if shap_base_value is not None:
-        attrs['shap_base_value'] = float(shap_base_value)
-    if global_shap_base_value is not None:
-        attrs['global_shap_base_value'] = float(global_shap_base_value)
-    if attrs_extra:
-        attrs.update(attrs_extra)
-
-    coords_dict = {'event': X.index, 'feature': list(X.columns)}
-    if additional_means_df is not None and not additional_means_df.empty:
-        add_cols = list(additional_means_df.columns)
-        data_vars['additional_col_means'] = (
-            ['event', 'additional_col'],
-            additional_means_df.reindex(X.index).values.astype(np.float32),
-        )
-        coords_dict['additional_col'] = add_cols
-
-    ds = xr.Dataset(data_vars, coords=coords_dict, attrs=attrs)
-    ds.to_netcdf(save_path)
-    print(f"  Saved event dataset → {save_path}")
-    return ds
 
 
 def build_results_table(rf_result: dict, shap_imp: pd.Series,
@@ -1036,6 +811,7 @@ def plot_importance_comparison(results: pd.DataFrame, rf_result: dict,
 
 def plot_top_feature_histograms(X: pd.DataFrame, y: pd.Series, results: pd.DataFrame,
                                 config: dict, n_top: int = 5, save_path: Path = None):
+    """Scatter plot of top features vs target."""
     top_features = results.index[:n_top].tolist()
     top_features = [f for f in top_features if f in X.columns]
 
@@ -1195,6 +971,7 @@ def build_event_matrix(df_preds: pd.DataFrame,
                        min_peak: float = 0.0,
                        non_outages_ratio: float = None,
                        random_state: int = None) -> tuple[pd.DataFrame, pd.Series, dict, dict]:
+    """Extract outage and non-outage event windows with aggregated features."""
     window_len = pre_window + post_window
     if window_len <= 0:
         raise ValueError("pre_window + post_window must be > 0.")
@@ -1296,27 +1073,8 @@ def build_event_matrix(df_preds: pd.DataFrame,
 
     return X, y, episode_ends, peak_customers
 
-def _vif_series(X_arr: np.ndarray) -> np.ndarray:
-    """Variance Inflation Factor for each column via OLS. [Montgomery et al., 2012]"""
-    n, p = X_arr.shape
-    vif = np.full(p, np.nan)
-    for j in range(p):
-        y_j = X_arr[:, j]
-        X_oth = np.delete(X_arr, j, axis=1)
-        X_oth = np.column_stack([np.ones(n), X_oth])
-        try:
-            beta = np.linalg.lstsq(X_oth, y_j, rcond=None)[0]
-            y_hat = X_oth @ beta
-            ss_res = np.sum((y_j - y_hat) ** 2)
-            ss_tot = np.sum((y_j - y_j.mean()) ** 2)
-            r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-            vif[j] = 1.0 / (1.0 - r2) if r2 < 1.0 else np.inf
-        except np.linalg.LinAlgError:
-            vif[j] = np.inf
-    return vif
-
-
 def _feature_priority(name: str) -> int:
+    """Rank feature types for collinearity drop priority."""
     if '_mean_' in name:
         return 1
     if '_max_' in name:
@@ -1327,14 +1085,10 @@ def _feature_priority(name: str) -> int:
 
 def check_collinearity(X: pd.DataFrame,
                        r_threshold: float = 0.85,
-                       vif_threshold: float | None = 10.0,
                        action: str = "drop",
                        save_path: Path = None
                        ) -> tuple[pd.DataFrame, list[str], pd.DataFrame]:
-    """
-    Flag and optionally remove collinear features using Spearman r and VIF.
-    [Dormann et al., 2013]
-    """
+    """Flag and optionally remove collinear features using Spearman r. [Dormann et al., 2013]"""
     features = list(X.columns)
     n_feat = len(features)
 
@@ -1356,21 +1110,6 @@ def check_collinearity(X: pd.DataFrame,
     else:
         print(f"  No collinear pairs found at |r| >= {r_threshold}.")
 
-    vif_values = np.full(n_feat, np.nan)
-    if vif_threshold is not None:
-        print(f"  Computing VIF for {n_feat} features ...")
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X.values.astype(float))
-        vif_values = _vif_series(X_scaled)
-        high_vif = [(features[i], vif_values[i])
-                    for i in range(n_feat) if vif_values[i] > vif_threshold]
-        if high_vif:
-            print(f"  Warning: {len(high_vif)} feature(s) with VIF > {vif_threshold}:")
-            for name, v in sorted(high_vif, key=lambda x: -x[1]):
-                print(f"      {name}   VIF = {v:.1f}")
-        else:
-            print(f"  All VIF values <= {vif_threshold}.")
-
     mean_abs_r = spearman_mat.abs().mean(axis=1)
 
     flagged_by = []
@@ -1378,14 +1117,11 @@ def check_collinearity(X: pd.DataFrame,
         flags = []
         if any(a == feat or b == feat for a, b, _ in collinear_pairs):
             flags.append("spearman")
-        if not np.isnan(vif_values[i]) and vif_values[i] > (vif_threshold or np.inf):
-            flags.append("vif")
-        flagged_by.append("|".join(flags) if flags else "")
+        flagged_by.append(flags[0] if flags else "")
 
     report = pd.DataFrame({
         "feature": features,
         "mean_abs_r": mean_abs_r.values,
-        "vif": vif_values,
         "flagged_by": flagged_by,
     }).set_index("feature")
 
@@ -1424,7 +1160,7 @@ def _plot_collinearity_heatmap(spearman_mat: pd.DataFrame,
                                 r_threshold: float,
                                 dropped: list[str],
                                 save_path: Path):
-    """Annotated Spearman correlation heatmap; dropped features labeled in red."""
+    """Spearman correlation heatmap with dropped features in red."""
     n = len(spearman_mat)
     size = max(6, n * 0.45)
     fig, ax = plt.subplots(figsize=(size, size * 0.85))
@@ -1465,7 +1201,7 @@ def _plot_collinearity_heatmap(spearman_mat: pd.DataFrame,
 
 def plot_reliability_diagram(y_true: pd.Series, y_prob: pd.Series,
                               config: dict, save_path: Path = None):
-    # [DeGroot & Fienberg, 1983; Wilks, 2011; Brier, 1950]
+    """Calibration plot and Brier score. [DeGroot & Fienberg, 1983; Wilks, 2011; Brier, 1950]"""
     n_bins = config.get("reliability_bins", 20)
     y_t = y_true.values.astype(float)
     y_p = y_prob.reindex(y_true.index).values.astype(float)
@@ -1505,5 +1241,467 @@ def plot_reliability_diagram(y_true: pd.Series, y_prob: pd.Series,
         print(f"  Saved reliability diagram → {save_path}")
 
 
-def mid(x):
-    return (x[1:] + x[:-1]) / 2
+def save_event_dataset(events_df: pd.DataFrame, X: pd.DataFrame,
+                       shap_df: pd.DataFrame, config: dict,
+                       save_path: Path, rf_result: dict = None,
+                       attrs_extra: dict = None,
+                       shap_base_value: float = None,
+                       global_rf_result: dict = None,
+                       global_shap_base_value: float = None,
+                       additional_means_df: pd.DataFrame = None) -> xr.Dataset:
+    """Save event-level features, targets, and importances to NetCDF."""
+    data_vars = {
+        'features':  (['event', 'feature'], X.values.astype(np.float32)),
+        'target':    (['event'], events_df['target'].values.astype(np.float32)),
+        'is_outage': (['event'], events_df['is_outage'].values.astype(np.int8)),
+        't_end':     (['event'], events_df['t_end'].values),
+    }
+    if 'rf_prediction' in events_df.columns:
+        data_vars['rf_prediction'] = (
+            ['event'],
+            events_df['rf_prediction'].values.astype(np.float32),
+        )
+    if 'peak_customers_out' in events_df.columns:
+        data_vars['peak_customers_out'] = (
+            ['event'],
+            events_df['peak_customers_out'].values.astype(np.float32),
+        )
+    if not shap_df.empty:
+        data_vars['shap_values'] = (
+            ['event', 'feature'],
+            shap_df.reindex(X.index).values.astype(np.float32),
+        )
+    if rf_result is not None:
+        data_vars['rf_importance'] = (
+            ['feature'],
+            rf_result['importance_mean'].astype(np.float32),
+        )
+        data_vars['rf_importance_std'] = (
+            ['feature'],
+            rf_result['importance_std'].astype(np.float32),
+        )
+    if global_rf_result is not None:
+        data_vars['global_rf_importance'] = (
+            ['feature'],
+            global_rf_result['importance_mean'].astype(np.float32),
+        )
+        data_vars['global_rf_importance_std'] = (
+            ['feature'],
+            global_rf_result['importance_std'].astype(np.float32),
+        )
+        if 'shap_df' in global_rf_result:
+            data_vars['global_shap_values'] = (
+                ['event', 'feature'],
+                global_rf_result['shap_df'].reindex(X.index).values.astype(np.float32),
+            )
+
+    attrs = {
+        'mode':             config['mode'],
+        'target_col':       config['target_col'],
+        'outage_threshold': config['outage_threshold'],
+        'pre_window':       config.get('pre_window', 0),
+        'post_window':      config.get('post_window', 0),
+        'predictor_cols':   config.get('predictor_cols', []),
+    }
+    if rf_result is not None:
+        attrs['cv_score_mean'] = float(np.mean(rf_result['cv_scores']))
+        attrs['cv_score_std']  = float(np.std(rf_result['cv_scores']))
+        attrs['score_name']    = rf_result['score_name']
+    if shap_base_value is not None:
+        attrs['shap_base_value'] = float(shap_base_value)
+    if global_shap_base_value is not None:
+        attrs['global_shap_base_value'] = float(global_shap_base_value)
+    if attrs_extra:
+        attrs.update(attrs_extra)
+
+    coords_dict = {'event': X.index, 'feature': list(X.columns)}
+    if additional_means_df is not None and not additional_means_df.empty:
+        add_cols = list(additional_means_df.columns)
+        data_vars['additional_col_means'] = (
+            ['event', 'additional_col'],
+            additional_means_df.reindex(X.index).values.astype(np.float32),
+        )
+        coords_dict['additional_col'] = add_cols
+
+    ds = xr.Dataset(data_vars, coords=coords_dict, attrs=attrs)
+    ds.to_netcdf(save_path)
+    print(f"  Saved event dataset → {save_path}")
+    return ds
+
+
+def load_config(path: str = "configs/outage_rf_events.yaml") -> dict:
+    """Load YAML configuration file."""
+    import yaml
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+def load_data(config: dict, source: str = None) -> pd.DataFrame:
+    """Load and extract predictor and target columns from NetCDF."""
+    src = source or config["source"]
+    ds = xr.open_dataset(src)
+    cols = config['predictor_cols'] + [config['target_col']]
+
+    if 'aavi' in cols:
+        ds['aavi'] = ds['wssd'] / ds['wssd'].mean() * ds['wdsd'] / ds['wdsd'].mean()
+
+    df = ds[cols].to_dataframe()
+    df.index = ds.time.values
+    ds.close()
+    return df
+
+
+def qc_data(df: pd.DataFrame, config: dict) -> pd.DataFrame:
+    """Apply min/max limits to each predictor column."""
+    df_qc = pd.DataFrame(index=df.index)
+    for v in config['predictor_cols']:
+        df_qc[v] = (df[v]
+                    .where(df[v] >= config['limits'][v][0])
+                    .where(df[v] <= config['limits'][v][1]))
+    df_qc[config['target_col']] = df[config['target_col']]
+    return df_qc
+
+
+def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
+    """Load NetCDF, apply QC, optionally detrend and cache."""
+    source_path = Path(source_str)
+    detrended_path = source_path.with_name(source_path.stem + '.detrended.nc')
+
+    df = load_data(cfg, source=source_str)
+    df_qc = qc_data(df, cfg)
+
+    if detrended_path.exists():
+        print(f"  Loading detrended cache ← {detrended_path}")
+        ds_det = xr.open_dataset(detrended_path)
+        df_qc = ds_det.to_dataframe()
+        df_qc.index = pd.DatetimeIndex(ds_det.time.values)
+        ds_det.close()
+    else:
+        if cfg.get('detrend_seasonal', False):
+            inplace = cfg.get('detrend_mode', 'anomaly') == 'inplace'
+            exclude = set(cfg.get('detrend_exclude', []))
+            detrend_cols = [c for c in cfg['predictor_cols'] if c not in exclude]
+            df_qc, _ = remove_seasonal_cycle(
+                df_qc,
+                columns=detrend_cols,
+                window_days=cfg.get('detrend_window_days', 7),
+                min_periods=cfg.get('detrend_min_periods', 3),
+                inplace=inplace,
+                save_climatology_path=base / f'climatology_{source_path.stem}.csv',
+            )
+        df_qc.index.name = 'time'
+        xr.Dataset.from_dataframe(df_qc).to_netcdf(detrended_path)
+        print(f"  Saved detrended cache → {detrended_path}")
+
+    return df_qc, detrended_path, source_path
+
+
+def _compute_additional_means(event_idx: pd.DatetimeIndex, source_path: Path,
+                              cfg: dict, dt) -> pd.DataFrame:
+    """Extract and aggregate additional columns from raw source at event times."""
+    additional_cols = cfg.get('additional_cols', [])
+    if not additional_cols:
+        return pd.DataFrame(index=event_idx)
+    ds_raw = xr.open_dataset(str(source_path))
+    avail = [c for c in additional_cols if c in ds_raw]
+    if not avail:
+        ds_raw.close()
+        return pd.DataFrame(index=event_idx)
+    df_add = ds_raw[avail].to_dataframe()
+    df_add.index = pd.DatetimeIndex(ds_raw.time.values)
+    ds_raw.close()
+    for v in avail:
+        lims = cfg.get('limits', {}).get(v)
+        if lims:
+            df_add[v] = df_add[v].where(df_add[v] >= lims[0]).where(df_add[v] <= lims[1])
+    pre_dt  = cfg.get('pre_window',  0) * dt
+    post_dt = cfg.get('post_window', 0) * dt
+    rows = {ts: df_add.loc[ts - pre_dt : ts + post_dt].mean() for ts in event_idx}
+    return pd.DataFrame(rows).T[avail]
+
+
+def _get_event_matrix(subset: pd.DataFrame, cfg_run: dict,
+                      source_path: Path) -> tuple:
+    """Build cached event matrix from detrended data."""
+    predictors = cfg_run['predictor_cols']
+    thr  = cfg_run['outage_threshold']
+    dur  = cfg_run.get('min_outage_duration', 1)
+    pk   = cfg_run.get('min_peak_customers_out', 0.0)
+    pre  = cfg_run.get('pre_window', 0)
+    post = cfg_run.get('post_window', 0)
+    mode = cfg_run.get('mode', 'binary')
+    matrix_dir = source_path.parent / 'event_matrices'
+    matrix_dir.mkdir(exist_ok=True)
+    matrix_path = matrix_dir / f"{source_path.stem}.{thr}.{dur}.{pk}.{pre}.{post}.{mode}.events_matrix.nc"
+
+    if matrix_path.exists():
+        print(f"  Loading event matrix cache ← {matrix_path}")
+        ds_m = xr.open_dataset(matrix_path)
+        X = pd.DataFrame(ds_m['features'].values,
+                         index=pd.DatetimeIndex(ds_m.event.values),
+                         columns=list(ds_m.feature.values))
+        y = pd.Series(ds_m['target'].values,
+                      index=pd.DatetimeIndex(ds_m.event.values), name='__target__')
+        is_out = ds_m['is_outage'].values.astype(bool)
+        t_ends = ds_m['t_end'].values
+        episode_ends = {pd.Timestamp(ts): pd.Timestamp(te)
+                        for ts, te, flag in zip(ds_m.event.values, t_ends, is_out)
+                        if flag and not pd.isnull(te)}
+        pk_vals = ds_m['peak_customers_out'].values
+        peak_customers = {pd.Timestamp(ts): float(pv)
+                          for ts, pv, flag in zip(ds_m.event.values, pk_vals, is_out)
+                          if flag}
+        ds_m.close()
+    else:
+        print(f"\n[4] Building event-level feature matrix "
+              f"(pre_window={pre}, post_window={post}) ...")
+        X, y, episode_ends, peak_customers = build_event_matrix(
+            subset[predictors],
+            subset[cfg_run['target_col']],
+            threshold=thr,
+            mode=mode,
+            pre_window=pre,
+            post_window=post,
+            min_duration=dur,
+            min_auc=cfg_run.get('min_event_auc', 0.0),
+            min_peak=pk,
+            non_outages_ratio=cfg_run.get('non_outages_ratio', None),
+            random_state=cfg_run.get('random_state', None),
+        )
+        print(f"    Feature matrix: {X.shape[0]} events x {X.shape[1]} features")
+
+        t_end_vals = pd.DatetimeIndex([episode_ends.get(ts, pd.NaT) for ts in X.index])
+        ds_m = xr.Dataset(
+            {
+                'features':           (['event', 'feature'], X.values.astype(np.float32)),
+                'target':             (['event'], y.values.astype(np.float32)),
+                'is_outage':          (['event'], (y.values > 0).astype(np.int8)),
+                't_end':              (['event'], t_end_vals.values),
+                'peak_customers_out': (['event'], np.array(
+                    [peak_customers.get(ts, np.nan) for ts in X.index],
+                    dtype=np.float32)),
+            },
+            coords={'event': X.index, 'feature': list(X.columns)},
+        )
+        ds_m.to_netcdf(matrix_path)
+        print(f"  Saved event matrix cache → {matrix_path}")
+
+    return X, y, episode_ends, peak_customers
+
+
+def _run_pipeline(X: pd.DataFrame, y: pd.Series, cfg_run: dict,
+                  groups_arr: np.ndarray = None,
+                  out_dir: Path = None,
+                  ep_ends: dict = None, pk_ends: dict = None,
+                  det_paths: list = None, add_df: pd.DataFrame = None) -> dict:
+    """Collinearity + RF CV for both modes. With out_dir: also global RF and full save; without: return CV metrics only."""
+    import os
+    import yaml
+
+    if out_dir is not None:
+        os.makedirs(out_dir, exist_ok=True)
+        with open(out_dir / 'config.yaml', 'w') as f:
+            yaml.dump(cfg_run, f)
+
+    print("\n[5] Checking feature collinearity ...")
+    X_clean, dropped, report = check_collinearity(
+        X,
+        r_threshold=cfg_run["collinearity_r_threshold"],
+        action=cfg_run["collinearity_action"],
+        save_path=(out_dir / "collinearity_heatmap.png") if out_dir else None,
+    )
+    if out_dir:
+        report.to_csv(out_dir / "collinearity_report.csv")
+    if dropped:
+        print(f"    Proceeding with {X_clean.shape[1]} features "
+              f"(dropped {len(dropped)}: {dropped})")
+    else:
+        print(f"    No features dropped; proceeding with {X_clean.shape[1]} features.")
+    X = X[list(X_clean.columns)]
+
+    if groups_arr is not None:
+        print(f"  Using grouped CV: {len(np.unique(groups_arr))} groups for {len(X)} events")
+
+    print("\n[6] Training RF + permutation importance (CV) ...")
+    rf_result = train_rf_importance(X, y, cfg_run, groups=groups_arr)
+
+    if out_dir is None:
+        # Sensitivity mode: return CV metrics only
+        oof   = rf_result['oof_pred'].reindex(y.index)
+        y_bin = (y > 0).astype(float)
+        # [Brier, 1950; Murphy, 1973]
+        return {
+            'brier_score': float(np.mean((oof.values - y_bin.values) ** 2)),
+            'roc_auc':     float(np.mean(rf_result['cv_scores'])),
+        }
+
+    # Single-run mode: global RF + save
+    print("\n[7] Training RF on full dataset (global importance + SHAP) ...")
+    global_rf = train_rf_full(X, y, cfg_run)
+
+    oof = rf_result['oof_pred']
+    events_df = pd.DataFrame({
+        't_end':              pd.DatetimeIndex([ep_ends.get(ts, pd.NaT) for ts in X.index]),
+        'target':             y.reindex(X.index).values.astype(float),
+        'is_outage':          (y.reindex(X.index).values > 0).astype(int),
+        'rf_prediction':      oof.reindex(X.index).values.astype(float),
+        'peak_customers_out': [pk_ends.get(ts, np.nan) for ts in X.index],
+    }, index=X.index)
+
+    shap_df   = rf_result.get('shap_df',   pd.DataFrame())
+    shap_base = rf_result.get('shap_base', None)
+    det_attr  = ';'.join(str(p) for p in det_paths) if det_paths else ''
+
+    print("\n[9] Saving event dataset ...")
+    save_event_dataset(
+        events_df, X, shap_df, cfg_run,
+        save_path=out_dir / "events.nc",
+        rf_result=rf_result,
+        attrs_extra={'detrended_source': det_attr},
+        shap_base_value=shap_base,
+        global_rf_result=global_rf,
+        global_shap_base_value=global_rf.get('shap_base', None),
+        additional_means_df=add_df,
+    )
+    print("\nPipeline complete.")
+
+
+def _total_duration_h(episode_ends: dict, dt) -> float:
+    """Sum of outage episode durations in hours (inclusive of both endpoints)."""
+    return sum((t_end - t_start + dt).total_seconds() / 3600
+               for t_start, t_end in episode_ends.items())
+
+
+def _pareto_frontier(df: pd.DataFrame, x_col: str, y_col: str,
+                     minimize_y: bool = True) -> pd.DataFrame:
+    """Non-dominated set: maximise x_col and minimise/maximise y_col."""
+    sub = df.dropna(subset=[x_col, y_col]).sort_values(x_col, ascending=False)
+    frontier, best_y = [], np.inf if minimize_y else -np.inf
+    for _, row in sub.iterrows():
+        y_val = row[y_col]
+        if (minimize_y and y_val <= best_y) or (not minimize_y and y_val >= best_y):
+            frontier.append(row)
+            best_y = y_val
+    return pd.DataFrame(frontier).sort_values(x_col)
+
+
+def plot_sensitivity(df_res: pd.DataFrame, thresholds: list, durations: list,
+                     peaks: list, out_dir: Path):
+    """Heatmap and Pareto scatter plots for sensitivity analysis results."""
+    from matplotlib.lines import Line2D
+
+    _METRICS = [
+        ('brier_score', 'Brier score', 'RdYlGn_r', True),
+        ('roc_auc',     'ROC-AUC',     'RdYlGn',   False),
+        ('coverage',    'Coverage',    'RdYlGn',   False),
+    ]
+
+    for metric, label, cmap, lower_better in _METRICS:
+        if df_res[metric].isna().all():
+            continue
+        vmin, vmax = df_res[metric].min(), df_res[metric].max()
+        n_thr = len(thresholds)
+
+        fig, axes = plt.subplots(1, n_thr, figsize=(4.5 * n_thr, 4), sharey=True)
+        if n_thr == 1:
+            axes = [axes]
+
+        for ax, thr in zip(axes, thresholds):
+            sub = df_res[df_res['outage_threshold'] == thr]
+            mat = (sub.pivot(index='min_outage_duration',
+                             columns='min_peak_customers_out',
+                             values=metric)
+                   .sort_index(ascending=False))
+            im = ax.imshow(mat.values, aspect='auto', cmap=cmap, vmin=vmin, vmax=vmax)
+            ax.set_xticks(range(len(mat.columns)))
+            ax.set_xticklabels(mat.columns)
+            ax.set_yticks(range(len(mat.index)))
+            ax.set_yticklabels(mat.index)
+            ax.set_xlabel('min_peak_customers_out')
+            if ax is axes[0]:
+                ax.set_ylabel('min_outage_duration [timesteps]')
+            ax.set_title(f'threshold = {thr}')
+            for ri in range(mat.shape[0]):
+                for ci in range(mat.shape[1]):
+                    val = mat.values[ri, ci]
+                    if not np.isnan(val):
+                        ax.text(ci, ri, f'{val:.3f}', ha='center', va='center', fontsize=7)
+
+        plt.colorbar(im, ax=axes[-1]).set_label(
+            f'{label} ({"lower" if lower_better else "higher"} = better)')
+        fig.suptitle(f'Sensitivity analysis — {label}', fontweight='bold')
+        plt.tight_layout()
+        png_path = out_dir / f'sensitivity_{metric.replace("_score", "")}.png'
+        fig.savefig(png_path, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        print(f"  Saved → {png_path}")
+
+    # Pareto scatter plots
+    dur_vals  = sorted(df_res['min_outage_duration'].unique())
+    peak_vals = sorted(df_res['min_peak_customers_out'].unique())
+    thr_vals  = sorted(df_res['outage_threshold'].unique())
+
+    _MARKER_POOL = ['o', 's', '^', 'D', 'P', 'X', 'v', '<']
+    peak_to_marker = {p: _MARKER_POOL[i % len(_MARKER_POOL)] for i, p in enumerate(peak_vals)}
+    thr_sizes      = np.linspace(40, 220, max(len(thr_vals), 2))
+    thr_to_size    = dict(zip(thr_vals, thr_sizes))
+    dur_to_color   = {d: plt.cm.tab10.colors[i % 10] for i, d in enumerate(dur_vals)}
+
+    for metric, label, minimize_y in [('brier_score', 'Brier score', True),
+                                       ('roc_auc',     'ROC-AUC',    False)]:
+        plot_df = df_res.dropna(subset=[metric, 'coverage'])
+        if plot_df.empty:
+            continue
+
+        fig, ax = plt.subplots(figsize=(9, 6))
+        fig.subplots_adjust(right=0.65)
+
+        for _, row in plot_df.iterrows():
+            ax.scatter(row['coverage'], row[metric],
+                       c=[dur_to_color[row['min_outage_duration']]],
+                       marker=peak_to_marker[row['min_peak_customers_out']],
+                       s=thr_to_size[row['outage_threshold']],
+                       edgecolors='k', linewidths=0.5, zorder=3)
+
+        pareto = _pareto_frontier(plot_df, 'coverage', metric, minimize_y=minimize_y)
+        if len(pareto) > 1:
+            ax.plot(pareto['coverage'], pareto[metric], color='k', lw=1.5, zorder=4)
+
+        leg1 = ax.legend(
+            handles=[Line2D([0], [0], marker='o', color='w',
+                            markerfacecolor=dur_to_color[d], markeredgecolor='k',
+                            markersize=9, label=str(d)) for d in dur_vals],
+            title='min_outage_duration', loc='upper left',
+            bbox_to_anchor=(1.02, 1.0), fontsize=8, framealpha=0.8)
+        ax.add_artist(leg1)
+
+        leg2 = ax.legend(
+            handles=[Line2D([0], [0], marker=peak_to_marker[p], color='gray',
+                            linestyle='none', markersize=8, markeredgecolor='k',
+                            label=str(p)) for p in peak_vals],
+            title='min_peak_customers_out', loc='upper left',
+            bbox_to_anchor=(1.02, 0.65), fontsize=8, framealpha=0.8)
+        ax.add_artist(leg2)
+
+        size_handles = [
+            Line2D([0], [0], marker='o', color='gray', linestyle='none',
+                   markeredgecolor='k', markersize=np.sqrt(thr_to_size[t]), label=str(t))
+            for t in thr_vals
+        ]
+        if len(pareto) > 1:
+            size_handles.append(Line2D([0], [0], color='k', lw=1.5, label='Pareto frontier'))
+        ax.legend(handles=size_handles, title='outage_threshold',
+                  loc='upper left', bbox_to_anchor=(1.02, 0.3), fontsize=8, framealpha=0.8)
+
+        direction = 'lower' if minimize_y else 'higher'
+        ax.set_xlabel('Coverage  (total outage hours / baseline total outage hours)')
+        ax.set_ylabel(f'{label}  ({direction} = better)')
+        ax.set_title(f'Coverage vs {label} — Pareto frontier')
+        ax.grid(alpha=0.3)
+        png_path = out_dir / f'sensitivity_pareto_{metric.replace("_score", "")}.png'
+        plt.tight_layout()
+        fig.savefig(png_path, dpi=150)
+        plt.close(fig)
+        print(f"  Saved → {png_path}")
+
+

@@ -49,8 +49,8 @@ tot        = (ds['t_end']-ds.event)/np.timedelta64(60,'s')
 is_outage  = ds['is_outage'].values.astype(bool)
 feat_names = list(ds.feature.values)
 n_feat     = len(feat_names)
-mode       = ds.attrs.get('mode', 'target')
-units      = {'AUC': 'customer·h', 'TOT': 'min'}.get(mode, '')
+mode       = ds.attrs.get('mode', 'binary')
+units      = 'min'
 colors={'aavi':'yellow', 'pres':'k', 'rain':'gray', 'relh':'g', 'srad':'orange', 'tair':'r', 'wmax':'b'}
 
 feat_arr  = ds['features'].values.astype(float)
@@ -248,7 +248,7 @@ for _tag, _imp, _imp_std, _sv in _importance_cases:
                                save_path=out_dir / f'importance_comparison_{_tag}.png')
 
 # ── plot 4: reliability diagram ───────────────────────────────────
-if mode == 'binary' and rf_pred is not None:
+if rf_pred is not None:
     config_pp = {'reliability_bins': ds.attrs.get('reliability_bins', 10)}
     y_true_pp = pd.Series(target, index=events)
     y_prob_pp = pd.Series(rf_pred, index=events)

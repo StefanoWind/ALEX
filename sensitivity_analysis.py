@@ -24,9 +24,7 @@ from matplotlib.lines import Line2D
 import yaml
 from pathlib import Path
 from datetime import datetime
-
-from outage_rf_events import _load_and_detrend, _get_event_matrix
-from utils import train_rf_importance
+from utils import train_rf_importance,_load_and_detrend, _get_event_matrix
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'

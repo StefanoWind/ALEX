@@ -6,7 +6,8 @@
       "WebSearch",
       "WebFetch(domain:arxiv.org)",
       "PowerShell(head *)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\mesonet\" | ForEach-Object { $_.FullName })"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\mesonet\" | ForEach-Object { $_.FullName })",
+      "PowerShell($path = \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\"; python -m py_compile \"$path\\\\outage_rf_events.py\" 2>&1; python -m py_compile \"$path\\\\utils.py\" 2>&1; python -m py_compile \"$path\\\\outage_events_postpro.py\" 2>&1; Write-Output \"All files compiled successfully\")"
     ]
   }
 }
