@@ -1200,9 +1200,8 @@ def _plot_collinearity_heatmap(spearman_mat: pd.DataFrame,
     print(f"  Saved collinearity heatmap → {save_path}")
 
 def plot_reliability_diagram(y_true: pd.Series, y_prob: pd.Series,
-                              config: dict, save_path: Path = None):
+                             n_bins: int=20, save_path: Path = None):
     """Calibration plot and Brier score. [DeGroot & Fienberg, 1983; Wilks, 2011; Brier, 1950]"""
-    n_bins = config.get("reliability_bins", 20)
     y_t = y_true.values.astype(float)
     y_p = y_prob.reindex(y_true.index).values.astype(float)
 
@@ -1701,8 +1700,8 @@ def plot_sensitivity(df_res: pd.DataFrame, thresholds: list, durations: list,
         ax.set_title(f'Coverage vs {label} — Pareto frontier')
         ax.grid(alpha=0.3)
         png_path = out_dir / f'sensitivity_pareto_{metric.replace("_score", "")}.png'
-        plt.tight_layout()
-        fig.savefig(png_path, dpi=150)
+        plt.tight_layout(rect=[0, 0, 0.85, 1])
+        fig.savefig(png_path, dpi=300)
         plt.close(fig)
         print(f"  Saved → {png_path}")
 

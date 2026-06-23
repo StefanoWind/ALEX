@@ -30,9 +30,9 @@ from utils import (load_config, _load_and_detrend, _compute_additional_means,
 #%% Inputs
 # Scalar → single run (saves events.nc for post-processing).
 # List   → sensitivity sweep (saves CSV + diagnostic plots, no events.nc).
-OUTAGE_THRESHOLDS       = [10, 20, 50, 100]
-MIN_OUTAGE_DURATIONS    = [0, 12, 24, 48, 96]   # timesteps (1 ts = 15 min)
-MIN_PEAK_CUSTOMERS_OUTS = [0, 100, 200, 500, 1000]
+OUTAGE_THRESHOLDS       = 20
+MIN_OUTAGE_DURATIONS    = 24  # timesteps (1 ts = 15 min)
+MIN_PEAK_CUSTOMERS_OUTS = 100
 MODE = 'serial'  # 'serial' | 'parallel'
 
 

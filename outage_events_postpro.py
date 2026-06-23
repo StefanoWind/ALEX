@@ -33,6 +33,7 @@ source = tkinter.filedialog.askopenfilename(
     filetypes=[('NetCDF files', '*.nc')],
 )
 MIN_RF_PRED=0.5#minimum value of RF prediction in scatter plot
+RELIABILITY_BINS=20
 
 if not source:
     print('No file selected. Exiting.')
@@ -249,10 +250,9 @@ for _tag, _imp, _imp_std, _sv in _importance_cases:
 
 # ── plot 4: reliability diagram ───────────────────────────────────
 if rf_pred is not None:
-    config_pp = {'reliability_bins': ds.attrs.get('reliability_bins', 10)}
     y_true_pp = pd.Series(target, index=events)
     y_prob_pp = pd.Series(rf_pred, index=events)
-    plot_reliability_diagram(y_true_pp, y_prob_pp, config_pp,
+    plot_reliability_diagram(y_true_pp, y_prob_pp,
                              save_path=Path(out_dir) / 'reliability_diagram.png')
 
 # ── plot 5: SHAP dependence ───────────────────────────────────────
