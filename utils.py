@@ -1417,6 +1417,8 @@ def _compute_additional_means(event_idx: pd.DatetimeIndex, source_path: Path,
     pre_dt  = cfg.get('pre_window',  0) * dt
     post_dt = cfg.get('post_window', 0) * dt
     rows = {ts: df_add.loc[ts - pre_dt : ts + post_dt].mean() for ts in event_idx}
+    if not rows:
+        return pd.DataFrame(index=event_idx, columns=avail, dtype=float)
     return pd.DataFrame(rows).T[avail]
 
 
