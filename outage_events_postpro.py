@@ -318,24 +318,26 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
     pk_arr    = ds['peak_customers_out'].values  if 'peak_customers_out' in ds else None
 
     if t_end_arr is not None:
-        out_mask     = is_outage
-        t_starts_out = events[out_mask]
-        t_ends_out   = pd.DatetimeIndex(t_end_arr[out_mask])
-        durations    = (t_ends_out - t_starts_out).total_seconds() / 60
+        all_t_ends = pd.DatetimeIndex(t_end_arr)
+        ev_df_all = pd.DataFrame({
+            't_end':              all_t_ends,
+            'target':             target,
+            'rf_prediction':      rf_pred,
+            'is_outage':          is_outage,
+            'county':             ev_county,
+            'peak_customers_out': pk_arr if pk_arr is not None
+                                  else np.full(len(events), np.nan),
+        }, index=pd.DatetimeIndex(events))
+        ev_df_all.index.name = 't_start'
 
-        ev_df = pd.DataFrame({
-            't_start':            t_starts_out,
-            't_end':              t_ends_out,
-            'duration':           durations,
-            'peak_customers_out': pk_arr[out_mask] if pk_arr is not None
-                                  else np.full(out_mask.sum(), np.nan),
-            'target':             target[out_mask],
-            'rf_prediction':      rf_pred[out_mask],
-            'county':             ev_county[out_mask],
-        }).set_index('t_start')
+        # FP events have no real t_end in the dataset; fall back to t_start
+        nat_mask = pd.isnull(ev_df_all['t_end'])
+        ev_df_all.loc[nat_mask, 't_end'] = ev_df_all.index[nat_mask]
 
-        n_ep   = cfg_pp.get('n_episode_plots', 20)
-        top_ev = ev_df.nlargest(n_ep, 'duration')
+        oo_mask     = ev_df_all['is_outage']
+        episodes_tp = ev_df_all[oo_mask].nlargest(5, 'rf_prediction')
+        episodes_fp = ev_df_all[~oo_mask].nlargest(5, 'rf_prediction')
+        episodes_fn = ev_df_all[oo_mask].nsmallest(5, 'rf_prediction')
 
         # Per-county Series to avoid duplicate-timestamp issues when two counties
         # share an identical t_start (positional filter ensures scalar .loc access)
@@ -346,8 +348,10 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
         target_by_county = [_county_series(target,  ci) for ci in range(len(det_srcs))]
         oof_by_county    = [_county_series(rf_pred, ci) for ci in range(len(det_srcs))]
 
-        ep_dir_pp = Path(out_dir) / 'episodes'
-        os.makedirs(ep_dir_pp, exist_ok=True)
+        label1  = station_names[0] if len(station_names) > 0 else ''
+        label2  = station_names[1] if len(station_names) > 1 else ''
+        df_raw2 = df_raw_list[1]   if len(df_raw_list)  > 1 else None
+        df_det2 = df_det_list[1]   if len(df_det_list)  > 1 else None
 
         shap_base_pp = ds.attrs.get('shap_base_value', float(np.mean(rf_pred)))
         if shap_vals is not None:
@@ -365,43 +369,47 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
                 for ci in range(len(det_srcs))
             ]
 
-        # County 0 = solid lines, county 1 = dashed lines (fixed, not relative to outage county)
-        label1  = station_names[0] if len(station_names) > 0 else ''
-        label2  = station_names[1] if len(station_names) > 1 else ''
-        df_raw2 = df_raw_list[1]   if len(df_raw_list)  > 1 else None
-        df_det2 = df_det_list[1]   if len(df_det_list)  > 1 else None
+        groups = [
+            ('tp', episodes_tp, 'TP (outage, high pred)'),
+            ('fp', episodes_fp, 'FP (no outage, high pred)'),
+            ('fn', episodes_fn, 'FN (outage, low pred)'),
+        ]
+        for group_tag, subset, group_label in groups:
+            ep_dir_grp = Path(out_dir) / 'episodes' / group_tag
+            os.makedirs(ep_dir_grp, exist_ok=True)
 
-        for ts_ep, row in top_ev.iterrows():
-            ep = pd.Series({
-                't_start':  ts_ep,
-                't_end':    row['t_end'],
-                't_center': ts_ep + (row['t_end'] - ts_ep) / 2,
-            })
-            ci        = int(row['county'])
-            oof_ep    = oof_by_county[ci]
-            target_ep = target_by_county[ci]
+            for ts_ep, row in subset.iterrows():
+                ep = pd.Series({
+                    't_start':  ts_ep,
+                    't_end':    row['t_end'],
+                    't_center': ts_ep + (row['t_end'] - ts_ep) / 2,
+                })
+                ci        = int(row['county'])
+                oof_ep    = oof_by_county[ci]
+                target_ep = target_by_county[ci]
 
-            plot_episode_ts(
-                df_raw_list[0], df_det_list[0], ep, cfg_pp, ep_dir_pp,
-                target=target_ep, oof_pred=oof_ep,
-                df_raw2=df_raw2, X2=df_det2,
-                label1=label1, label2=label2,
-                title_extra=f"duration = {row['duration']:.0f} min",
-            )
+                pred = float(oof_ep.loc[ts_ep]) if ts_ep in oof_ep.index else np.nan
 
-            if shap_vals is not None and ts_ep in shap_by_county[ci].index:
-                ts_str = pd.Timestamp(ts_ep).strftime('%Y%m%d_%H%M')
-                if mode == 'binary':
-                    pred = float(oof_ep.loc[ts_ep])
-                    plot_shap_waterfall(
-                        shap_vals  = shap_by_county[ci].loc[ts_ep].values,
-                        feat_vals  = X_by_county[ci].loc[ts_ep].values,
-                        feat_names = feat_names,
-                        base_value = shap_base_pp,
-                        feat_mean  = feat_mean_pp,
-                        feat_std   = feat_std_pp,
-                        save_path  = ep_dir_pp / f"shap_waterfall_{ts_str}.png",
-                        title      = f"{ts_str}  |  RF pred = {pred:.2f}",
-                    )
+                plot_episode_ts(
+                    df_raw_list[0], df_det_list[0], ep, cfg_pp, ep_dir_grp,
+                    target=target_ep, oof_pred=oof_ep,
+                    df_raw2=df_raw2, X2=df_det2,
+                    label1=label1, label2=label2,
+                    title_extra=f"{group_label} | RF pred = {pred:.2f}",
+                )
+
+                if shap_vals is not None and ts_ep in shap_by_county[ci].index:
+                    ts_str = pd.Timestamp(ts_ep).strftime('%Y%m%d_%H%M')
+                    if mode == 'binary':
+                        plot_shap_waterfall(
+                            shap_vals  = shap_by_county[ci].loc[ts_ep].values,
+                            feat_vals  = X_by_county[ci].loc[ts_ep].values,
+                            feat_names = feat_names,
+                            base_value = shap_base_pp,
+                            feat_mean  = feat_mean_pp,
+                            feat_std   = feat_std_pp,
+                            save_path  = ep_dir_grp / f"shap_waterfall_{ts_str}.png",
+                            title      = f"{ts_str} | {group_label} | RF pred = {pred:.2f}",
+                        )
 
 # 
