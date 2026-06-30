@@ -3,7 +3,8 @@ import pandas as pd
 import xarray as xr
 from matplotlib import pyplot as plt
 from pathlib import Path
-from scipy import stats
+import yaml
+import joblib
 import matplotlib
 import matplotlib.dates as mdates
 import warnings
@@ -468,33 +469,15 @@ def build_dynamic_features(df: pd.DataFrame, predictors: list, target_col: str =
     for col in predictors:
         x = df[col]
         grad = x.diff()
-        if rolling:
-            frames[f"{col}_mean_W{w}"]      = x.rolling(w, center=True).mean()     # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-            # frames[f"{col}_max_W{w}"]       = x.rolling(w, center=True).max()
-            # frames[f"{col}_min_W{w}"]       = x.rolling(w, center=True).min()
-            # frames[f"{col}_std_W{w}"]       = x.rolling(w, center=True).std()    # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-            # frames[f"{col}_grad_mean_W{w}"] = grad.rolling(w, center=True).mean()
-            # frames[f"{col}_grad_max_W{w}"]  = grad.rolling(w, center=True).max()
-            # frames[f"{col}_grad_min_W{w}"]  = grad.rolling(w, center=True).min()
-            # frames[f"{col}_grad_std_W{w}"]  = grad.rolling(w, center=True).std()
-        else:
-            # Whole-window aggregation — scalar statistics over the full input slice
-            frames[f"{col}_mean_W{w}"]      = x.mean()                             # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-            # frames[f"{col}_max_W{w}"]       = x.max()
-            # frames[f"{col}_min_W{w}"]       = x.min()
-            frames[f"{col}_std_W{w}"]       = x.std()                            # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
-            frames[f"{col}_grad_mean_W{w}"] = grad.mean()
-            # frames[f"{col}_grad_max_W{w}"]  = grad.max()
-            # frames[f"{col}_grad_min_W{w}"]  = grad.min()
-            frames[f"{col}_grad_std_W{w}"]  = grad.std()
+        frames[f"{col}_mean_W{w}"]      = x.mean()  # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames[f"{col}_std_W{w}"]       = x.std()                            
+        frames[f"{col}_grad_mean_W{w}"] = grad.mean()
+        frames[f"{col}_grad_std_W{w}"]  = grad.std()
     y = df[target_col] if target_col is not None else None
     if rolling:
         return pd.DataFrame(frames, index=df.index), y
     else:
         return pd.DataFrame([frames]), y
-
-
-
 
 def train_rf_importance(X: pd.DataFrame, y: pd.Series, config: dict,
                         groups: np.ndarray = None) -> dict:
@@ -843,7 +826,8 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
                     target: pd.Series = None, oof_pred: pd.Series = None,
                     df_raw2: pd.DataFrame = None, X2: pd.DataFrame = None,
                     label1: str = '', label2: str = '',
-                    title_extra: str = ''):
+                    title_extra: str = '',
+                    figsize: tuple = None):
 
     buffer = pd.Timedelta(hours=config.get('episode_buffer_hours', 12))
     t0 = episode['t_start'] - buffer
@@ -865,7 +849,9 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
     lbl_raw2 = f'raw ({label2})' if label2 else 'raw'
     lbl_det2 = f'detrended ({label2})' if label2 else 'detrended'
 
-    fig, axes = plt.subplots(n, 1, figsize=(18, 3 * n), sharex=True)
+    if figsize is None:
+        figsize = (18, 3 * n)
+    fig, axes = plt.subplots(n, 1, figsize=figsize, sharex=True)
 
     for i, col in enumerate(orig_preds):
         ax = axes[i]
@@ -956,8 +942,7 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
         fig.savefig(fname, dpi=150, bbox_inches='tight')
         plt.close(fig)
         print(f"  Saved episode plot → {fname}")
-    else:
-        plt.show()
+    return fig
 
 
 def build_event_matrix(df_preds: pd.DataFrame,
@@ -1566,6 +1551,7 @@ def _run_pipeline(X: pd.DataFrame, y: pd.Series, cfg_run: dict,
         additional_means_df=add_df,
     )
     print("\nPipeline complete.")
+    return X
 
 
 def _total_duration_h(episode_ends: dict, dt) -> float:
@@ -1706,4 +1692,133 @@ def plot_sensitivity(df_res: pd.DataFrame, thresholds: list, durations: list,
         plt.close(fig)
         print(f"  Saved → {png_path}")
 
+
+class OutagePredictor:
+    """
+    Loads a saved model bundle and returns calibrated outage probabilities for
+    any input atmospheric time series via a sliding event window.
+
+    The event window [t - pre_window, t + post_window] is slid over every
+    timestep t. Features are window-level summary statistics (mean, std,
+    mean gradient, std gradient) computed with vectorised rolling operations,
+    matching the aggregation used during training.
+
+    Note: gradient features include one extra boundary observation compared to
+    the per-window computation during training (trivial effect on predictions).
+    """
+
+    def __init__(self, bundle_dir: str):
+        bundle_dir = Path(bundle_dir)
+        with open(bundle_dir / 'config.yaml') as f:
+            self.cfg = yaml.safe_load(f)
+        bundle = joblib.load(bundle_dir / 'model.joblib')
+        self.rf  = bundle['rf']
+        self.iso = bundle['iso']
+        feat_names = self.cfg.get('feature_names', [])
+        if len(feat_names) != self.rf.n_features_in_:
+            raise ValueError(
+                f"Bundle mismatch: config has {len(feat_names)} feature names "
+                f"but RF expects {self.rf.n_features_in_}."
+            )
+
+    def predict(self, df: pd.DataFrame,
+                climatology_path: str | Path = None,
+                non_overlapping: bool = False,
+                return_features: bool = False) -> pd.Series:
+        """
+
+        Parameters
+        ----------
+        df               : DataFrame with DatetimeIndex; must contain all predictor_cols.
+        station          : name of the station whose climatology is used for detrending;
+                           defaults to the first station in the bundle.
+        climatology_path : optional path to a climatology CSV produced by
+                           remove_seasonal_cycle(); takes priority over the bundle
+                           climatology.  If neither is available the seasonal cycle
+                           is removed directly from df.
+        non_overlapping  : if True, tile the series into non-overlapping windows of
+                           roll_size steps and return one probability per tile, indexed
+                           at the center timestamp.  If False (default), return a
+                           probability at every timestep (sliding window).
+
+        Returns
+        -------
+        pd.Series of float.  When non_overlapping=False: same index as df, NaN at
+        boundary timesteps and wherever input data are missing.  When
+        non_overlapping=True: one value per tile, indexed at the tile center.
+        """
+        predictors   = self.cfg['predictor_cols']
+        pre_w        = self.cfg['pre_window']
+        post_w       = self.cfg['post_window']
+        feat_names   = self.cfg['feature_names']
+        w_label      = pre_w + post_w   # matches the W<n> suffix in feature names
+        roll_size    = pre_w + post_w + 1
+        detrend_cols = [c for c in self.cfg['predictor_cols'] if c not in self.cfg['detrend_exclude']]
+        
+        missing = [c for c in predictors if c not in df.columns]
+        if missing:
+            raise ValueError(f"Input DataFrame missing columns: {missing}")
+
+
+        if climatology_path is not None:
+            clim = pd.read_csv(climatology_path, index_col=[0, 1])
+            clim.index.names = ['__doy__', '__tod__']
+        else:
+            clim=None
+
+        # Detrend with saved climatology [Wilks, 2011]; fall back to on-the-fly detrending
+       
+        if clim is not None:
+            df_det = apply_climatology(df[predictors].copy(), clim,
+                                       columns=detrend_cols, inplace=True)
+        else:
+            df_det, _ = remove_seasonal_cycle(
+                df[predictors].copy(),
+                columns=detrend_cols,
+                window_days=self.cfg.get('detrend_window_days', 7),
+                min_periods=self.cfg.get('detrend_min_periods', 3),
+                inplace=True,
+            )
+
+        # Vectorised rolling feature matrix.
+        # rolling(roll_size).shift(-post_w) aligns each value so that at index t
+        # the window covers [t - pre_w, t + post_w], matching the training windows.
+        # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        frames = {}
+        for col in predictors:
+            x = df_det[col]
+            g = x.diff()
+            r = x.rolling(roll_size)
+            gr = g.rolling(roll_size)
+            frames[f'{col}_mean_W{w_label}']     = r.mean().shift(-post_w)
+            frames[f'{col}_std_W{w_label}']      = r.std().shift(-post_w)
+            frames[f'{col}_grad_mean_W{w_label}'] = gr.mean().shift(-post_w)
+            frames[f'{col}_grad_std_W{w_label}']  = gr.std().shift(-post_w)
+
+        feat_df = pd.DataFrame(frames, index=df_det.index).reindex(columns=feat_names)
+
+        if non_overlapping:
+            # Anchor at pre_w within each tile so [t-pre_w, t+post_w] = tile [k*(roll_size-1), k*(roll_size-1)+roll_size-1]
+            # step = roll_size-1 so consecutive windows share one boundary timestep
+            sel_pos = np.arange(pre_w, len(feat_df) - post_w, roll_size - 1)
+            feat_sel = feat_df.iloc[sel_pos].reindex(columns=feat_names)
+            valid = feat_sel.notna().all(axis=1).values
+            # Center of each tile (works for unequal pre_w / post_w)
+            center_pos = (sel_pos - pre_w + roll_size // 2).clip(0, len(df) - 1)
+            center_times = df.index[center_pos]
+            probs = pd.Series(np.nan, index=center_times, name='outage_probability')
+            if valid.any():
+                probs.iloc[valid] = self.iso.predict(self.rf.predict_proba(feat_sel.values[valid])[:, 1])
+            if return_features:
+                feat_out = feat_sel.set_axis(center_times)
+                return probs, feat_out, df_det
+            return probs
+
+        probs = pd.Series(np.nan, index=df_det.index, name='outage_probability')
+        valid = feat_df.notna().all(axis=1)
+        if valid.any():
+            probs[valid] = self.iso.predict(self.rf.predict_proba(feat_df[valid].values)[:, 1])
+        if return_features:
+            return probs, feat_df, df_det
+        return probs
 

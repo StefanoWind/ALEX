@@ -23,8 +23,9 @@ import pandas as pd
 import yaml
 from datetime import datetime
 from pathlib import Path
-from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.isotonic import IsotonicRegression
+from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_sample_weight
 from utils import (load_config, _load_and_detrend, _compute_additional_means,
                    _get_event_matrix, _run_pipeline, _build_groups_arr,
@@ -164,41 +165,39 @@ if __name__ == "__main__":
         X, y, groups, ep_ends, pk_ends, det_paths, add_df, _ = _pool(cfg)
         print(f"  Event groups: {len(np.unique(groups))} total for {len(X)} events")
 
-        _run_pipeline(X, y, cfg, groups_arr=groups, out_dir=base,
-                      ep_ends=ep_ends, pk_ends=pk_ends,
-                      det_paths=det_paths, add_df=add_df)
+        X_filtered = _run_pipeline(X, y, cfg, groups_arr=groups, out_dir=base,
+                                    ep_ends=ep_ends, pk_ends=pk_ends,
+                                    det_paths=det_paths, add_df=add_df)
 
         # Save model bundle
         bundle_dir = base/Path('model_bundle')
         os.makedirs(bundle_dir, exist_ok=True)
-        detrend_cols = [c for c in cfg['predictor_cols']
-                        if c not in set(cfg.get('detrend_exclude', []))]
 
-        X_bundle = X.drop(columns=['county'], errors='ignore')
+        # Use the collinearity-filtered X so the bundle matches what CV evaluated
+        X_bundle = X_filtered.drop(columns=['county'], errors='ignore')
         y_bin = (y > 0).astype(float)
-        rf_base = RandomForestClassifier(
+        cal_frac = cfg.get('calibration_fraction', 0.3)
+        X_fit, X_cal, y_fit, y_cal = train_test_split(
+            X_bundle.values, y_bin.values, test_size=cal_frac,
+            stratify=y_bin.values, random_state=cfg['random_state'],
+        )
+        rf = RandomForestClassifier(
             n_estimators=cfg['n_estimators'],
             max_features=cfg['max_features'],
             n_jobs=cfg['n_jobs'],
             random_state=cfg['random_state'],
         )
-        sw = compute_sample_weight('balanced', y_bin.values)
+        sw_fit = compute_sample_weight('balanced', y_fit)
+        rf.fit(X_fit, y_fit, sample_weight=sw_fit)
         # [Niculescu-Mizil & Caruana, 2005, ICML; Zadrozny & Elkan, 2002, KDD]
-        model = CalibratedClassifierCV(rf_base, method='isotonic', cv=cfg['n_cv_folds'])
-        model.fit(X_bundle.values, y_bin.values, sample_weight=sw)
-        joblib.dump(model, bundle_dir / 'model.joblib')
+        iso = IsotonicRegression(out_of_bounds='clip')
+        iso.fit(rf.predict_proba(X_cal)[:, 1], y_cal)
+        joblib.dump({'rf': rf, 'iso': iso}, bundle_dir / 'model.joblib')
         print(f"  Saved → {bundle_dir / 'model.joblib'}")
-
-        bundle_cfg = {
-            'predictor_cols':      cfg['predictor_cols'],
-            'detrend_cols':        detrend_cols,
-            'pre_window':          cfg.get('pre_window', 8),
-            'post_window':         cfg.get('post_window', 8),
-            'feature_names':       list(X_bundle.columns),
-            'station_names':       station_names,
-            'detrend_window_days': cfg.get('detrend_window_days', 7),
-            'detrend_min_periods': cfg.get('detrend_min_periods', 3),
-        }
+        
+        bundle_cfg = cfg.copy()
+        bundle_cfg['feature_names'] = [str(c) for c in X_bundle.columns]
+        
         with open(bundle_dir / 'config.yaml', 'w') as f:
             yaml.dump(bundle_cfg, f)
         print(f"  Saved → {bundle_dir / 'config.yaml'}")

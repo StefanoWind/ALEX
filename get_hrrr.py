@@ -7,14 +7,14 @@ from herbie import FastHerbie
 # HRRR: [Benjamin et al., 2016, Mon. Wea. Rev.]; v4: [Dowell et al., 2022, Bull. Amer. Meteor. Soc.]
 
 CFG = {
-    'start':            '2021-07-01',
-    'end':              '2021-07-07',
+    'start':            '2023-06-01',
+    'end':              '2023-06-30',
     'freq':             '1h',
     'fxx_fcst':         18,               # forecast lead (hours); 18h is the max for all HRRR cycles
     'fcst_cycle_hours': list(range(24)),  # all cycles support fxx=18h → every hour is filled
     'product':          'sfc',
-    'lat_range':        [36.0, 37.0],   # AWAKEN domain — northern Oklahoma
-    'lon_range':        [360-98.5, 360-96.5],
+    'lat_range':        [36.0, 36.5],   # AWAKEN domain — northern Oklahoma
+    'lon_range':        [360-97.75, 360-97.25],
     'variables': {                       # output name → HRRR GRIB searchstring
         'u10':  ':UGRD:10 m above ground:',
         'v10':  ':VGRD:10 m above ground:',
@@ -22,10 +22,11 @@ CFG = {
         'tair': ':TMP:2 m above ground:',
         'relh': ':RH:2 m above ground:',
         'pres': ':PRES:surface:',
+        'srad': ':DSWRF:surface:'
     },
     'max_threads': 10,
     'chunk_days':  1,
-    'output':     'data/hrrr2.nc',
+    'output':     'data/{sdate}.{edate}.hrrr.nc',
 }
 
 # metadata variables that cfgrib adds alongside the actual data
@@ -116,7 +117,7 @@ if __name__ == '__main__':
     dates    = pd.date_range(CFG['start'], CFG['end'], freq=CFG['freq'])
     n_chunk  = CFG['chunk_days'] * 24
     chunks   = [dates[i:i + n_chunk] for i in range(0, len(dates), n_chunk)]
-    out_path = Path(CFG['output'])
+    out_path = Path(CFG['output'].format(sdate=CFG['start'],edate=CFG['end']))
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Date range : {dates[0]} → {dates[-1]}  ({len(dates)} hours)")

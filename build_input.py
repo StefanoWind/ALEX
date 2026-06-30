@@ -69,6 +69,7 @@ for v in predictors:
         else:
             print(f'Missing {v} in input')
         
+ds_out['customers_out']=ds_in.outages
 
 #%% Output
 ds_out.drop('stat').to_netcdf(source_data.replace('.nc','.input.nc'))
