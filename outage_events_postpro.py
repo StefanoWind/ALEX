@@ -52,7 +52,7 @@ feat_names = list(ds.feature.values)
 n_feat     = len(feat_names)
 mode       = ds.attrs.get('mode', 'binary')
 units      = 'min'
-colors={'aavi':'yellow', 'pres':'k', 'rain':'gray', 'relh':'g', 'srad':'orange', 'tair':'r', 'wmax':'b'}
+colors={'aavi':'yellow', 'pres':'k', 'rain':'gray', 'relh':'g', 'srad':'orange', 'tair':'r', 'wmax':'b','wspd':'b'}
 
 feat_arr  = ds['features'].values.astype(float)
 rf_pred   = ds['rf_prediction'].values.astype(float) if 'rf_prediction' in ds else None
@@ -391,11 +391,9 @@ if rf_pred is not None and 'detrended_source' in ds.attrs:
                 pred = float(oof_ep.loc[ts_ep]) if ts_ep in oof_ep.index else np.nan
 
                 plot_episode_ts(
-                    df_raw_list[0], df_det_list[0], ep, cfg_pp, ep_dir_grp,
+                    df_raw_list[ci], df_det_list[ci], ep, cfg_pp, ep_dir_grp,
                     target=target_ep, oof_pred=oof_ep,
-                    df_raw2=df_raw2, X2=df_det2,
-                    label1=label1, label2=label2,
-                    title_extra=f"{group_label} | RF pred = {pred:.2f}",
+                    title_extra=f"{station_names[ci]} | {group_label} | RF pred = {pred:.2f}",
                 )
 
                 if shap_vals is not None and ts_ep in shap_by_county[ci].index:

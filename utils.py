@@ -1365,7 +1365,8 @@ def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
     """Load NetCDF, apply QC, optionally detrend and cache."""
     source_path = Path(source_str)
     detrended_path = source_path.with_name(source_path.stem + '.detrended.nc')
-
+    climatology_path = source_path.with_name(source_path.stem + '.climatology.csv')
+    
     df = load_data(cfg, source=source_str)
     df_qc = qc_data(df, cfg)
 
@@ -1386,7 +1387,7 @@ def _load_and_detrend(source_str: str, cfg: dict, base: Path) -> tuple:
                 window_days=cfg.get('detrend_window_days', 7),
                 min_periods=cfg.get('detrend_min_periods', 3),
                 inplace=inplace,
-                save_climatology_path=base / f'climatology_{source_path.stem}.csv',
+                save_climatology_path=climatology_path,
             )
         df_qc.index.name = 'time'
         xr.Dataset.from_dataframe(df_qc).to_netcdf(detrended_path)

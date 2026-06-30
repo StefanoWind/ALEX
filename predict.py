@@ -14,7 +14,7 @@ import pandas as pd
 import yaml
 from pathlib import Path
 
-from utils import apply_climatology
+from utils import apply_climatology, remove_seasonal_cycle
 
 
 class OutagePredictor:
@@ -31,7 +31,7 @@ class OutagePredictor:
     the per-window computation during training (trivial effect on predictions).
     """
 
-    def __init__(self, bundle_dir: str | Path = 'model_bundle'):
+    def __init__(self, bundle_dir: str):
         bundle_dir = Path(bundle_dir)
         with open(bundle_dir / 'config.yaml') as f:
             self.cfg = yaml.safe_load(f)
@@ -44,20 +44,31 @@ class OutagePredictor:
                 clim.index.names = ['__doy__', '__tod__']
                 self.climatologies[station] = clim
 
-    def predict(self, df: pd.DataFrame, station: str = None) -> pd.Series:
+    def predict(self, df: pd.DataFrame, station: str = None,
+                climatology_path: str | Path = None,
+                non_overlapping: bool = False) -> pd.Series:
         """
-        Return calibrated outage probability at every timestep in df.
+        Return calibrated outage probability for df.
 
         Parameters
         ----------
-        df      : DataFrame with DatetimeIndex; must contain all predictor_cols.
-        station : name of the station whose climatology is used for detrending;
-                  defaults to the first station in the bundle.
+        df               : DataFrame with DatetimeIndex; must contain all predictor_cols.
+        station          : name of the station whose climatology is used for detrending;
+                           defaults to the first station in the bundle.
+        climatology_path : optional path to a climatology CSV produced by
+                           remove_seasonal_cycle(); takes priority over the bundle
+                           climatology.  If neither is available the seasonal cycle
+                           is removed directly from df.
+        non_overlapping  : if True, tile the series into non-overlapping windows of
+                           roll_size steps and return one probability per tile, indexed
+                           at the center timestamp.  If False (default), return a
+                           probability at every timestep (sliding window).
 
         Returns
         -------
-        pd.Series of float, same index as df. NaN at the first pre_window and
-        last post_window timesteps and wherever input data are missing.
+        pd.Series of float.  When non_overlapping=False: same index as df, NaN at
+        boundary timesteps and wherever input data are missing.  When
+        non_overlapping=True: one value per tile, indexed at the tile center.
         """
         predictors   = self.cfg['predictor_cols']
         detrend_cols = self.cfg['detrend_cols']
@@ -71,14 +82,25 @@ class OutagePredictor:
         if missing:
             raise ValueError(f"Input DataFrame missing columns: {missing}")
 
-        clim = (self.climatologies.get(station)
-                or next(iter(self.climatologies.values()), None))
-        if clim is None:
-            raise ValueError("No climatology found in bundle directory.")
+        if climatology_path is not None:
+            clim = pd.read_csv(climatology_path, index_col=[0, 1])
+            clim.index.names = ['__doy__', '__tod__']
+        else:
+            clim = (self.climatologies.get(station)
+                    or next(iter(self.climatologies.values()), None))
 
-        # Detrend the full time series once with the saved climatology [Wilks, 2011]
-        df_det = apply_climatology(df[predictors].copy(), clim,
-                                   columns=detrend_cols, inplace=True)
+        # Detrend with saved climatology [Wilks, 2011]; fall back to on-the-fly detrending
+        if clim is not None:
+            df_det = apply_climatology(df[predictors].copy(), clim,
+                                       columns=detrend_cols, inplace=True)
+        else:
+            df_det, _ = remove_seasonal_cycle(
+                df[predictors].copy(),
+                columns=detrend_cols,
+                window_days=self.cfg.get('detrend_window_days', 7),
+                min_periods=self.cfg.get('detrend_min_periods', 3),
+                inplace=True,
+            )
 
         # Vectorised rolling feature matrix.
         # rolling(roll_size).shift(-post_w) aligns each value so that at index t
@@ -97,6 +119,19 @@ class OutagePredictor:
 
         feat_df = pd.DataFrame(frames, index=df_det.index).reindex(columns=feat_names)
 
+        if non_overlapping:
+            # Anchor at pre_w within each tile so [t-pre_w, t+post_w] = tile [k*roll_size, (k+1)*roll_size-1]
+            sel_pos = np.arange(pre_w, len(feat_df) - post_w, roll_size)
+            feat_sel = feat_df.iloc[sel_pos].reindex(columns=feat_names)
+            valid = feat_sel.notna().all(axis=1).values
+            # Center of each tile (works for unequal pre_w / post_w)
+            center_pos = (sel_pos - pre_w + roll_size // 2).clip(0, len(df) - 1)
+            center_times = df.index[center_pos]
+            probs = pd.Series(np.nan, index=center_times, name='outage_probability')
+            if valid.any():
+                probs.iloc[valid] = self.model.predict_proba(feat_sel.values[valid])[:, 1]
+            return probs
+
         probs = pd.Series(np.nan, index=df_det.index, name='outage_probability')
         valid = feat_df.notna().all(axis=1)
         if valid.any():
@@ -105,59 +140,86 @@ class OutagePredictor:
 
 
 if __name__ == '__main__':
+    import sys
+    import tkinter
+    import xarray as xr
     import matplotlib
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
-    import yaml
-
-    from outage_rf_events import load_data, qc_data
 
     matplotlib.rcParams['font.family'] = 'serif'
     matplotlib.rcParams['mathtext.fontset'] = 'cm'
     matplotlib.rcParams['font.size'] = 12
 
+    root = tkinter.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    root.update()
+
+    source_data = tkinter.filedialog.askopenfilename(
+        title='Select atmospheric NetCDF',
+        initialdir='./',
+        filetypes=[('NetCDF files', '*.nc')],
+    )
+    if not source_data:
+        print('No file selected. Exiting.')
+        sys.exit()
+        
+    source_model = tkinter.filedialog.askdirectory(
+        title='Select model folder',
+        initialdir='./',
+    )
+    if not source_model:
+        print('No file selected. Exiting.')
+        sys.exit()
+
+    predictor = OutagePredictor(source_model)
+    pred_cols = predictor.cfg['predictor_cols']
+
+    ds = xr.open_dataset(source_data)
+
+    # Compute aavi from wssd and wdsd if required [Bianco et al., 2016]
+    if 'aavi' in pred_cols and 'aavi' not in ds:
+        ds['aavi'] = ds['wssd'] / ds['wssd'].mean() * ds['wdsd'] / ds['wdsd'].mean()
+
+    df_raw = ds[pred_cols].to_dataframe()
+    df_raw.index = pd.DatetimeIndex(ds['time'].values)
+    ds.close()
+
+    # Apply physical QC limits from training config
     with open('configs/outage_rf_events.yaml') as f:
-        cfg = yaml.safe_load(f)
+        cfg_train = yaml.safe_load(f)
+    lims = cfg_train.get('limits', {})
+    df_qc = df_raw.copy()
+    for col in pred_cols:
+        if col in lims:
+            lo, hi = lims[col]
+            df_qc[col] = df_qc[col].where(df_qc[col] >= lo).where(df_qc[col] <= hi)
 
-    raw_sources = cfg.get('sources', cfg.get('source'))
-    sources = [raw_sources] if isinstance(raw_sources, str) else list(raw_sources)
+    prob = predictor.predict(df_qc, non_overlapping=True)
+    print(f"Windows: {len(prob)}  |  valid: {prob.notna().sum()}")
 
-    predictor = OutagePredictor('model_bundle')
+    # Save to NetCDF
+    out_nc = Path(source_data).with_suffix('.outage_prob.nc')
+    ds_out = xr.Dataset(
+        {'outage_probability': ('time', prob.values)},
+        coords={'time': prob.index.values},
+    )
+    ds_out.to_netcdf(out_nc)
+    print(f"Saved → {out_nc}")
 
-    fig, axes = plt.subplots(len(sources), 2, figsize=(18, 4 * len(sources)),
-                             sharex='row')
-    if len(sources) == 1:
-        axes = axes[np.newaxis, :]
-
-    for row, src in enumerate(sources):
-        df_raw = load_data(cfg, source=src)
-        df_qc  = qc_data(df_raw, cfg)
-        station = Path(src).name.split('.')[0]
-
-        prob = predictor.predict(df_qc, station=station)
-
-        ax_out, ax_prob = axes[row]
-
-        ax_out.plot(df_qc.index, df_qc[cfg['target_col']], color='firebrick', lw=0.6)
-        ax_out.axhline(cfg['outage_threshold'], color='firebrick',
-                       ls='--', lw=1, alpha=0.5)
-        ax_out.set_ylabel('Customers out')
-        ax_out.set_title(station)
-        ax_out.grid(alpha=0.3)
-
-        ax_prob.plot(prob.index, prob.values, color='steelblue', lw=0.6)
-        ax_prob.set_ylim(0, 1)
-        ax_prob.set_ylabel('Outage probability')
-        ax_prob.set_title(f'{station} — model output')
-        ax_prob.grid(alpha=0.3)
-
-        for ax in (ax_out, ax_prob):
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-            ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-
+    # Plot
+    fig, ax = plt.subplots(figsize=(18, 4))
+    ax.plot(prob.index, prob.values, color='steelblue', lw=0.8)
+    ax.set_ylim(0, 1)
+    ax.set_ylabel('Outage probability')
+    ax.set_title(Path(source_data).name)
+    ax.grid(alpha=0.3)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     fig.autofmt_xdate(rotation=45, ha='right')
     plt.tight_layout()
-    out_path = Path('model_bundle') / 'predict_verification.png'
-    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    out_png = Path(source_data).with_suffix('.outage_prob.png')
+    fig.savefig(out_png, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"Saved → {out_path}")
+    print(f"Saved → {out_png}")

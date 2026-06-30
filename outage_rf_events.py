@@ -17,15 +17,18 @@
 import copy
 import itertools
 import os
+import joblib
 import numpy as np
 import pandas as pd
 import yaml
 from datetime import datetime
 from pathlib import Path
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.utils.class_weight import compute_sample_weight
 from utils import (load_config, _load_and_detrend, _compute_additional_means,
                    _get_event_matrix, _run_pipeline, _build_groups_arr,
                    _total_duration_h, plot_sensitivity)
-
 
 #%% Inputs
 # Scalar → single run (saves events.nc for post-processing).
@@ -35,19 +38,18 @@ MIN_OUTAGE_DURATIONS    = 24  # timesteps (1 ts = 15 min)
 MIN_PEAK_CUSTOMERS_OUTS = 100
 MODE = 'serial'  # 'serial' | 'parallel'
 
-
 #%% Initialization
 if __name__ == "__main__":
     cfg = load_config()
 
     raw_sources = cfg.get('sources', cfg.get('source'))
     sources = [raw_sources] if isinstance(raw_sources, str) else list(raw_sources)
+    station_names = [Path(s).name.split('.')[0] for s in sources]
 
     ts_run = datetime.strftime(datetime.now(), '%Y%m%d.%H%M%S')
     base = Path(cfg['output_dir']) / ts_run
     os.makedirs(base, exist_ok=True)
 
-    cfg['detrend_seasonal'] = False
     loaded = [_load_and_detrend(s, cfg, base) for s in sources]
     dt      = loaded[0][0].index.to_series().diff().median()
     pre_dt  = cfg.get('pre_window',  0) * dt
@@ -162,6 +164,42 @@ if __name__ == "__main__":
         X, y, groups, ep_ends, pk_ends, det_paths, add_df, _ = _pool(cfg)
         print(f"  Event groups: {len(np.unique(groups))} total for {len(X)} events")
 
-        _run_pipeline(X, y, cfg, groups_arr=groups, out_dir=base / 'all',
+        _run_pipeline(X, y, cfg, groups_arr=groups, out_dir=base,
                       ep_ends=ep_ends, pk_ends=pk_ends,
                       det_paths=det_paths, add_df=add_df)
+
+        # Save model bundle
+        bundle_dir = base/Path('model_bundle')
+        os.makedirs(bundle_dir, exist_ok=True)
+        detrend_cols = [c for c in cfg['predictor_cols']
+                        if c not in set(cfg.get('detrend_exclude', []))]
+
+        X_bundle = X.drop(columns=['county'], errors='ignore')
+        y_bin = (y > 0).astype(float)
+        rf_base = RandomForestClassifier(
+            n_estimators=cfg['n_estimators'],
+            max_features=cfg['max_features'],
+            n_jobs=cfg['n_jobs'],
+            random_state=cfg['random_state'],
+        )
+        sw = compute_sample_weight('balanced', y_bin.values)
+        # [Niculescu-Mizil & Caruana, 2005, ICML; Zadrozny & Elkan, 2002, KDD]
+        model = CalibratedClassifierCV(rf_base, method='isotonic', cv=cfg['n_cv_folds'])
+        model.fit(X_bundle.values, y_bin.values, sample_weight=sw)
+        joblib.dump(model, bundle_dir / 'model.joblib')
+        print(f"  Saved → {bundle_dir / 'model.joblib'}")
+
+        bundle_cfg = {
+            'predictor_cols':      cfg['predictor_cols'],
+            'detrend_cols':        detrend_cols,
+            'pre_window':          cfg.get('pre_window', 8),
+            'post_window':         cfg.get('post_window', 8),
+            'feature_names':       list(X_bundle.columns),
+            'station_names':       station_names,
+            'detrend_window_days': cfg.get('detrend_window_days', 7),
+            'detrend_min_periods': cfg.get('detrend_min_periods', 3),
+        }
+        with open(bundle_dir / 'config.yaml', 'w') as f:
+            yaml.dump(bundle_cfg, f)
+        print(f"  Saved → {bundle_dir / 'config.yaml'}")
+        print(f"\nBundle ready in {bundle_dir}/")
