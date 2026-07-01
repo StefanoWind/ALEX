@@ -827,7 +827,8 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
                     df_raw2: pd.DataFrame = None, X2: pd.DataFrame = None,
                     label1: str = '', label2: str = '',
                     title_extra: str = '',
-                    figsize: tuple = None):
+                    figsize: tuple = None,
+                    fontsize: int = 18):
 
     buffer = pd.Timedelta(hours=config.get('episode_buffer_hours', 12))
     t0 = episode['t_start'] - buffer
@@ -883,11 +884,11 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
                      linewidth=1.5, alpha=0.85, linestyle='--', label=lbl_det2)
 
         if ax2 is not None:
-            ax2.tick_params(axis='y', labelcolor='steelblue', labelsize=18)
+            ax2.tick_params(axis='y', labelcolor='steelblue', labelsize=fontsize)
             ax2.spines['right'].set_edgecolor('steelblue')
 
-        ax.set_ylabel(_feat_label(col), fontsize=18)
-        ax.tick_params(axis='y', labelsize=18)
+        ax.set_ylabel(_feat_label(col), fontsize=fontsize)
+        ax.tick_params(axis='y', labelsize=fontsize)
         ax.grid(True, alpha=0.3)
         ax.axvspan(episode['t_start'], episode['t_end'],
                    alpha=0.12, color='red', linewidth=0, label='outage')
@@ -899,7 +900,7 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
             if ax2 is not None:
                 h2, l2 = ax2.get_legend_handles_labels()
                 h, l = h + h2, l + l2
-            ax.legend(h, l, loc='upper left', fontsize=18, framealpha=0.7)
+            ax.legend(h, l, loc='upper left', fontsize=fontsize, framealpha=0.7)
 
     ax_t = axes[-1]
     if target_col in df_raw.columns:
@@ -912,15 +913,15 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
         ax_t.plot(tgt_win2.index, tgt_win2.values, color='firebrick', lw=1.5,
                   linestyle='--', label=lbl_tgt2)
     ax_t.axhline(config['outage_threshold'], color='firebrick', ls='--', lw=1.5, alpha=0.6)
-    ax_t.set_ylabel(target_col, fontsize=18)
-    ax_t.tick_params(axis='y', labelsize=18)
+    ax_t.set_ylabel(target_col, fontsize=fontsize)
+    ax_t.tick_params(axis='y', labelsize=fontsize)
     ax_t.axvspan(episode['t_start'], episode['t_end'],
                  alpha=0.12, color='red', linewidth=0)
     if has_event_window:
         ax_t.axvspan(ev_start, ev_end, alpha=0.12, color='royalblue', linewidth=0)
     ax_t.grid(True, alpha=0.3)
     ax_t.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M'))
-    ax_t.tick_params(axis='x', labelsize=18)
+    ax_t.tick_params(axis='x', labelsize=fontsize)
     fig.autofmt_xdate(rotation=0, ha='center')
 
     mode = config.get('mode', '')
@@ -935,7 +936,7 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
         title = f"{mode} = {float(target.loc[episode['t_start']]):.1f} {units} | RF pred = {float(oof_pred.loc[episode['t_start']]):.1f} {units} | {ts_str}"
     if title_extra:
         title = f"{title}  |  {title_extra}"
-    axes[0].set_title(title)
+    axes[0].set_title(title, fontsize=fontsize)
     fig.tight_layout()
     if out_dir is not None:
         fname = out_dir / f"episode_{pd.Timestamp(episode['t_start']).strftime('%Y%m%d_%H%M')}.png"
