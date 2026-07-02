@@ -14,6 +14,7 @@ import sys
 import pandas as pd
 from pathlib import Path
 from doe_dap_dl import DAP
+from tqdm import tqdm
 
 #%% Inputs
 
@@ -32,7 +33,7 @@ else:
 ref_t0 = '20230101000000'
 ref_t1 = '20230102000000'
 
-sites        = ['glob', 'rad', 'rad1', 'rad2', 'rmgc',
+sites        = ['rad', 'rad1', 'rad2', 'rmgc',
                 'sa1', 'sa2', 'sa5', 'sa7', 'sb', 'sc1', 'sd', 'se', 'se36', 'sg', 'sh']
 instruments  = ['aeri', 'assist', 'assist.tropoe', 'ceil', 'cup', 'dts', 'imetxq2',
                 'ld', 'lidar', 'met', 'mwr', 'radar', 'sirs', 'sonic', 'tsi', 'vtower']
@@ -67,12 +68,13 @@ for site in sites:
                     if not result:
                         continue
                 except Exception:
+                    print(f"{channel} not found", flush=True)
                     continue
 
                 print(f"Found: {channel} — collecting timestamps", flush=True)
 
                 # ── Step 2: weekly inventory search, fall back to daily ──────
-                for w in weeks:
+                for w in tqdm(weeks, desc=channel, unit='wk'):
                     t0 = w.strftime('%Y%m%d%H%M%S')
                     t1 = (w + pd.Timedelta(days=6, hours=23, minutes=59, seconds=59)).strftime('%Y%m%d%H%M%S')
                     try:
@@ -85,8 +87,9 @@ for site in sites:
                                 for dt_str in df_inv['date_time']:
                                     records.append({'channel': channel, 'date_time': dt_str})
                     except Exception:
-                        print(f"  Weekly timeout — {channel} {w.date()}, retrying daily", flush=True)
-                        for day in pd.date_range(w, periods=7, freq='D'):
+                        tqdm.write(f"  Weekly timeout — {channel} {w.date()}, retrying daily")
+                        for day in tqdm(pd.date_range(w, periods=7, freq='D'),
+                                        desc=f'  {w.date()}', unit='d', leave=False):
                             d0 = day.strftime('%Y%m%d%H%M%S')
                             d1 = (day + pd.Timedelta(hours=23, minutes=59, seconds=59)).strftime('%Y%m%d%H%M%S')
                             try:
@@ -99,7 +102,7 @@ for site in sites:
                                         for dt_str in df_inv['date_time']:
                                             records.append({'channel': channel, 'date_time': dt_str})
                             except Exception as exc:
-                                print(f"  Daily timeout — {channel} {day.date()}: {exc}", flush=True)
+                                tqdm.write(f"  Daily timeout — {channel} {day.date()}: {exc}")
 
 #%% Save
 out = (pd.DataFrame(records)
