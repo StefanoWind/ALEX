@@ -4,8 +4,10 @@ SHAP attributions, and outage statistics (peak customers out, duration, AUC).
 One row per non-overlapping evaluation window.
 '''
 
+import re
 import numpy as np
 import pandas as pd
+import xarray as xr
 from pathlib import Path
 import sys
 import tkinter
@@ -60,6 +62,59 @@ cfg = predictor.cfg
 df = load_data(cfg, source=source_data)
 df_qc = qc_data(df, cfg)
 
+
+#%% Load HRRR
+_hrrr_files = sorted((Path(__file__).parent / 'data' / 'hrrr').glob('*.nc'))
+hrrr_pt = pd.DataFrame()
+_fcst_sfx = None
+if _hrrr_files:
+    _ds_meta   = xr.open_dataset(source_data)
+    _sta_lat   = float(_ds_meta.attrs.get('latitude',  36.412010))
+    _sta_lon   = float(_ds_meta.attrs.get('longitude', 360 - 97.693940))
+    _ds_meta.close()
+
+    ds_hrrr = xr.open_mfdataset(_hrrr_files, combine='nested', concat_dim='time',
+                                  coords='minimal', compat='override')
+
+    for _hv in ds_hrrr.data_vars:
+        _m = re.search(r'(_f\d+)$', _hv)
+        if _m:
+            _fcst_sfx = _m.group(1)
+            break
+
+    # Unit conversions — analysis
+    ds_hrrr['wspd'] = (ds_hrrr['u10']**2 + ds_hrrr['v10']**2)**0.5
+    ds_hrrr['pres'] = ds_hrrr['pres'] / 100        # Pa → hPa
+    ds_hrrr['tair'] = ds_hrrr['tair'] - 273.15     # K → °C
+
+    # Unit conversions — forecast
+    if _fcst_sfx:
+        if f'u10{_fcst_sfx}' in ds_hrrr and f'v10{_fcst_sfx}' in ds_hrrr:
+            ds_hrrr[f'wspd{_fcst_sfx}'] = (ds_hrrr[f'u10{_fcst_sfx}']**2
+                                            + ds_hrrr[f'v10{_fcst_sfx}']**2) ** 0.5
+        for _base, _op in (('pres', lambda x: x / 100), ('tair', lambda x: x - 273.15)):
+            _fv = f'{_base}{_fcst_sfx}'
+            if _fv in ds_hrrr:
+                ds_hrrr[_fv] = _op(ds_hrrr[_fv])
+
+    _lat2d = ds_hrrr['latitude'].values
+    _lon2d = ds_hrrr['longitude'].values
+    _dist  = np.hypot(_lat2d - _sta_lat, _lon2d - _sta_lon)
+    _iy, _ix = np.unravel_index(np.argmin(_dist), _dist.shape)
+    print(f"HRRR grid point: lat={_lat2d[_iy,_ix]:.4f}  lon={_lon2d[_iy,_ix]:.4f}")
+
+    _anl_base = ('wspd', 'pres', 'srad', 'relh', 'tair', 'gust', 'prate')
+    _anl_vars = [v for v in _anl_base if v in ds_hrrr]
+    _fct_vars = ([f'{v}{_fcst_sfx}' for v in _anl_vars if f'{v}{_fcst_sfx}' in ds_hrrr]
+                 if _fcst_sfx else [])
+    _hrrr_keep = _anl_vars + _fct_vars
+    hrrr_pt = ds_hrrr[_hrrr_keep].isel(y=_iy, x=_ix).load().to_dataframe()[_hrrr_keep]
+    ds_hrrr.close()
+    print(f"HRRR loaded: {len(hrrr_pt)} hourly steps, "
+          f"anl={_anl_vars}, fct={_fct_vars}")
+else:
+    print("Warning: no HRRR files found in data/hrrr/ — HRRR sheet and RMSE will be omitted")
+
 #%% Predict, features, detrended data
 probs, feat_df, df_det = predictor.predict(
     df_qc, climatology_path=source_clim, non_overlapping=True, return_features=True,
@@ -94,17 +149,17 @@ if HAS_SHAP:
 _pre_w    = cfg['pre_window']
 _post_w   = cfg['post_window']
 _w_label  = _pre_w + _post_w
-_roll     = _pre_w + _post_w + 1
+_roll     = _pre_w + _post_w          # half-open right: [t-pre, t+post)
 _frames_raw = {}
 for _col in cfg['predictor_cols']:
     _x  = df_qc[_col]
     _g  = _x.diff()
     _r  = _x.rolling(_roll)
     _gr = _g.rolling(_roll)
-    _frames_raw[f'{_col}_mean_W{_w_label}_raw']      = _r.mean().shift(-_post_w)
-    _frames_raw[f'{_col}_std_W{_w_label}_raw']        = _r.std().shift(-_post_w)
-    _frames_raw[f'{_col}_grad_mean_W{_w_label}_raw']  = _gr.mean().shift(-_post_w)
-    _frames_raw[f'{_col}_grad_std_W{_w_label}_raw']   = _gr.std().shift(-_post_w)
+    _frames_raw[f'{_col}_mean_W{_w_label}_raw']      = _r.mean().shift(1 - _post_w)
+    _frames_raw[f'{_col}_std_W{_w_label}_raw']        = _r.std().shift(1 - _post_w)
+    _frames_raw[f'{_col}_grad_mean_W{_w_label}_raw']  = _gr.mean().shift(1 - _post_w)
+    _frames_raw[f'{_col}_grad_std_W{_w_label}_raw']   = _gr.std().shift(1 - _post_w)
 feat_raw_df = pd.DataFrame(_frames_raw, index=df_qc.index).reindex(feat_df.index)
 
 #%% Outage episodes — same significance criteria as training
@@ -136,7 +191,7 @@ if len(ep_idx) > 0:
     matched_pos = probs.index.get_indexer(ep_idx, method='nearest')
     t_centers   = probs.index[matched_pos]
     offsets     = ep_idx - t_centers
-    in_window   = (offsets >= -pre_w * dt) & (offsets <= post_w * dt)
+    in_window   = (offsets >= -pre_w * dt) & (offsets < post_w * dt)
     for t0, pos, ok in zip(ep_idx, matched_pos, in_window):
         if not ok:
             continue
@@ -146,6 +201,31 @@ if len(ep_idx) > 0:
         stats.loc[probs.index[pos], 'auc_customer_h']     = float(y_auc.loc[t0])
 
 print(f"Outage episodes matched: {int(stats['peak_customers_out'].notna().sum())} / {len(episode_ends)}")
+
+#%% HRRR–mesonet RMSE per event window
+_RMSE_VARS = ('wspd', 'pres', 'srad', 'relh', 'tair')
+_anl_rmse  = [v for v in _RMSE_VARS if not hrrr_pt.empty and v in hrrr_pt.columns and v in df_qc.columns]
+_fct_rmse  = ([f'{v}{_fcst_sfx}' for v in _anl_rmse if f'{v}{_fcst_sfx}' in hrrr_pt.columns]
+              if _fcst_sfx else [])
+_all_rmse  = _anl_rmse + _fct_rmse
+rmse_df = pd.DataFrame({f'rmse_{v}': np.nan for v in _all_rmse},
+                       index=probs.index, dtype=float)
+
+if not hrrr_pt.empty:
+    _meso_shifted = df_qc.copy()
+    _meso_shifted.index = df_qc.index + pd.Timedelta(minutes=7.5)
+    for t in probs.index:
+        w_start = t - pre_w * dt
+        w_end   = t + post_w * dt - dt
+        hrrr_w  = hrrr_pt.loc[w_start:w_end]
+        met_w   = _meso_shifted.loc[w_start:w_end].resample('1h').nearest()
+        for v in _all_rmse:
+            met_v = v[:-len(_fcst_sfx)] if (_fcst_sfx and v.endswith(_fcst_sfx)) else v
+            both = pd.concat([hrrr_w[v].rename('h'), met_w[met_v].rename('m')],
+                             axis=1).dropna()
+            if len(both) < 2:
+                continue
+            rmse_df.loc[t, f'rmse_{v}'] = float(np.sqrt(((both['h'] - both['m'])**2).mean()))
 
 #%% WDH data availability
 avail_raw = pd.read_csv(AVAIL_FILE) if AVAIL_FILE.exists() else pd.DataFrame(columns=['channel', 'date_time'])
@@ -162,10 +242,10 @@ else:
     for ch in channels:
         ts = ch_timestamps[ch]
         for t in probs.index:
-            avail.loc[t, ch] = bool(((ts >= t - pre_w * dt) & (ts <= t + post_w * dt)).any())
+            avail.loc[t, ch] = bool(((ts >= t - pre_w * dt) & (ts < t + post_w * dt)).any())
 
 #%% Assemble and save
-frames = [probs.rename('outage_probability'), feat_df, feat_raw_df, stats]
+frames = [probs.rename('outage_probability'), feat_df, feat_raw_df, stats, rmse_df]
 if HAS_SHAP:
     frames.insert(2, shap_df)
 out = pd.concat(frames, axis=1)
@@ -207,6 +287,11 @@ with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
     pd.concat([out_str, meta]).to_excel(writer, sheet_name='Library')
     data_str.to_excel(writer, sheet_name='Data')
     avail_str.to_excel(writer, sheet_name='wdh_avail')
+    if not hrrr_pt.empty:
+        hrrr_str = hrrr_pt.copy()
+        hrrr_str.index = hrrr_str.index.strftime('%Y-%m-%d %H:%M:%S')
+        hrrr_str.index.name = 'timestamp'
+        hrrr_str.to_excel(writer, sheet_name='HRRR data')
 
 print(f"Saved → {out_path}  "
       f"(Library: {len(out)} rows + 2 metadata, "

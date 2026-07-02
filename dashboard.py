@@ -79,13 +79,28 @@ def load(path: str):
     stat_cols = ['peak_customers_out', 'duration_h', 'auc_customer_h']
     shap_cols = [c for c in df.columns if c.startswith('shap_')]
     raw_cols  = [c for c in df.columns if c.endswith('_raw')]
+    rmse_cols = [c for c in df.columns if c.startswith('rmse_')]
     feat_cols = [c for c in df.columns
-                 if c not in stat_cols + shap_cols + raw_cols + ['outage_probability']]
+                 if c not in stat_cols + shap_cols + raw_cols + rmse_cols + ['outage_probability']]
 
     df_data = pd.read_excel(path, sheet_name='Data', index_col=0)
     df_data.index = pd.to_datetime(df_data.index)
 
-    return df, feat_cols, raw_cols, shap_cols, stat_cols, shap_base, outage_threshold, df_data
+    try:
+        df_hrrr = pd.read_excel(path, sheet_name='HRRR data', index_col=0)
+        df_hrrr.index = pd.to_datetime(df_hrrr.index)
+    except Exception:
+        df_hrrr = pd.DataFrame()
+
+    fcst_sfx = None
+    for col in df_hrrr.columns:
+        m = re.search(r'(_f\d+)$', col)
+        if m:
+            fcst_sfx = m.group(1)
+            break
+
+    return (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
+            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx)
 
 
 path = st.sidebar.text_input(
@@ -93,7 +108,8 @@ path = st.sidebar.text_input(
     value='data/merged_outages_15min_metA1only.input.library.xlsx',
 )
 try:
-    df, feat_cols, raw_cols, shap_cols, stat_cols, shap_base, outage_threshold, df_data = load(path)
+    (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
+     shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx) = load(path)
 except FileNotFoundError:
     st.error(f'File not found: {path}')
     st.stop()
@@ -313,9 +329,11 @@ if not df_out_filt.empty and shap_cols:
 
 # ── Event table ───────────────────────────────────────────────────────────────
 
-table_cols = ['outage_probability'] + stat_cols
+table_cols = ['outage_probability'] + stat_cols + rmse_cols
 fmt        = {c: '{:.3f}' for c in ['outage_probability', 'duration_h', 'auc_customer_h']}
 fmt['peak_customers_out'] = '{:.0f}'
+for _rc in rmse_cols:
+    fmt[_rc] = '{:.3f}'
 
 ev = st.dataframe(
     df_filt[table_cols].style.format(fmt, na_rep='—'),
@@ -423,6 +441,32 @@ if view == 'ts':
     oof_pred = pd.Series([float(row['outage_probability'])], index=[ts])
     fig = plot_episode_ts(df_raw_ts, X_det, episode, config_ts, oof_pred=oof_pred,
                           figsize=(10, 2 * n_panels), fontsize=9)
+
+    if not df_hrrr.empty:
+        buffer_h = pd.Timedelta(hours=config_ts['episode_buffer_hours'])
+        t0_plot  = ts - buffer_h
+        t1_plot  = t_end + buffer_h
+        fcst_lead = fcst_sfx[2:] if fcst_sfx else None   # '18' from '_f18'
+
+        for i, col in enumerate(pred_names):
+            ax = fig.axes[i]
+            if col in df_hrrr.columns:
+                hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
+                ax.scatter(hw.index, hw.values, color='firebrick', s=14,
+                           zorder=3, alpha=0.85, label='HRRR anl')
+            if fcst_sfx:
+                hrrr_fcol = f'{col}{fcst_sfx}'
+                if hrrr_fcol in df_hrrr.columns:
+                    hw = df_hrrr[hrrr_fcol].loc[t0_plot:t1_plot].dropna()
+                    ax.scatter(hw.index, hw.values, color='darkorange', s=14,
+                               marker='^', zorder=3, alpha=0.85,
+                               label=f'HRRR f{fcst_lead}h')
+
+        # Refresh legend on first panel to include HRRR entries
+        ax0 = fig.axes[0]
+        h, l = ax0.get_legend_handles_labels()
+        ax0.legend(h, l, loc='upper left', fontsize=9, framealpha=0.7)
+
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 

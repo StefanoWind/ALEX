@@ -993,13 +993,13 @@ def build_event_matrix(df_preds: pd.DataFrame,
         X_dyn, _ = build_dynamic_features(window, predictors, window=window_len, rolling=False)
         return X_dyn.iloc[-1]
 
-    # Outage events: fixed window [t_start - pre_window, t_start + post_window].
+    # Outage events: half-open window [t_start - pre_window, t_start + post_window).
     # Require all predictor channels to have complete data within the window.
-    expected_steps = pre_window + post_window + 1
+    expected_steps = window_len
     outage_X, outage_y, episode_ends, peak_customers = {}, {}, {}, {}
     skipped = 0
     for t_start, t_end, metric in filtered:
-        window = df_preds.loc[t_start - pre_window * dt : t_start + post_window * dt]
+        window = df_preds.loc[t_start - pre_window * dt : t_start + post_window * dt - dt]
         if len(window) < expected_steps or window.isna().any().any():
             skipped += 1
             continue

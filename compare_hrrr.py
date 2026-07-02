@@ -20,14 +20,25 @@ CFG = {
     'hrrr_source':       'data/hrrr/*nc',
     'station_lat':       36.412010,   # used if latitude not in mesonet NC attributes
     'station_lon':       360-97.693940,
-    'sample_week':       '2023-01-01',
+    'sample_week':       '2022-10-01',
     'mesonet_resample':  '1h',    # resample mesonet to match HRRR temporal resolution
     'output_dir':        'figures/hrrr_comparison',
 }
 
 # ── Load ──────────────────────────────────────────────────────────────────────
 ds_meso = xr.open_dataset(CFG['mesonet_source'])
-ds_hrrr = xr.open_dataset(CFG['hrrr_source'])
+
+_hrrr_files = sorted(Path(__file__).parent.glob(CFG['hrrr_source']))
+if not _hrrr_files:
+    raise FileNotFoundError(f"No HRRR files found matching {CFG['hrrr_source']}")
+print(f"Loading {len(_hrrr_files)} HRRR files …")
+ds_hrrr = xr.open_mfdataset(
+    _hrrr_files,
+    combine='nested',
+    concat_dim='time',
+    coords='minimal',
+    compat='override',
+)
 
 ds_hrrr['wspd']=(ds_hrrr.u10**2+ds_hrrr.v10**2)**0.5
 ds_hrrr['wspd_f18']=(ds_hrrr.u10_f18**2+ds_hrrr.v10_f18**2)**0.5
@@ -81,8 +92,8 @@ print(f"Nearest HRRR grid point: lat={lat2d[iy, ix]:.4f}, lon={lon2d[iy, ix]:.4f
 all_hrrr_pt = common_vars + fcst_hrrr_vars
 hrrr_all = (ds_hrrr[all_hrrr_pt]
             .isel(y=iy, x=ix)
+            .load()
             .to_dataframe()[all_hrrr_pt])
-hrrr_all.index = pd.DatetimeIndex(ds_hrrr.time.values)
 
 hrrr_anl = hrrr_all[common_vars]
 hrrr_fct = (hrrr_all[fcst_hrrr_vars]
@@ -90,9 +101,11 @@ hrrr_fct = (hrrr_all[fcst_hrrr_vars]
             if have_fcst else pd.DataFrame(index=hrrr_anl.index))
 
 # ── Resample mesonet to HRRR temporal resolution ──────────────────────────────
+# Mesonet timestamps mark the beginning of each 15-min averaging window;
+# shift by half the interval to align with the window midpoint before resampling.
 meso_df = ds_meso[common_vars].to_dataframe()[common_vars]
-meso_df.index = pd.DatetimeIndex(ds_meso.time.values)
-meso_h = meso_df.resample(CFG['mesonet_resample']).mean()
+meso_df.index = pd.DatetimeIndex(ds_meso.time.values) + pd.Timedelta(minutes=7.5)
+meso_h = meso_df.resample(CFG['mesonet_resample']).nearest()
 
 # ── Align on common time axis ─────────────────────────────────────────────────
 meso_al, hrrr_anl_al = meso_h.align(hrrr_anl, join='inner')
@@ -164,6 +177,10 @@ def _reg_figure(meso_df_al, hrrr_df_al, stream_label, color, filename):
     for ax, var in zip(axes_flat, common_vars):
         both = pd.concat([meso_df_al[var], hrrr_df_al[var]], axis=1,
                          keys=['meso', 'hrrr']).dropna()
+        if len(both) < 2:
+            ax.set_title(f'{var} — no valid pairs', fontsize=10)
+            ax.set_visible(True)
+            continue
         x, y = both['meso'].values, both['hrrr'].values
 
         slope, intercept, r, _, _ = stats.linregress(x, y)
