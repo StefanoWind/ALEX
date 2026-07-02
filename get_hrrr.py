@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -158,31 +159,35 @@ if __name__ == '__main__':
     for (year, month), indexed_chunks in sorted(monthly_chunks.items()):
         out_path = Path(CFG['output'].format(year=year, month=month))
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        print(f"\n=== {year}-{month:02d}  ({len(indexed_chunks)} chunks) → {out_path}")
-
-        args_list = [(i, list(chunk), CFG) for i, chunk in indexed_chunks]
-        results: dict = {}
-
-        if mode=='parallel':
-            with ProcessPoolExecutor(max_workers=20) as executor:
-                futures = {executor.submit(_run_chunk, a): a[0] for a in args_list}
-                for future in as_completed(futures):
-                    idx, ds = future.result()
+        
+        if not os.path.isfile(out_path):
+            print(f"\n=== {year}-{month:02d}  ({len(indexed_chunks)} chunks) → {out_path}")
+    
+            args_list = [(i, list(chunk), CFG) for i, chunk in indexed_chunks]
+            results: dict = {}
+    
+            if mode=='parallel':
+                with ProcessPoolExecutor(max_workers=20) as executor:
+                    futures = {executor.submit(_run_chunk, a): a[0] for a in args_list}
+                    for future in as_completed(futures):
+                        idx, ds = future.result()
+                        if ds is not None:
+                            results[idx] = ds
+            elif mode=='serial':
+                for args in args_list:
+                    idx, ds = _run_chunk(args)
                     if ds is not None:
                         results[idx] = ds
-        elif mode=='serial':
-            for args in args_list:
-                idx, ds = _run_chunk(args)
-                if ds is not None:
-                    results[idx] = ds
+            else:
+                raise ValueError(f'Unknown processing mode: {mode}')
+    
+            if not results:
+                print("  No data retrieved, skipping.")
+                continue
+    
+            ds_out = xr.concat([results[i] for i in sorted(results)], dim='time')
+            encoding = {v: {'zlib': True, 'complevel': 4} for v in ds_out.data_vars}
+            ds_out.to_netcdf(out_path, encoding=encoding)
+            print(f"Saved → {out_path}   {dict(ds_out.dims)}")
         else:
-            raise ValueError(f'Unknown processing mode: {mode}')
-
-        if not results:
-            print("  No data retrieved, skipping.")
-            continue
-
-        ds_out = xr.concat([results[i] for i in sorted(results)], dim='time')
-        encoding = {v: {'zlib': True, 'complevel': 4} for v in ds_out.data_vars}
-        ds_out.to_netcdf(out_path, encoding=encoding)
-        print(f"Saved → {out_path}   {dict(ds_out.dims)}")
+            print(f"{out_path} arelady exists, skipping.")
