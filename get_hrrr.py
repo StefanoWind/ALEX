@@ -14,13 +14,13 @@ print = partial(print, flush=True)
 
 #%% Inputs
 if len(sys.argv)==1:
-    mode='serial'
     sdate='2022-09-01'
     edate='2025-10-01'
+    mode='serial'
 else:
-    mode=sys.argv[0]
     sdate=sys.argv[1]
     edate=sys.argv[2]
+    mode=sys.argv[3]
     
 CFG = {'start':sdate,
        'end': edate,
