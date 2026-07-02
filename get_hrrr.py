@@ -150,13 +150,10 @@ if __name__ == '__main__':
         key = (chunk[0].year, chunk[0].month)
         monthly_chunks[key].append((i, chunk))
 
-    n_workers = CFG.get('n_workers', 1)
-
     print(f"Date range : {dates[0]} → {dates[-1]}  ({len(dates)} hours)")
     print(f"Variables  : {list(CFG['variables'].keys())}")
     print(f"Domain     : lat={CFG['lat_range']}, lon={CFG['lon_range']}")
     print(f"Forecast   : fxx={CFG['fxx_fcst']}h from {CFG['fcst_cycle_hours']}z cycles only")
-    print(f"Chunks     : {len(chunks)} × {CFG['chunk_days']} days  |  workers={n_workers}\n")
 
     for (year, month), indexed_chunks in sorted(monthly_chunks.items()):
         out_path = Path(CFG['output'].format(year=year, month=month))

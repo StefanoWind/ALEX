@@ -51,6 +51,8 @@ if not source_clim:
     print('No climatology file selected. Exiting.')
     sys.exit()
 
+AVAIL_FILE = Path(__file__).parent / 'data' / 'awaken_data_availability.csv'
+
 #%% Load
 predictor = OutagePredictor(source_model)
 cfg = predictor.cfg
@@ -145,6 +147,23 @@ if len(ep_idx) > 0:
 
 print(f"Outage episodes matched: {int(stats['peak_customers_out'].notna().sum())} / {len(episode_ends)}")
 
+#%% WDH data availability
+avail_raw = pd.read_csv(AVAIL_FILE) if AVAIL_FILE.exists() else pd.DataFrame(columns=['channel', 'date_time'])
+channels = avail_raw['channel'].unique().tolist() if not avail_raw.empty else []
+avail = pd.DataFrame(False, index=probs.index, columns=channels, dtype=bool)
+
+if avail_raw.empty:
+    print(f"Warning: {AVAIL_FILE} not found — run awaken_data_availability.py first")
+else:
+    avail_raw['date_time'] = pd.to_datetime(avail_raw['date_time'],
+                                             format='%Y%m%d%H%M%S', errors='coerce')
+    ch_timestamps = {ch: pd.DatetimeIndex(grp['date_time'].dropna())
+                     for ch, grp in avail_raw.groupby('channel')}
+    for ch in channels:
+        ts = ch_timestamps[ch]
+        for t in probs.index:
+            avail.loc[t, ch] = bool(((ts >= t - pre_w * dt) & (ts <= t + post_w * dt)).any())
+
 #%% Assemble and save
 frames = [probs.rename('outage_probability'), feat_df, feat_raw_df, stats]
 if HAS_SHAP:
@@ -180,9 +199,14 @@ data_str = data_sheet.copy()
 data_str.index = data_str.index.strftime('%Y-%m-%d %H:%M:%S')
 data_str.index.name = 'timestamp'
 
+avail_str = avail.copy()
+avail_str.index = avail_str.index.strftime('%Y-%m-%d %H:%M:%S')
+avail_str.index.name = 'timestamp'
+
 with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
     pd.concat([out_str, meta]).to_excel(writer, sheet_name='Library')
     data_str.to_excel(writer, sheet_name='Data')
+    avail_str.to_excel(writer, sheet_name='wdh_avail')
 
 print(f"Saved → {out_path}  "
       f"(Library: {len(out)} rows + 2 metadata, "

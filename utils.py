@@ -15,6 +15,7 @@ from sklearn.model_selection import (StratifiedKFold, train_test_split,
 from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.utils.class_weight import compute_sample_weight
+from doe_dap_dl import DAP
 
 plt.close('all')
 warnings.filterwarnings("ignore")
@@ -1823,3 +1824,35 @@ class OutagePredictor:
             return probs, feat_df, df_det
         return probs
 
+def wdh_awaken_search(a2e, channel, sdate, edate):
+    t0 = pd.Timestamp(sdate).strftime('%Y%m%d%H%M%S')
+    t1 = pd.Timestamp(edate).strftime('%Y%m%d%H%M%S')
+    try:
+        results = a2e.search({'Dataset': channel,
+                              'date_time': {'between': [t0, t1]}}, table='inventory')
+        if not results:
+            return pd.DatetimeIndex([])
+        df = pd.DataFrame(results)
+        return pd.to_datetime(df['date_time'], format='%Y%m%d%H%M%S', errors='coerce').dropna()
+    except Exception:
+        # retry month by month
+        print(f"  Timeout for {channel} over full period — retrying by month")
+        months = pd.date_range(pd.Timestamp(sdate).to_period('M').to_timestamp(),
+                               pd.Timestamp(edate),
+                               freq='MS')
+        all_timestamps = []
+        for m in months:
+            m0 = m.strftime('%Y%m%d%H%M%S')
+            m1 = (m + pd.offsets.MonthEnd(1)).replace(hour=23, minute=59, second=59).strftime('%Y%m%d%H%M%S')
+            try:
+                results = a2e.search({'Dataset': channel,
+                                      'date_time': {'between': [m0, m1]}}, table='inventory')
+                if results:
+                    all_timestamps.append(pd.to_datetime(
+                        pd.DataFrame(results)['date_time'],
+                        format='%Y%m%d%H%M%S', errors='coerce').dropna())
+            except Exception as exc:
+                print(f"  Warning — {channel} {m.strftime('%Y-%m')}: {exc}")
+        if all_timestamps:
+            return pd.DatetimeIndex(pd.concat(all_timestamps))
+        return pd.DatetimeIndex([])
