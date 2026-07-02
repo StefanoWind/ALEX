@@ -17,7 +17,7 @@ plt.close('all')
 
 CFG = {
     'mesonet_source':    'data/brec.outages_mesonet.nc',
-    'hrrr_source':       'data/2023-01-01.2023-01-07.hrrr.nc',
+    'hrrr_source':       'data/hrrr/*nc',
     'station_lat':       36.412010,   # used if latitude not in mesonet NC attributes
     'station_lon':       360-97.693940,
     'sample_week':       '2023-01-01',

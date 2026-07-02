@@ -10,14 +10,23 @@ Two-step approach to keep API calls manageable:
 Output: data/awaken_data_availability.csv  (columns: channel, date_time)
 Run once; build_library.py loads the result for fast local window checks.
 """
-
+import sys
 import pandas as pd
 from pathlib import Path
 from doe_dap_dl import DAP
 
 #%% Inputs
-sdate = '2022-09-01'
-edate = '2025-10-01'
+
+if len(sys.argv)==1:
+    sdate = '2022-09-01'
+    edate = '2025-10-01'
+    username = input('WDH username: ')
+    password = input('WDH password: ')
+else:
+    sdate = sys.argv[1]
+    edate = sys.argv[2]
+    username = sys.argv[3]
+    password = sys.argv[4]
 
 # reference window used only for channel existence check (pick a mid-campaign date)
 ref_t0 = '20230101000000'
@@ -33,8 +42,7 @@ data_levels  = ['00', 'a0', 'a1', 'b0', 'c0', 'c1', 'c2']
 OUTPUT = Path(__file__).parent / 'data' / 'awaken_data_availability.csv'
 
 #%% Login
-username = input('WDH username: ')
-password = input('WDH password: ')
+
 
 a2e = DAP('a2e.energy.gov', confirm_downloads=False)
 a2e.setup_cert_auth(username=username, password=password)
@@ -63,7 +71,7 @@ for site in sites:
 
                 print(f"Found: {channel} — collecting timestamps", flush=True)
 
-                # ── Step 2: weekly inventory search ─────────────────────────
+                # ── Step 2: weekly inventory search, fall back to daily ──────
                 for w in weeks:
                     t0 = w.strftime('%Y%m%d%H%M%S')
                     t1 = (w + pd.Timedelta(days=6, hours=23, minutes=59, seconds=59)).strftime('%Y%m%d%H%M%S')
@@ -76,8 +84,22 @@ for site in sites:
                             if 'date_time' in df_inv.columns:
                                 for dt_str in df_inv['date_time']:
                                     records.append({'channel': channel, 'date_time': dt_str})
-                    except Exception as exc:
-                        print(f"  Warning — {channel} week {w.date()}: {exc}", flush=True)
+                    except Exception:
+                        print(f"  Weekly timeout — {channel} {w.date()}, retrying daily", flush=True)
+                        for day in pd.date_range(w, periods=7, freq='D'):
+                            d0 = day.strftime('%Y%m%d%H%M%S')
+                            d1 = (day + pd.Timedelta(hours=23, minutes=59, seconds=59)).strftime('%Y%m%d%H%M%S')
+                            try:
+                                inv = a2e.search({'Dataset': channel,
+                                                  'date_time': {'between': [d0, d1]}},
+                                                 table='inventory')
+                                if inv:
+                                    df_inv = pd.DataFrame(inv)
+                                    if 'date_time' in df_inv.columns:
+                                        for dt_str in df_inv['date_time']:
+                                            records.append({'channel': channel, 'date_time': dt_str})
+                            except Exception as exc:
+                                print(f"  Daily timeout — {channel} {day.date()}: {exc}", flush=True)
 
 #%% Save
 out = (pd.DataFrame(records)
