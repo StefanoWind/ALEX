@@ -2,12 +2,14 @@ import sys
 import numpy as np
 import pandas as pd
 import xarray as xr
-xr.set_options(use_new_combine_kwarg_defaults=True)    
 from pathlib import Path
 from herbie import FastHerbie
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
-
+from functools import partial
+import warnings
+warnings.filterwarnings("ignore")
+print = partial(print, flush=True)
 # HRRR: [Benjamin et al., 2016, Mon. Wea. Rev.]; v4: [Dowell et al., 2022, Bull. Amer. Meteor. Soc.]
 
 #%% Inputs
