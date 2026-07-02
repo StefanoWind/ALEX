@@ -1,32 +1,46 @@
+import sys
 import numpy as np
 import pandas as pd
 import xarray as xr
+xr.set_options(use_new_combine_kwarg_defaults=True)    
 from pathlib import Path
 from herbie import FastHerbie
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from collections import defaultdict
 
 # HRRR: [Benjamin et al., 2016, Mon. Wea. Rev.]; v4: [Dowell et al., 2022, Bull. Amer. Meteor. Soc.]
 
-CFG = {
-    'start':            '2023-06-01',
-    'end':              '2023-06-30',
-    'freq':             '1h',
-    'fxx_fcst':         18,               # forecast lead (hours); 18h is the max for all HRRR cycles
-    'fcst_cycle_hours': list(range(24)),  # all cycles support fxx=18h → every hour is filled
-    'product':          'sfc',
-    'lat_range':        [36.0, 36.5],   # AWAKEN domain — northern Oklahoma
-    'lon_range':        [360-97.75, 360-97.25],
-    'variables': {                       # output name → HRRR GRIB searchstring
-        'u10':  ':UGRD:10 m above ground:',
-        'v10':  ':VGRD:10 m above ground:',
-        'gust': ':GUST:surface:',
-        'tair': ':TMP:2 m above ground:',
-        'relh': ':RH:2 m above ground:',
-        'pres': ':PRES:surface:',
-        'srad': ':DSWRF:surface:'
-    },
-    'max_threads': 10,
-    'chunk_days':  1,
-    'output':     'data/{sdate}.{edate}.hrrr.nc',
+#%% Inputs
+if len(sys.argv)==1:
+    mode='serial'
+    sdate='2022-09-01'
+    edate='2025-10-01'
+else:
+    mode=sys.argv[0]
+    sdate=sys.argv[1]
+    edate=sys.argv[2]
+    
+CFG = {'start':sdate,
+       'end': edate,
+        'freq':             '1h',
+        'fxx_fcst':         18,               # forecast lead (hours); 18h is the max for all HRRR cycles
+        'fcst_cycle_hours': list(range(24)),  # all cycles support fxx=18h → every hour is filled
+        'product':          'sfc',
+        'lat_range':        [36.0, 36.5],   # AWAKEN domain — northern Oklahoma
+        'lon_range':        [360-97.75, 360-97.25],
+        'variables': {                       # output name → HRRR GRIB searchstring
+            'u10':  ':UGRD:10 m above ground:',
+            'v10':  ':VGRD:10 m above ground:',
+            'gust': ':GUST:surface:',
+            'tair': ':TMP:2 m above ground:',
+            'relh': ':RH:2 m above ground:',
+            'pres': ':PRES:surface:',
+            'srad': ':DSWRF:surface:',
+            'prate': ':PRATE:surface:'  
+        },
+        'max_threads': 10,
+        'chunk_days':  1,
+        'output':     str(Path(__file__).parent / 'data/hrrr/{year:04d}{month:02d}01.000000.hrrr.nc'),
 }
 
 # metadata variables that cfgrib adds alongside the actual data
@@ -36,7 +50,7 @@ _META_VARS = {
     'meanSea', 'entireAtmosphere', 'unknown',
 }
 
-
+#%% Functions
 def _main_var(ds: xr.Dataset) -> str:
     candidates = [v for v in ds.data_vars if v not in _META_VARS]
     if not candidates:
@@ -113,35 +127,63 @@ def fetch_chunk(dates: pd.DatetimeIndex, cfg: dict) -> xr.Dataset | None:
     return ds_anl
 
 
+def _run_chunk(args: tuple) -> tuple:
+    idx, dates_list, cfg = args
+    chunk = pd.DatetimeIndex(dates_list)
+    try:
+        return idx, fetch_chunk(chunk, cfg)
+    except Exception as exc:
+        print(f"  Chunk {idx} failed: {exc}")
+        return idx, None
+
+#%% Main
 if __name__ == '__main__':
-    dates    = pd.date_range(CFG['start'], CFG['end'], freq=CFG['freq'])
-    n_chunk  = CFG['chunk_days'] * 24
-    chunks   = [dates[i:i + n_chunk] for i in range(0, len(dates), n_chunk)]
-    out_path = Path(CFG['output'].format(sdate=CFG['start'],edate=CFG['end']))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    dates   = pd.date_range(CFG['start'], CFG['end'], freq=CFG['freq'])
+    n_chunk = CFG['chunk_days'] * 24
+    chunks  = [dates[i:i + n_chunk] for i in range(0, len(dates), n_chunk)]
+
+    # group chunks by (year, month) of their first date
+    monthly_chunks: dict = defaultdict(list)
+    for i, chunk in enumerate(chunks):
+        key = (chunk[0].year, chunk[0].month)
+        monthly_chunks[key].append((i, chunk))
+
+    n_workers = CFG.get('n_workers', 1)
 
     print(f"Date range : {dates[0]} → {dates[-1]}  ({len(dates)} hours)")
     print(f"Variables  : {list(CFG['variables'].keys())}")
     print(f"Domain     : lat={CFG['lat_range']}, lon={CFG['lon_range']}")
     print(f"Forecast   : fxx={CFG['fxx_fcst']}h from {CFG['fcst_cycle_hours']}z cycles only")
-    print(f"Chunks     : {len(chunks)} × {CFG['chunk_days']} days\n")
+    print(f"Chunks     : {len(chunks)} × {CFG['chunk_days']} days  |  workers={n_workers}\n")
 
-    results = []
-    for i, chunk in enumerate(chunks):
-        print(f"[{i+1}/{len(chunks)}] {chunk[0].date()} – {chunk[-1].date()}")
-        try:
-            ds_c = fetch_chunk(chunk, CFG)
-            if ds_c is not None:
-                results.append(ds_c)
-        except Exception as exc:
-            print(f"  Chunk failed: {exc}")
+    for (year, month), indexed_chunks in sorted(monthly_chunks.items()):
+        out_path = Path(CFG['output'].format(year=year, month=month))
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"\n=== {year}-{month:02d}  ({len(indexed_chunks)} chunks) → {out_path}")
 
-    if not results:
-        raise RuntimeError("No data retrieved for any chunk.")
-        
-    print("\nConcatenating chunks ...")
-    ds_out = xr.concat(results, dim='time')
+        args_list = [(i, list(chunk), CFG) for i, chunk in indexed_chunks]
+        results: dict = {}
 
-    encoding = {v: {'zlib': True, 'complevel': 4} for v in ds_out.data_vars}
-    ds_out.to_netcdf(out_path, encoding=encoding)
-    print(f"Saved → {out_path}   {dict(ds_out.dims)}")
+        if mode=='parallel':
+            with ProcessPoolExecutor(max_workers=20) as executor:
+                futures = {executor.submit(_run_chunk, a): a[0] for a in args_list}
+                for future in as_completed(futures):
+                    idx, ds = future.result()
+                    if ds is not None:
+                        results[idx] = ds
+        elif mode=='serial':
+            for args in args_list:
+                idx, ds = _run_chunk(args)
+                if ds is not None:
+                    results[idx] = ds
+        else:
+            raise ValueError(f'Unknown processing mode: {mode}')
+
+        if not results:
+            print("  No data retrieved, skipping.")
+            continue
+
+        ds_out = xr.concat([results[i] for i in sorted(results)], dim='time')
+        encoding = {v: {'zlib': True, 'complevel': 4} for v in ds_out.data_vars}
+        ds_out.to_netcdf(out_path, encoding=encoding)
+        print(f"Saved → {out_path}   {dict(ds_out.dims)}")

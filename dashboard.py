@@ -153,48 +153,39 @@ df_filt = df[mask].sort_values('outage_probability', ascending=False)
 
 # ── Session state init ────────────────────────────────────────────────────────
 
-for key, default in [('prev_table_sel', []), ('sel_ts', None)]:
+for key, default in [('prev_table_sel', []), ('sel_ts', None), ('scatter_gen', 0)]:
     if key not in st.session_state:
         st.session_state[key] = default
 
-# Reset selection when filter widgets change (must run before scatter is drawn)
+# Reset selection when filter widgets change.
+# Also bump scatter_gen so the Plotly widget gets a fresh key → clears its
+# internal frontend selection state (avoids stale highlighted markers).
 _filter_sig = (prob_range, outage_only, peak_range, dur_range, shap_feat, shap_thresh)
 if 'prev_filter_sig' in st.session_state and st.session_state.prev_filter_sig != _filter_sig:
     st.session_state.sel_ts = None
+    st.session_state.scatter_gen += 1
 st.session_state.prev_filter_sig = _filter_sig
 
-# ── Event table ───────────────────────────────────────────────────────────────
+# ── Header row: event count + Clear button ────────────────────────────────────
 
 _col_count, _col_clear = st.columns([6, 1])
 _col_count.markdown(f'**{len(df_filt)} events** match filters (of {len(df)} total)')
 if _col_clear.button('Clear selection', use_container_width=True):
     st.session_state.sel_ts = None
     st.session_state.prev_table_sel = []
+    st.session_state.scatter_gen += 1  # force fresh Plotly widget → no stale highlights
 
-table_cols = ['outage_probability'] + stat_cols
-fmt        = {c: '{:.3f}' for c in ['outage_probability', 'duration_h', 'auc_customer_h']}
-fmt['peak_customers_out'] = '{:.0f}'
-
-ev = st.dataframe(
-    df_filt[table_cols].style.format(fmt, na_rep='—'),
-    use_container_width=True,
-    selection_mode='single-row',
-    on_select='rerun',
-)
-table_sel = list(ev.selection.rows) if ev.selection else []
-
-# ── SHAP scatter (always shown for outage events in current filter) ────────────
+# ── SHAP scatter (outage events only, shown above table) ──────────────────────
 
 df_out_filt = df_filt[df_filt['peak_customers_out'].notna()]
 scatter_event = None
 
 if not df_out_filt.empty and shap_cols:
-    shap_v  = df_out_filt[shap_cols].values.astype(float)   # (n, n_feat)
-    feat_v  = df_out_filt[feat_cols].values.astype(float)   # (n, n_feat)
+    shap_v  = df_out_filt[shap_cols].values.astype(float)
+    feat_v  = df_out_filt[feat_cols].values.astype(float)
     x_vals  = df_out_filt['duration_h'].values * 60          # minutes
     ts_strs = df_out_filt.index.strftime('%Y-%m-%d %H:%M:%S').tolist()
 
-    # Optional rain indicator (skipped if column absent)
     rain_col  = next((c for c in df_out_filt.columns if re.match(r'^rain_mean_W\d+', c)), None)
     rain_vals = df_out_filt[rain_col].fillna(0).values if rain_col else None
 
@@ -202,7 +193,6 @@ if not df_out_filt.empty and shap_cols:
     feat_std  = np.where(feat_v.std(axis=0) > 0, feat_v.std(axis=0), 1.0)
     feat_norm = (feat_v - feat_mean) / feat_std
 
-    # Max SHAP per event > 0 guard
     valid = np.max(shap_v, axis=1) > 0
     shap_v    = shap_v[valid];    feat_v    = feat_v[valid]
     feat_norm = feat_norm[valid]; x_vals    = x_vals[valid]
@@ -210,21 +200,18 @@ if not df_out_filt.empty and shap_cols:
     if rain_vals is not None:
         rain_vals = rain_vals[valid]
 
-    # Which event is currently selected (from table or previous scatter click)?
-    # Used to highlight that event consistently across all three subplots.
     _raw_sel = st.session_state.get('sel_ts')
     try:
         sel_ts_str = pd.Timestamp(_raw_sel).strftime('%Y-%m-%d %H:%M:%S') if _raw_sel else None
     except Exception:
         sel_ts_str = None
-    ts_strs_set         = set(ts_strs)
-    scatter_has_sel     = sel_ts_str is not None and sel_ts_str in ts_strs_set
+    ts_strs_set     = set(ts_strs)
+    scatter_has_sel = sel_ts_str is not None and sel_ts_str in ts_strs_set
 
-    rank_idx  = np.argsort(shap_v, axis=1)[:, ::-1]
-    n_events  = len(ts_strs)
-    n_ranks   = min(3, shap_v.shape[1])
+    rank_idx = np.argsort(shap_v, axis=1)[:, ::-1]
+    n_events = len(ts_strs)
+    n_ranks  = min(3, shap_v.shape[1])
 
-    # Unique bases across all ranks (for legend consistency)
     all_bases = sorted({
         _base_var(feat_cols[rank_idx[i, k]])
         for i in range(n_events) for k in range(n_ranks)
@@ -260,14 +247,21 @@ if not df_out_filt.empty and shap_cols:
                 else:
                     ec, ew = '#333333', 0.5
 
-                label = f'{_var_label(base)} / {ftype}'
+                label       = f'{_var_label(base)} / {ftype}'
                 trace_cdata = [ts_strs[i] for i in idx_sel]
-                # selectedpoints: highlight this event across ALL subplots
-                # (None = no dimming; list = only those indices at full opacity)
-                sel_pts = (
-                    [j for j, c in enumerate(trace_cdata) if c == sel_ts_str]
-                    if scatter_has_sel else None
-                )
+
+                if scatter_has_sel:
+                    sel_pts = [j for j, c in enumerate(trace_cdata) if c == sel_ts_str]
+                    sel_kw  = dict(
+                        selectedpoints=sel_pts,
+                        selected=dict(marker=dict(opacity=1.0)),
+                        unselected=dict(marker=dict(opacity=0.15)),
+                    )
+                else:
+                    # No active selection: omit selected/unselected so Plotly
+                    # renders all markers at the base opacity without any dimming.
+                    sel_kw = {}
+
                 fig_sc.add_trace(
                     go.Scatter(
                         x=[x_vals[i] for i in idx_sel],
@@ -283,9 +277,6 @@ if not df_out_filt.empty and shap_cols:
                             line=dict(color=ec, width=ew),
                             opacity=0.80,
                         ),
-                        selectedpoints=sel_pts,
-                        selected=dict(marker=dict(opacity=1.0)),
-                        unselected=dict(marker=dict(opacity=0.15)),
                         customdata=trace_cdata,
                         hovertemplate=(
                             '<b>%{customdata}</b><br>'
@@ -293,6 +284,7 @@ if not df_out_filt.empty and shap_cols:
                             f'Driver: {_var_label(base)} / {ftype}<br>'
                             'z-score: %{y:.2f}<extra></extra>'
                         ),
+                        **sel_kw,
                     ),
                     row=k + 1, col=1,
                 )
@@ -314,9 +306,24 @@ if not df_out_filt.empty and shap_cols:
     )
 
     scatter_event = st.plotly_chart(
-        fig_sc, on_select='rerun', selection_mode='points', key='shap_scatter',
+        fig_sc, on_select='rerun', selection_mode='points',
+        key=f'shap_scatter_{st.session_state.scatter_gen}',
         use_container_width=True,
     )
+
+# ── Event table ───────────────────────────────────────────────────────────────
+
+table_cols = ['outage_probability'] + stat_cols
+fmt        = {c: '{:.3f}' for c in ['outage_probability', 'duration_h', 'auc_customer_h']}
+fmt['peak_customers_out'] = '{:.0f}'
+
+ev = st.dataframe(
+    df_filt[table_cols].style.format(fmt, na_rep='—'),
+    use_container_width=True,
+    selection_mode='single-row',
+    on_select='rerun',
+)
+table_sel = list(ev.selection.rows) if ev.selection else []
 
 # ── Selection resolution ──────────────────────────────────────────────────────
 
