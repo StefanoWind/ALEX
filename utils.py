@@ -18,6 +18,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 from nexradaws import NexradAwsInterface
 from datetime import timedelta, timezone
 import pyart
+from doe_dap_dl import DAP
 
 plt.close('all')
 warnings.filterwarnings("ignore")
@@ -1070,13 +1071,13 @@ def build_event_matrix(df_preds: pd.DataFrame,
         X_dyn, _ = build_dynamic_features(window, predictors, window=window_len, rolling=False)
         return X_dyn.iloc[-1]
 
-    # Outage events: fixed window [t_start - pre_window, t_start + post_window].
+    # Outage events: half-open window [t_start - pre_window, t_start + post_window).
     # Require all predictor channels to have complete data within the window.
-    expected_steps = pre_window + post_window + 1
+    expected_steps = window_len
     outage_X, outage_y, episode_ends, peak_customers = {}, {}, {}, {}
     skipped = 0
     for t_start, t_end, metric in filtered:
-        window = df_preds.loc[t_start - pre_window * dt : t_start + post_window * dt]
+        window = df_preds.loc[t_start - pre_window * dt : t_start + post_window * dt - dt]
         if len(window) < expected_steps or window.isna().any().any():
             skipped += 1
             continue
@@ -1901,3 +1902,35 @@ class OutagePredictor:
             return probs, feat_df, df_det
         return probs
 
+def wdh_awaken_search(a2e, channel, sdate, edate):
+    t0 = pd.Timestamp(sdate).strftime('%Y%m%d%H%M%S')
+    t1 = pd.Timestamp(edate).strftime('%Y%m%d%H%M%S')
+    try:
+        results = a2e.search({'Dataset': channel,
+                              'date_time': {'between': [t0, t1]}}, table='inventory')
+        if not results:
+            return pd.DatetimeIndex([])
+        df = pd.DataFrame(results)
+        return pd.to_datetime(df['date_time'], format='%Y%m%d%H%M%S', errors='coerce').dropna()
+    except Exception:
+        # retry month by month
+        print(f"  Timeout for {channel} over full period — retrying by month")
+        months = pd.date_range(pd.Timestamp(sdate).to_period('M').to_timestamp(),
+                               pd.Timestamp(edate),
+                               freq='MS')
+        all_timestamps = []
+        for m in months:
+            m0 = m.strftime('%Y%m%d%H%M%S')
+            m1 = (m + pd.offsets.MonthEnd(1)).replace(hour=23, minute=59, second=59).strftime('%Y%m%d%H%M%S')
+            try:
+                results = a2e.search({'Dataset': channel,
+                                      'date_time': {'between': [m0, m1]}}, table='inventory')
+                if results:
+                    all_timestamps.append(pd.to_datetime(
+                        pd.DataFrame(results)['date_time'],
+                        format='%Y%m%d%H%M%S', errors='coerce').dropna())
+            except Exception as exc:
+                print(f"  Warning — {channel} {m.strftime('%Y-%m')}: {exc}")
+        if all_timestamps:
+            return pd.DatetimeIndex(pd.concat(all_timestamps))
+        return pd.DatetimeIndex([])
