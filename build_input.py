@@ -45,7 +45,7 @@ CONVERSION={'wspd':1,
         'tair':1,
         'relh':1,
         'pres':10,
-        'srad':1000/0.2,
+        'srad':1, #1000/0.2,
         'wssd':1,
         'wdsd':1}
 

@@ -19,7 +19,7 @@ try:
 except ImportError:
     HAS_SHAP = False
 
-from utils import plot_episode_ts, _VAR_LABELS
+from utils import plot_episode_ts, download_plot_nexrad, _VAR_LABELS
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['font.size'] = 7
@@ -366,16 +366,18 @@ if row is None:
 
 st.subheader(f'Event: {ts.strftime("%Y-%m-%d %H:%M")}')
 
-# ── Time series / SHAP buttons ────────────────────────────────────────────────
+# ── Time series / SHAP / NEXRAD buttons ────────────────────────────────────────────────
 
 if 'view' not in st.session_state:
     st.session_state['view'] = None
 
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns(3)
 if c1.button('Time series', use_container_width=True):
     st.session_state['view'] = 'ts'
 if c2.button('SHAP', use_container_width=True, disabled=not HAS_SHAP):
     st.session_state['view'] = 'shap'
+if c3.button('NEXRAD', use_container_width=True):
+    st.session_state['view'] = 'nexrad'
 
 view = st.session_state['view']
 if view is None:
@@ -437,5 +439,17 @@ elif view == 'shap':
     shap_lib.plots.waterfall(expl, show=False)
     plt.title(f'SHAP — {ts.strftime("%Y-%m-%d %H:%M")}', fontsize=8)
     plt.tight_layout()
+    st.pyplot(fig, use_container_width=True)
+    plt.close(fig)
+
+# ── NEXRAD reflectivity ────────────────────────────────────────────────────────────
+
+if view == 'nexrad':
+    
+    dur_h = float(row.get('duration_h', np.nan))
+    t_end = ts + pd.Timedelta(hours=dur_h) if not np.isnan(dur_h) else ts
+    episode = pd.Series({'t_start': ts, 't_end': t_end})
+
+    fig = download_plot_nexrad(episode)
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
