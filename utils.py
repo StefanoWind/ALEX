@@ -15,6 +15,9 @@ from sklearn.model_selection import (StratifiedKFold, train_test_split,
 from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.utils.class_weight import compute_sample_weight
+from nexradaws import NexradAwsInterface
+from datetime import timedelta, timezone
+import pyart
 from doe_dap_dl import DAP
 
 plt.close('all')
@@ -944,6 +947,81 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
         fig.savefig(fname, dpi=150, bbox_inches='tight')
         plt.close(fig)
         print(f"  Saved episode plot → {fname}")
+    return fig
+
+def download_plot_nexrad(episode: pd.Series,
+                         radar_id: str = 'KVNX',
+                         radar_dir: Path = 'data/',
+                         min_lon: int = -101,
+                         max_lon: int = -94,
+                         min_lat: int = 33,
+                         max_lat: int = 39,
+                         vmin: int = -10,
+                         vmax: int = 70,
+                         save_fig = False):
+    
+    target_time = episode['t_start'].replace(tzinfo=timezone.utc)
+
+    # Find nearest scan
+    conn = NexradAwsInterface()
+
+    start = target_time - timedelta(minutes=10)
+    end = target_time + timedelta(minutes=10)
+
+    scans = conn.get_avail_scans_in_range(start, end, radar_id)
+
+    if len(scans) == 0:
+        raise ValueError(
+            f"No scans found for {radar_id} between {start} and {end}"
+        )
+
+    nearest_scan = min(
+        scans,
+        key=lambda s: abs(s.scan_time - target_time)
+    )
+
+    # Download file
+    downloaded_files = conn.download(
+        [nearest_scan],
+        str(radar_dir)
+    )
+
+    filename = downloaded_files.success[0].filepath
+
+    # Read radar
+    radar = pyart.io.read_nexrad_archive(filename)
+
+    # Plot reflectivity
+    plt.style.use("dark_background")
+
+    display = pyart.graph.RadarMapDisplay(radar)
+
+    fig = plt.figure(figsize=(10,8), facecolor="black")
+
+    display.plot_ppi_map(
+        "reflectivity",
+        sweep=0,
+        min_lon=min_lon,
+        max_lon=max_lon,
+        min_lat=min_lat,
+        max_lat=max_lat,
+        resolution="10m",
+        vmin=vmin,
+        vmax=vmax,
+    )
+
+    if save_fig:
+        radar_file = Path(filename)
+
+        output_png = radar_file.with_suffix(".png")
+
+        plt.savefig(
+            output_png,
+            dpi=300,
+            bbox_inches="tight",
+            facecolor=fig.get_facecolor(),
+        )
+
     return fig
 
 
