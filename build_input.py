@@ -7,6 +7,7 @@ import tkinter
 import tkinter.filedialog
 import yaml
 import xarray as xr
+import numpy as np
 
 root = tkinter.Tk()
 root.withdraw()
@@ -57,6 +58,16 @@ with open(source_config) as f:
 
 ds_out=xr.Dataset()
 
+
+def _read_attr(ds, keys):
+    for key in keys:
+        if key in ds.attrs:
+            try:
+                return float(ds.attrs[key])
+            except (TypeError, ValueError):
+                continue
+    return np.nan
+
 predictors=config['predictor_cols']
 if 'aavi' in predictors:
     predictors+=['wssd','wdsd']
@@ -70,6 +81,21 @@ for v in predictors:
             print(f'Missing {v} in input')
         
 ds_out['customers_out']=ds_in.outages
+
+# Preserve station geolocation metadata so downstream products can export it.
+lat_val = _read_attr(ds_in, ['latitude', 'lat', 'station_lat'])
+lon_val = _read_attr(ds_in, ['longitude', 'lon', 'station_lon'])
+
+if np.isfinite(lat_val):
+    ds_out.attrs['latitude'] = float(lat_val)
+if np.isfinite(lon_val):
+    ds_out.attrs['longitude'] = float(lon_val)
+
+for key in ['station', 'county', 'state', 'source', 'description']:
+    if key in ds_in.attrs:
+        ds_out.attrs[key] = ds_in.attrs[key]
+
+ds_in.close()
 
 #%% Output
 ds_out.drop('stat').to_netcdf(source_data.replace('.nc','.input.nc'))

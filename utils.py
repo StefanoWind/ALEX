@@ -958,6 +958,9 @@ def download_plot_nexrad(episode: pd.Series,
                          max_lat: int = 39,
                          vmin: int = -10,
                          vmax: int = 70,
+                         site_lat: float = None,
+                         site_lon: float = None,
+                         site_label: str = None,
                          save_fig = False):
     
     target_time = episode['t_start'].replace(tzinfo=timezone.utc)
@@ -1009,6 +1012,28 @@ def download_plot_nexrad(episode: pd.Series,
         vmin=vmin,
         vmax=vmax,
     )
+
+    # Overlay the selected site location if coordinates are available.
+    if site_lat is not None and site_lon is not None and np.isfinite(site_lat) and np.isfinite(site_lon):
+        try:
+            display.plot_point(site_lon, site_lat, symbol='wo', markersize=11)
+            display.plot_point(site_lon, site_lat, symbol='k+', markersize=10)
+        except Exception:
+            ax = plt.gca()
+            ax.plot(site_lon, site_lat, marker='o', markersize=8,
+                    markerfacecolor='white', markeredgecolor='black', zorder=6)
+            ax.plot(site_lon, site_lat, marker='+', markersize=9,
+                    color='black', zorder=7)
+
+        if site_label:
+            try:
+                ax = plt.gca()
+                ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
+                        color='white', fontsize=9,
+                        bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
+                        zorder=8)
+            except Exception:
+                pass
 
     if save_fig:
         radar_file = Path(filename)
