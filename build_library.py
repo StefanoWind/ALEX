@@ -55,6 +55,16 @@ if not source_clim:
 
 AVAIL_FILE = Path(__file__).parent / 'data' / 'awaken_data_availability.csv'
 
+
+def _read_attr(ds, keys, default=np.nan):
+    for key in keys:
+        if key in ds.attrs:
+            try:
+                return float(ds.attrs[key])
+            except (TypeError, ValueError):
+                continue
+    return default
+
 #%% Load
 predictor = OutagePredictor(source_model)
 cfg = predictor.cfg
@@ -62,16 +72,18 @@ cfg = predictor.cfg
 df = load_data(cfg, source=source_data)
 df_qc = qc_data(df, cfg)
 
+with xr.open_dataset(source_data) as _ds_meta0:
+    _src_lat = _read_attr(_ds_meta0, ['latitude', 'lat', 'station_lat'], default=np.nan)
+    _src_lon = _read_attr(_ds_meta0, ['longitude', 'lon', 'station_lon'], default=np.nan)
+
 
 #%% Load HRRR
 _hrrr_files = sorted((Path(__file__).parent / 'data' / 'hrrr').glob('*.nc'))
 hrrr_pt = pd.DataFrame()
 _fcst_sfx = None
 if _hrrr_files:
-    _ds_meta   = xr.open_dataset(source_data)
-    _sta_lat   = float(_ds_meta.attrs.get('latitude',  36.412010))
-    _sta_lon   = float(_ds_meta.attrs.get('longitude', 360 - 97.693940))
-    _ds_meta.close()
+    _sta_lat = float(_src_lat) if np.isfinite(_src_lat) else 36.412010
+    _sta_lon = float(_src_lon) if np.isfinite(_src_lon) else (360 - 97.693940)
 
     ds_hrrr = xr.open_mfdataset(_hrrr_files, combine='nested', concat_dim='time',
                                   coords='minimal', compat='override')
@@ -262,8 +274,10 @@ out_str.index.name = 'timestamp'
 
 meta = pd.DataFrame(
     [[shap_base_val] + [np.nan] * (len(out.columns) - 1),
-     [float(cfg['outage_threshold'])] + [np.nan] * (len(out.columns) - 1)],
-    index=pd.Index(['shap_base_value', 'outage_threshold'], name='timestamp'),
+     [float(cfg['outage_threshold'])] + [np.nan] * (len(out.columns) - 1),
+     [float(_src_lat) if np.isfinite(_src_lat) else np.nan] + [np.nan] * (len(out.columns) - 1),
+     [float(_src_lon) if np.isfinite(_src_lon) else np.nan] + [np.nan] * (len(out.columns) - 1)],
+    index=pd.Index(['shap_base_value', 'outage_threshold', 'latitude', 'longitude'], name='timestamp'),
     columns=out.columns,
 )
 
@@ -294,5 +308,5 @@ with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
         hrrr_str.to_excel(writer, sheet_name='HRRR data')
 
 print(f"Saved → {out_path}  "
-      f"(Library: {len(out)} rows + 2 metadata, "
+    f"(Library: {len(out)} rows + 4 metadata, "
       f"Data: {len(data_sheet)} rows × {data_sheet.shape[1]} cols)")

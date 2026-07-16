@@ -4,9 +4,11 @@ Run with: streamlit run dashboard.py
 '''
 
 import re
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
+import xarray as xr
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -38,6 +40,16 @@ _PLOTLY_MARKERS = {
     'mean': 'circle', 'std': 'star', 'grad_mean': 'square', 'grad_std': 'diamond',
 }
 _RANK_LABELS = ['1st dominant driver', '2nd dominant driver', '3rd dominant driver']
+_BASE_DIR = Path(__file__).resolve().parent
+_SOURCE_DATA_DIR = _BASE_DIR / 'data'
+_DEFAULT_LIBRARY_PATH = str(_SOURCE_DATA_DIR / 'merged_outages_15min_metA1only.input.library.xlsx')
+
+
+def _format_source_label(source_key: str, fallback_label: str):
+    m = re.match(r'^met([a-z]\d*).*$' , str(source_key).lower())
+    if m:
+        return f"Site {m.group(1).upper()}"
+    return fallback_label
 
 
 def _feat_type(name):
@@ -57,22 +69,123 @@ def _var_label(base):
     return re.sub(r'\s*\[.*?\]', '', raw).replace('\n', ' ').strip()
 
 
+def _source_key_from_filename(filename: str):
+    stem = Path(filename).stem
+    m = re.search(r'(met[\w\-]+?only)', stem, flags=re.IGNORECASE)
+    if m:
+        return m.group(1).lower()
+    return re.sub(r'\.input\.library$', '', stem, flags=re.IGNORECASE).lower()
+
+
+@st.cache_data
+def _read_nc_coords(nc_path: str):
+    lat = np.nan
+    lon = np.nan
+    try:
+        with xr.open_dataset(nc_path) as ds_nc:
+            for k in ['latitude', 'lat', 'station_lat']:
+                if k in ds_nc.attrs:
+                    lat = float(ds_nc.attrs[k])
+                    break
+            for k in ['longitude', 'lon', 'station_lon']:
+                if k in ds_nc.attrs:
+                    lon = float(ds_nc.attrs[k])
+                    break
+    except Exception:
+        return np.nan, np.nan
+
+    if np.isfinite(lon) and lon > 180:
+        lon = lon - 360
+    return lat, lon
+
+
+@st.cache_data
+def discover_library_sources(data_dir: str, data_sig: float = 0.0):
+    data_dir_p = Path(data_dir)
+    files = sorted(data_dir_p.glob('*.library.xlsx'))
+    all_nc = list(data_dir_p.glob('*.nc'))
+    src_rows = []
+    for fp in files:
+        source_stem = re.sub(r'\.input\.library\.xlsx$', '', fp.name, flags=re.IGNORECASE)
+        candidate_nc = data_dir_p / f'{source_stem}.nc'
+        nc_path = None
+        if candidate_nc.exists():
+            nc_path = candidate_nc
+        else:
+            matches = [p for p in all_nc if _source_key_from_filename(p.name) == _source_key_from_filename(fp.name)]
+            if len(matches) == 1:
+                nc_path = matches[0]
+
+        lat, lon = (np.nan, np.nan)
+        if nc_path is not None:
+            lat, lon = _read_nc_coords(str(nc_path))
+
+        label = _source_key_from_filename(fp.name)
+        if nc_path is not None:
+            try:
+                with xr.open_dataset(str(nc_path)) as ds_nc:
+                    label = str(ds_nc.attrs.get('station', label))
+            except Exception:
+                pass
+
+        src_rows.append({
+            'source_key': _source_key_from_filename(fp.name),
+            'file_name': fp.name,
+            'path': str(fp).replace('\\', '/'),
+            'label': label,
+            'latitude': lat,
+            'longitude': lon,
+            'nc_path': str(nc_path).replace('\\', '/') if nc_path is not None else np.nan,
+        })
+    src_df = pd.DataFrame(src_rows)
+    if src_df.empty:
+        return src_df
+
+    src_df['label'] = src_df['label'].fillna(src_df['source_key'])
+    src_df['label'] = src_df.apply(
+        lambda r: _format_source_label(r['source_key'], r['label']), axis=1
+    )
+    src_df['latitude'] = pd.to_numeric(src_df['latitude'], errors='coerce')
+    src_df['longitude'] = pd.to_numeric(src_df['longitude'], errors='coerce')
+    src_df['has_coords'] = src_df['latitude'].notna() & src_df['longitude'].notna()
+    src_df = src_df.sort_values(['source_key', 'file_name']).reset_index(drop=True)
+    return src_df
+
+
+def _data_dir_signature(data_dir: str):
+    p = Path(data_dir)
+    if not p.exists():
+        return 0.0
+    latest = p.stat().st_mtime
+    for f in p.glob('*'):
+        if f.is_file() and f.suffix.lower() in {'.xlsx', '.nc'}:
+            latest = max(latest, f.stat().st_mtime)
+    return float(latest)
+
+
 # ── Data loading ──────────────────────────────────────────────────────────────
 
 @st.cache_data
-def load(path: str):
+def load(path: str, file_sig: float = 0.0):
     df = pd.read_excel(path, sheet_name='Library', index_col=0)
     df.index = df.index.astype(str)
 
-    shap_base = np.nan
-    if 'shap_base_value' in df.index:
-        shap_base = float(df.loc['shap_base_value', 'outage_probability'])
-        df = df.drop('shap_base_value')
+    def _meta_value(meta_key, default=np.nan):
+        if meta_key in df.index:
+            try:
+                return float(df.loc[meta_key, 'outage_probability'])
+            except Exception:
+                return default
+        return default
 
-    outage_threshold = 20
-    if 'outage_threshold' in df.index:
-        outage_threshold = int(df.loc['outage_threshold', 'outage_probability'])
-        df = df.drop('outage_threshold')
+    shap_base = _meta_value('shap_base_value', np.nan)
+    outage_threshold = int(_meta_value('outage_threshold', 20))
+    lat_meta = _meta_value('latitude', np.nan)
+    lon_meta = _meta_value('longitude', np.nan)
+
+    _meta_rows = [k for k in ['shap_base_value', 'outage_threshold', 'latitude', 'longitude'] if k in df.index]
+    if _meta_rows:
+        df = df.drop(_meta_rows)
 
     df.index = pd.to_datetime(df.index)
 
@@ -100,16 +213,179 @@ def load(path: str):
             break
 
     return (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
-            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx)
+            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx, lat_meta, lon_meta)
 
 
-path = st.sidebar.text_input(
-    'Library XLSX path',
-    value='data/merged_outages_15min_metA1only.input.library.xlsx',
-)
+def _file_mtime(path: str):
+    try:
+        return Path(path).stat().st_mtime
+    except Exception:
+        return 0.0
+
+
+for key, default in [
+    ('selected_source_key', None),
+    ('prev_source_key', None),
+    ('prev_table_sel', []),
+    ('sel_ts', None),
+    ('scatter_gen', 0),
+    ('view', None),
+]:
+    if key not in st.session_state:
+        st.session_state[key] = default
+
+sources_df = discover_library_sources(str(_SOURCE_DATA_DIR), data_sig=_data_dir_signature(str(_SOURCE_DATA_DIR)))
+
+if not sources_df.empty:
+    valid_keys = set(sources_df['source_key'])
+    sel_key = st.session_state.get('selected_source_key')
+    if sel_key not in valid_keys:
+        st.session_state.selected_source_key = sources_df.iloc[0]['source_key']
+
+    if st.session_state.prev_source_key is None:
+        st.session_state.prev_source_key = st.session_state.selected_source_key
+
+    st.markdown('### Input Source Map')
+    map_df = sources_df.copy()
+    map_df['plot_lat'] = map_df['latitude']
+    map_df['plot_lon'] = map_df['longitude']
+
+    if not map_df['has_coords'].all():
+        missing_idx = map_df.index[~map_df['has_coords']].tolist()
+        if map_df['has_coords'].any():
+            lat0 = float(map_df.loc[map_df['has_coords'], 'latitude'].mean())
+            lon0 = float(map_df.loc[map_df['has_coords'], 'longitude'].mean())
+        else:
+            lat0, lon0 = 36.4, -97.6
+
+        for offset, idx in enumerate(missing_idx):
+            map_df.loc[idx, 'plot_lat'] = lat0 + 0.20 * offset
+            map_df.loc[idx, 'plot_lon'] = lon0 + 0.30 * offset
+
+        st.info(
+            'Some sources are missing latitude/longitude attributes in matched .nc files. '
+            'Using temporary fallback locations for map selection.'
+        )
+
+    map_event = None
+
+    if not map_df.empty:
+        selected_key = st.session_state.selected_source_key
+        selected_pts = [
+            i for i, k in enumerate(map_df['source_key'].tolist()) if k == selected_key
+        ]
+
+        lon_span = float(map_df['plot_lon'].max() - map_df['plot_lon'].min())
+        lat_span = float(map_df['plot_lat'].max() - map_df['plot_lat'].min())
+        span = max(lon_span, lat_span)
+        if span < 0.3:
+            zoom = 9
+        elif span < 0.8:
+            zoom = 8
+        elif span < 1.5:
+            zoom = 7
+        elif span < 3.0:
+            zoom = 6
+        else:
+            zoom = 5
+
+        trace_kwargs = dict(
+            lon=map_df['plot_lon'].tolist(),
+            lat=map_df['plot_lat'].tolist(),
+            text=map_df['label'],
+            mode='markers+text',
+            textposition='top center',
+            textfont=dict(color='#111111', size=12),
+            marker=dict(size=11, color='#00A6FF', opacity=0.95),
+            customdata=map_df['source_key'],
+            hovertemplate=(
+                '<b>%{text}</b><br>'
+                'Map lat: %{lat:.3f}<br>'
+                'Map lon: %{lon:.3f}<extra></extra>'
+            ),
+            selectedpoints=selected_pts,
+            selected=dict(marker=dict(size=14, color='#FF3B30', opacity=1.0)),
+            unselected=dict(marker=dict(opacity=0.45)),
+        )
+
+        center_cfg = dict(
+            lat=float(map_df['plot_lat'].mean()),
+            lon=float(map_df['plot_lon'].mean()),
+        )
+
+        if hasattr(go, 'Scattermap'):
+            fig_map = go.Figure(go.Scattermap(**trace_kwargs))
+            fig_map.update_layout(
+                margin=dict(l=0, r=0, t=0, b=0),
+                height=320,
+                map=dict(style='open-street-map', center=center_cfg, zoom=zoom),
+            )
+        else:
+            fig_map = go.Figure(go.Scattermapbox(**trace_kwargs))
+            fig_map.update_layout(
+                margin=dict(l=0, r=0, t=0, b=0),
+                height=320,
+                mapbox=dict(style='open-street-map', center=center_cfg, zoom=zoom),
+            )
+        map_event = st.plotly_chart(
+            fig_map,
+            key='source_map',
+            use_container_width=True,
+            on_select='rerun',
+            selection_mode='points',
+        )
+    map_pts = []
+    try:
+        if map_event and map_event.selection and map_event.selection.points:
+            map_pts = map_event.selection.points
+    except (AttributeError, TypeError):
+        pass
+
+    if map_pts:
+        clicked_key = map_pts[0].get('customdata')
+        if clicked_key and clicked_key != st.session_state.selected_source_key:
+            st.session_state.selected_source_key = clicked_key
+            st.rerun()
+
+    source_label = sources_df.loc[
+        sources_df['source_key'] == st.session_state.selected_source_key, 'label'
+    ].iloc[0]
+    st.caption(f'Active source: {source_label}')
+
+    source_row = sources_df[sources_df['source_key'] == st.session_state.selected_source_key].iloc[0]
+    selected_site_lat = float(source_row['latitude']) if pd.notna(source_row.get('latitude', np.nan)) else np.nan
+    selected_site_lon = float(source_row['longitude']) if pd.notna(source_row.get('longitude', np.nan)) else np.nan
+    selected_site_label = str(source_label)
+    auto_path = source_row['path']
+
+    st.sidebar.subheader('Input source')
+    st.sidebar.text_input('Selected library path', value=auto_path, disabled=True)
+    manual_override = st.sidebar.checkbox('Manual path override', value=False)
+    if manual_override:
+        path = st.sidebar.text_input('Library XLSX path (manual)', value=auto_path)
+    else:
+        path = auto_path
+else:
+    st.warning(
+        f'No *.library.xlsx files were found in {_SOURCE_DATA_DIR}. '
+        'Using manual path input fallback.'
+    )
+    path = st.sidebar.text_input('Library XLSX path', value=_DEFAULT_LIBRARY_PATH)
+    selected_site_lat = np.nan
+    selected_site_lon = np.nan
+    selected_site_label = None
+
+if st.session_state.prev_source_key != st.session_state.selected_source_key:
+    st.session_state.sel_ts = None
+    st.session_state.prev_table_sel = []
+    st.session_state.scatter_gen += 1
+    st.session_state.view = None
+    st.session_state.prev_source_key = st.session_state.selected_source_key
+
 try:
     (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
-     shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx) = load(path)
+    shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx,
+    lat_meta, lon_meta) = load(path, file_sig=_file_mtime(path))
 except FileNotFoundError:
     st.error(f'File not found: {path}')
     st.stop()
@@ -166,12 +442,6 @@ if shap_feat != '(none)':
     mask &= df[shap_feat].abs() >= shap_thresh
 
 df_filt = df[mask].sort_values('outage_probability', ascending=False)
-
-# ── Session state init ────────────────────────────────────────────────────────
-
-for key, default in [('prev_table_sel', []), ('sel_ts', None), ('scatter_gen', 0)]:
-    if key not in st.session_state:
-        st.session_state[key] = default
 
 # Reset selection when filter widgets change.
 # Also bump scatter_gen so the Plotly widget gets a fresh key → clears its
@@ -501,6 +771,13 @@ if view == 'nexrad':
     t_end = ts + pd.Timedelta(hours=dur_h) if not np.isnan(dur_h) else ts
     episode = pd.Series({'t_start': ts, 't_end': t_end})
 
-    fig = download_plot_nexrad(episode)
+    marker_lat = selected_site_lat if np.isfinite(selected_site_lat) else lat_meta
+    marker_lon = selected_site_lon if np.isfinite(selected_site_lon) else lon_meta
+    fig = download_plot_nexrad(
+        episode,
+        site_lat=marker_lat if np.isfinite(marker_lat) else None,
+        site_lon=marker_lon if np.isfinite(marker_lon) else None,
+        site_label=selected_site_label,
+    )
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
