@@ -41,7 +41,7 @@ _PLOTLY_MARKERS = {
 }
 _RANK_LABELS = ['1st dominant driver', '2nd dominant driver', '3rd dominant driver']
 _BASE_DIR = Path(__file__).resolve().parent
-_SOURCE_DATA_DIR = _BASE_DIR / 'data'
+_SOURCE_DATA_DIR = _BASE_DIR / 'data' /'merged_outages_gf_15min'
 _DEFAULT_LIBRARY_PATH = str(_SOURCE_DATA_DIR / 'merged_outages_15min_metA1only.input.library.xlsx')
 
 
@@ -78,19 +78,17 @@ def _source_key_from_filename(filename: str):
 
 
 @st.cache_data
-def _read_nc_coords(nc_path: str):
+def _read_xlsx_coords(xlsx_path: str):
+    """Read station latitude/longitude from a library.xlsx's dedicated 'Site' sheet."""
     lat = np.nan
     lon = np.nan
     try:
-        with xr.open_dataset(nc_path) as ds_nc:
-            for k in ['latitude', 'lat', 'station_lat']:
-                if k in ds_nc.attrs:
-                    lat = float(ds_nc.attrs[k])
-                    break
-            for k in ['longitude', 'lon', 'station_lon']:
-                if k in ds_nc.attrs:
-                    lon = float(ds_nc.attrs[k])
-                    break
+        site_df = pd.read_excel(xlsx_path, sheet_name='Site')
+        if not site_df.empty:
+            if 'latitude' in site_df.columns:
+                lat = float(site_df['latitude'].iloc[0])
+            if 'longitude' in site_df.columns:
+                lon = float(site_df['longitude'].iloc[0])
     except Exception:
         return np.nan, np.nan
 
@@ -116,9 +114,7 @@ def discover_library_sources(data_dir: str, data_sig: float = 0.0):
             if len(matches) == 1:
                 nc_path = matches[0]
 
-        lat, lon = (np.nan, np.nan)
-        if nc_path is not None:
-            lat, lon = _read_nc_coords(str(nc_path))
+        lat, lon = _read_xlsx_coords(str(fp))
 
         label = _source_key_from_filename(fp.name)
         if nc_path is not None:
@@ -180,8 +176,7 @@ def load(path: str, file_sig: float = 0.0):
 
     shap_base = _meta_value('shap_base_value', np.nan)
     outage_threshold = int(_meta_value('outage_threshold', 20))
-    lat_meta = _meta_value('latitude', np.nan)
-    lon_meta = _meta_value('longitude', np.nan)
+    lat_meta, lon_meta = _read_xlsx_coords(path)
 
     _meta_rows = [k for k in ['shap_base_value', 'outage_threshold', 'latitude', 'longitude'] if k in df.index]
     if _meta_rows:
@@ -381,6 +376,7 @@ if st.session_state.prev_source_key != st.session_state.selected_source_key:
     st.session_state.scatter_gen += 1
     st.session_state.view = None
     st.session_state.prev_source_key = st.session_state.selected_source_key
+    st.session_state.pop('event_table', None)
 
 try:
     (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
@@ -450,6 +446,7 @@ _filter_sig = (prob_range, outage_only, peak_range, dur_range, shap_feat, shap_t
 if 'prev_filter_sig' in st.session_state and st.session_state.prev_filter_sig != _filter_sig:
     st.session_state.sel_ts = None
     st.session_state.scatter_gen += 1
+    st.session_state.pop('event_table', None)
 st.session_state.prev_filter_sig = _filter_sig
 
 # ── Header row: event count + Clear button ────────────────────────────────────
@@ -460,6 +457,7 @@ if _col_clear.button('Clear selection', use_container_width=True):
     st.session_state.sel_ts = None
     st.session_state.prev_table_sel = []
     st.session_state.scatter_gen += 1  # force fresh Plotly widget → no stale highlights
+    st.session_state.pop('event_table', None)
 
 # ── SHAP scatter (outage events only, shown above table) ──────────────────────
 
@@ -509,6 +507,7 @@ if not df_out_filt.empty and shap_cols:
         vertical_spacing=0.07,
     )
 
+    legend_shown = set()
     for k in range(n_ranks):
         dom_idx   = rank_idx[:, k]
         dom_names = [feat_cols[dom_idx[i]] for i in range(n_events)]
@@ -536,6 +535,11 @@ if not df_out_filt.empty and shap_cols:
                 label       = f'{_var_label(base)} / {ftype}'
                 trace_cdata = [ts_strs[i] for i in idx_sel]
 
+                group_key   = (base, ftype)
+                show_legend = group_key not in legend_shown
+                if show_legend:
+                    legend_shown.add(group_key)
+
                 if scatter_has_sel:
                     sel_pts = [j for j, c in enumerate(trace_cdata) if c == sel_ts_str]
                     sel_kw  = dict(
@@ -555,7 +559,7 @@ if not df_out_filt.empty and shap_cols:
                         mode='markers',
                         name=label,
                         legendgroup=f'{base}_{ftype}',
-                        showlegend=(k == 0),
+                        showlegend=show_legend,
                         marker=dict(
                             symbol=marker_sym,
                             size=[sizes[i] for i in idx_sel],
@@ -597,6 +601,20 @@ if not df_out_filt.empty and shap_cols:
         use_container_width=True,
     )
 
+scatter_pts = []
+try:
+    if scatter_event and scatter_event.selection and scatter_event.selection.points:
+        scatter_pts = scatter_event.selection.points
+except (AttributeError, TypeError):
+    pass
+
+# Streamlit does not allow programmatically writing a dataframe widget's
+# native selection state, so the scatter → table link is done visually via
+# row highlighting instead: whichever event is "current" (latest scatter
+# click, falling back to the last table selection) gets its row shaded.
+_pending_cdata = scatter_pts[0].get('customdata') if scatter_pts else None
+_highlight_ts = _pending_cdata or st.session_state.get('sel_ts')
+
 # ── Event table ───────────────────────────────────────────────────────────────
 
 table_cols = ['outage_probability'] + stat_cols + rmse_cols
@@ -605,22 +623,22 @@ fmt['peak_customers_out'] = '{:.0f}'
 for _rc in rmse_cols:
     fmt[_rc] = '{:.3f}'
 
+
+def _highlight_selected_row(row):
+    is_sel = _highlight_ts is not None and row.name == pd.Timestamp(_highlight_ts)
+    return ['background-color: #ffcc66' if is_sel else ''] * len(row)
+
+
 ev = st.dataframe(
-    df_filt[table_cols].style.format(fmt, na_rep='—'),
+    df_filt[table_cols].style.format(fmt, na_rep='—').apply(_highlight_selected_row, axis=1),
     use_container_width=True,
     selection_mode='single-row',
     on_select='rerun',
+    key='event_table',
 )
 table_sel = list(ev.selection.rows) if ev.selection else []
 
 # ── Selection resolution ──────────────────────────────────────────────────────
-
-scatter_pts = []
-try:
-    if scatter_event and scatter_event.selection and scatter_event.selection.points:
-        scatter_pts = scatter_event.selection.points
-except (AttributeError, TypeError):
-    pass
 
 table_changed = (table_sel != st.session_state.prev_table_sel)
 
@@ -688,12 +706,8 @@ if view == 'ts':
     w_total = int(w_match.group(1)) if w_match else 16
     pre_w = post_w = w_total // 2
 
-    det_col_map = {c: c[:-4] for c in df_data.columns if c.endswith('_det')}
     df_raw_ts = df_data[[c for c in df_data.columns if not c.endswith('_det')]]
-    X_det = (df_data[[c for c in df_data.columns if c.endswith('_det')]]
-             .rename(columns=det_col_map))
-    if X_det.empty:
-        X_det = pd.DataFrame(index=df_raw_ts.index)
+    X_det = pd.DataFrame(index=df_raw_ts.index)  # detrended overlay disabled
 
     dur_h = float(row.get('duration_h', np.nan))
     t_end = ts + pd.Timedelta(hours=dur_h) if not np.isnan(dur_h) else ts

@@ -9,7 +9,14 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\mesonet\" | ForEach-Object { $_.FullName })",
       "PowerShell($path = \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\"; python -m py_compile \"$path\\\\outage_rf_events.py\" 2>&1; python -m py_compile \"$path\\\\utils.py\" 2>&1; python -m py_compile \"$path\\\\outage_events_postpro.py\" 2>&1; Write-Output \"All files compiled successfully\")",
       "Bash(Get-ChildItem \"C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\\" | Select-Object Name *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "PowerShell(python -m py_compile dashboard.py utils.py; echo OK)",
+      "PowerShell(python -m py_compile dashboard.py; echo OK)",
+      "PowerShell(python -m py_compile build_input.py; echo OK)",
+      "PowerShell(python -m py_compile build_library.py; echo OK)",
+      "PowerShell(python -m py_compile compare_hrrr.py; echo OK)",
+      "PowerShell(python -m py_compile dashboard.py build_library.py; echo OK)",
+      "PowerShell(python -m py_compile utils.py; echo OK)"
     ]
   }
 }

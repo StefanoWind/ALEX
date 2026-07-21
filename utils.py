@@ -994,58 +994,58 @@ def download_plot_nexrad(episode: pd.Series,
     # Read radar
     radar = pyart.io.read_nexrad_archive(filename)
 
-    # Plot reflectivity
-    plt.style.use("dark_background")
+    # Plot reflectivity (dark background scoped to this figure only, so it
+    # doesn't leak into subsequently drawn time series / SHAP plots)
+    with plt.style.context("dark_background"):
+        display = pyart.graph.RadarMapDisplay(radar)
 
-    display = pyart.graph.RadarMapDisplay(radar)
+        fig = plt.figure(figsize=(10,8), facecolor="black")
 
-    fig = plt.figure(figsize=(10,8), facecolor="black")
-
-    display.plot_ppi_map(
-        "reflectivity",
-        sweep=0,
-        min_lon=min_lon,
-        max_lon=max_lon,
-        min_lat=min_lat,
-        max_lat=max_lat,
-        resolution="10m",
-        vmin=vmin,
-        vmax=vmax,
-    )
-
-    # Overlay the selected site location if coordinates are available.
-    if site_lat is not None and site_lon is not None and np.isfinite(site_lat) and np.isfinite(site_lon):
-        try:
-            display.plot_point(site_lon, site_lat, symbol='wo', markersize=11)
-            display.plot_point(site_lon, site_lat, symbol='k+', markersize=10)
-        except Exception:
-            ax = plt.gca()
-            ax.plot(site_lon, site_lat, marker='o', markersize=8,
-                    markerfacecolor='white', markeredgecolor='black', zorder=6)
-            ax.plot(site_lon, site_lat, marker='+', markersize=9,
-                    color='black', zorder=7)
-
-        if site_label:
-            try:
-                ax = plt.gca()
-                ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
-                        color='white', fontsize=9,
-                        bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
-                        zorder=8)
-            except Exception:
-                pass
-
-    if save_fig:
-        radar_file = Path(filename)
-
-        output_png = radar_file.with_suffix(".png")
-
-        plt.savefig(
-            output_png,
-            dpi=300,
-            bbox_inches="tight",
-            facecolor=fig.get_facecolor(),
+        display.plot_ppi_map(
+            "reflectivity",
+            sweep=0,
+            min_lon=min_lon,
+            max_lon=max_lon,
+            min_lat=min_lat,
+            max_lat=max_lat,
+            resolution="10m",
+            vmin=vmin,
+            vmax=vmax,
         )
+
+        # Overlay the selected site location if coordinates are available.
+        if site_lat is not None and site_lon is not None and np.isfinite(site_lat) and np.isfinite(site_lon):
+            try:
+                display.plot_point(site_lon, site_lat, symbol='wo', markersize=11)
+                display.plot_point(site_lon, site_lat, symbol='k+', markersize=10)
+            except Exception:
+                ax = plt.gca()
+                ax.plot(site_lon, site_lat, marker='o', markersize=8,
+                        markerfacecolor='white', markeredgecolor='black', zorder=6)
+                ax.plot(site_lon, site_lat, marker='+', markersize=9,
+                        color='black', zorder=7)
+
+            if site_label:
+                try:
+                    ax = plt.gca()
+                    ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
+                            color='white', fontsize=9,
+                            bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
+                            zorder=8)
+                except Exception:
+                    pass
+
+        if save_fig:
+            radar_file = Path(filename)
+
+            output_png = radar_file.with_suffix(".png")
+
+            plt.savefig(
+                output_png,
+                dpi=300,
+                bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
+            )
 
     return fig
 
@@ -1889,12 +1889,19 @@ class OutagePredictor:
         # rolling(roll_size).shift(-post_w) aligns each value so that at index t
         # the window covers [t - pre_w, t + post_w], matching the training windows.
         # [Bossavy et al., 2013; Bianco et al., 2016; Vickers & Mahrt, 1997]
+        #
+        # min_periods < roll_size lets the statistic be computed on whatever
+        # valid (non-nan) samples remain in the window, up to max_nan_ratio
+        # missing — otherwise a single QC'd-out sample nulls every feature for
+        # the entire window (pandas rolling default is min_periods=roll_size).
+        max_nan_ratio = self.cfg.get('max_nan_ratio', 0.25)
+        min_periods = max(1, int(np.ceil((1 - max_nan_ratio) * roll_size)))
         frames = {}
         for col in predictors:
             x = df_det[col]
             g = x.diff()
-            r = x.rolling(roll_size)
-            gr = g.rolling(roll_size)
+            r = x.rolling(roll_size, min_periods=min_periods)
+            gr = g.rolling(roll_size, min_periods=min_periods)
             frames[f'{col}_mean_W{w_label}']     = r.mean().shift(-post_w)
             frames[f'{col}_std_W{w_label}']      = r.std().shift(-post_w)
             frames[f'{col}_grad_mean_W{w_label}'] = gr.mean().shift(-post_w)
