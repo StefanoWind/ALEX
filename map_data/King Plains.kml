@@ -1,0 +1,1707 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>King_Plains.kmz</name>
+	<Schema name="King_Plains" id="S_King_Plains_SISDDSDD">
+		<SimpleField type="string" name="tag"><displayName>&lt;b&gt;tag&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="int" name="turbine_id"><displayName>&lt;b&gt;turbine_id&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="string" name="project"><displayName>&lt;b&gt;project&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="hub_height__m_"><displayName>&lt;b&gt;hub height (m)&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="rotor_diameter__m_"><displayName>&lt;b&gt;rotor diameter (m)&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="string" name="turbine_model"><displayName>&lt;b&gt;turbine model&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="xlong"><displayName>&lt;b&gt;xlong&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="ylat"><displayName>&lt;b&gt;ylat&lt;/b&gt;</displayName>
+</SimpleField>
+	</Schema>
+	<Style id="hlightPointStyle15">
+		<IconStyle>
+			<color>ff000000</color>
+			<scale>0.8</scale>
+			<Icon>
+				<href>files/blackdot_1_0_0_0_1_0.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+		<LabelStyle>
+			<color>00ffffff</color>
+		</LabelStyle>
+		<BalloonStyle>
+			<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+		</BalloonStyle>
+	</Style>
+	<Style id="normPointStyle15">
+		<IconStyle>
+			<color>ff000000</color>
+			<scale>0.8</scale>
+			<Icon>
+				<href>files/blackdot_1_0_0_0_1_0.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+		<LabelStyle>
+			<color>00ffffff</color>
+		</LabelStyle>
+		<BalloonStyle>
+			<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+		</BalloonStyle>
+	</Style>
+	<StyleMap id="pointStyleMap15">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#normPointStyle15</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#hlightPointStyle15</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Folder id="layer 0">
+		<name>King_Plains</name>
+		<open>1</open>
+		<Placemark>
+			<name>G06</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag">King Plains</SimpleData>
+					<SimpleData name="turbine_id">3100283</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-127</SimpleData>
+					<SimpleData name="xlong">-97.3879</SimpleData>
+					<SimpleData name="ylat">36.3782</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.38793200000001,36.37823499999997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101284</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-128</SimpleData>
+					<SimpleData name="xlong">-97.4152</SimpleData>
+					<SimpleData name="ylat">36.4109</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41517599999999,36.410927,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101886</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-129</SimpleData>
+					<SimpleData name="xlong">-97.4327</SimpleData>
+					<SimpleData name="ylat">36.4107</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.43272399999999,36.41071700000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G09</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099642</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-130</SimpleData>
+					<SimpleData name="xlong">-97.3608</SimpleData>
+					<SimpleData name="ylat">36.3708</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.36083199999999,36.370808,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>E08</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100894</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-131</SimpleData>
+					<SimpleData name="xlong">-97.3973</SimpleData>
+					<SimpleData name="ylat">36.4032</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.397263,36.403244,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H01</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100986</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-132</SimpleData>
+					<SimpleData name="xlong">-97.4238</SimpleData>
+					<SimpleData name="ylat">36.365</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.42382799999999,36.36498299999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099665</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-133</SimpleData>
+					<SimpleData name="xlong">-97.4332</SimpleData>
+					<SimpleData name="ylat">36.3852</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.43321999999999,36.38516599999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099520</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-134</SimpleData>
+					<SimpleData name="xlong">-97.451</SimpleData>
+					<SimpleData name="ylat">36.3816</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.450981,36.38158799999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>E06</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101866</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-135</SimpleData>
+					<SimpleData name="xlong">-97.4059</SimpleData>
+					<SimpleData name="ylat">36.411</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.405914,36.41102199999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099800</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-136</SimpleData>
+					<SimpleData name="xlong">-97.4204</SimpleData>
+					<SimpleData name="ylat">36.3925</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.420433,36.39247900000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H04</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101934</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-137</SimpleData>
+					<SimpleData name="xlong">-97.4103</SimpleData>
+					<SimpleData name="ylat">36.3655</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41025500000002,36.365475,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100473</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-138</SimpleData>
+					<SimpleData name="xlong">-97.4372</SimpleData>
+					<SimpleData name="ylat">36.3813</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.437195,36.381294,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>E05</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101293</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-139</SimpleData>
+					<SimpleData name="xlong">-97.4109</SimpleData>
+					<SimpleData name="ylat">36.4101</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41091199999998,36.41013300000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>F04</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099646</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-140</SimpleData>
+					<SimpleData name="xlong">-97.4061</SimpleData>
+					<SimpleData name="ylat">36.3929</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.406136,36.39294799999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>F05</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099844</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-141</SimpleData>
+					<SimpleData name="xlong">-97.4016</SimpleData>
+					<SimpleData name="ylat">36.3932</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.40158099999999,36.39318500000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099536</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-142</SimpleData>
+					<SimpleData name="xlong">-97.3842</SimpleData>
+					<SimpleData name="ylat">36.3868</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.38415500000001,36.386841,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H09</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100466</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-143</SimpleData>
+					<SimpleData name="xlong">-97.3858</SimpleData>
+					<SimpleData name="ylat">36.3638</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.385841,36.363766,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099498</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-144</SimpleData>
+					<SimpleData name="xlong">-97.4566</SimpleData>
+					<SimpleData name="ylat">36.3931</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.45661200000001,36.39310499999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H02</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101693</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-145</SimpleData>
+					<SimpleData name="xlong">-97.4192</SimpleData>
+					<SimpleData name="ylat">36.3656</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41924300000001,36.36560800000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099831</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-146</SimpleData>
+					<SimpleData name="xlong">-97.424</SimpleData>
+					<SimpleData name="ylat">36.3881</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.42403400000001,36.388077,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G08</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100177</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-147</SimpleData>
+					<SimpleData name="xlong">-97.3654</SimpleData>
+					<SimpleData name="ylat">36.3709</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.36544000000001,36.370907,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H05</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101923</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-148</SimpleData>
+					<SimpleData name="xlong">-97.4055</SimpleData>
+					<SimpleData name="ylat">36.3647</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.40548699999999,36.36470800000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100472</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-149</SimpleData>
+					<SimpleData name="xlong">-97.4521</SimpleData>
+					<SimpleData name="ylat">36.3931</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.452141,36.393139,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099566</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-150</SimpleData>
+					<SimpleData name="xlong">-97.4475</SimpleData>
+					<SimpleData name="ylat">36.3778</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.447525,36.37779599999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101423</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-151</SimpleData>
+					<SimpleData name="xlong">-97.4462</SimpleData>
+					<SimpleData name="ylat">36.41</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.44622800000002,36.40997300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G03</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099761</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-152</SimpleData>
+					<SimpleData name="xlong">-97.4015</SimpleData>
+					<SimpleData name="ylat">36.3817</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.401466,36.38174800000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100585</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-153</SimpleData>
+					<SimpleData name="xlong">-97.4506</SimpleData>
+					<SimpleData name="ylat">36.4131</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.450638,36.41308200000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H07</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101971</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-154</SimpleData>
+					<SimpleData name="xlong">-97.3971</SimpleData>
+					<SimpleData name="ylat">36.3657</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.397133,36.36566899999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3103296</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-155</SimpleData>
+					<SimpleData name="xlong">-97.4284</SimpleData>
+					<SimpleData name="ylat">36.4109</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.42841300000002,36.41086200000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>E07</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101306</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-156</SimpleData>
+					<SimpleData name="xlong">-97.4012</SimpleData>
+					<SimpleData name="ylat">36.411</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.40119199999998,36.41100699999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099149</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-157</SimpleData>
+					<SimpleData name="xlong">-97.4286</SimpleData>
+					<SimpleData name="ylat">36.3879</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.428612,36.38787099999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099727</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-158</SimpleData>
+					<SimpleData name="xlong">-97.4158</SimpleData>
+					<SimpleData name="ylat">36.3929</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41577100000002,36.392941,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G01</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099565</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-159</SimpleData>
+					<SimpleData name="xlong">-97.4118</SimpleData>
+					<SimpleData name="ylat">36.3815</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.411751,36.38151199999997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099475</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-160</SimpleData>
+					<SimpleData name="xlong">-97.4467</SimpleData>
+					<SimpleData name="ylat">36.3925</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.446732,36.39253600000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099929</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-161</SimpleData>
+					<SimpleData name="xlong">-97.3793</SimpleData>
+					<SimpleData name="ylat">36.3867</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.37931100000002,36.38673799999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099930</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-162</SimpleData>
+					<SimpleData name="xlong">-97.3613</SimpleData>
+					<SimpleData name="ylat">36.3846</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.36133600000001,36.38459,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G05</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099950</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-163</SimpleData>
+					<SimpleData name="xlong">-97.3925</SimpleData>
+					<SimpleData name="ylat">36.3815</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.39245599999998,36.381451,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H06</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101661</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-164</SimpleData>
+					<SimpleData name="xlong">-97.4016</SimpleData>
+					<SimpleData name="ylat">36.3661</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.401596,36.36608499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G04</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100097</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-165</SimpleData>
+					<SimpleData name="xlong">-97.397</SimpleData>
+					<SimpleData name="ylat">36.382</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.39696499999999,36.381981,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100561</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-166</SimpleData>
+					<SimpleData name="xlong">-97.455</SimpleData>
+					<SimpleData name="ylat">36.4107</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.454956,36.41069399999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100733</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-167</SimpleData>
+					<SimpleData name="xlong">-97.4193</SimpleData>
+					<SimpleData name="ylat">36.4102</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41934999999998,36.41016000000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101435</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-168</SimpleData>
+					<SimpleData name="xlong">-97.4409</SimpleData>
+					<SimpleData name="ylat">36.4107</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.44085699999998,36.41073599999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100747</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-169</SimpleData>
+					<SimpleData name="xlong">-97.4239</SimpleData>
+					<SimpleData name="ylat">36.4105</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.42391199999999,36.41053799999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H08</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100091</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-170</SimpleData>
+					<SimpleData name="xlong">-97.3924</SimpleData>
+					<SimpleData name="ylat">36.3652</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.39236500000001,36.36521499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>H03</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101156</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-171</SimpleData>
+					<SimpleData name="xlong">-97.4146</SimpleData>
+					<SimpleData name="ylat">36.3656</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41460399999998,36.365635,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100314</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-172</SimpleData>
+					<SimpleData name="xlong">-97.3745</SimpleData>
+					<SimpleData name="ylat">36.3865</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.37445799999999,36.38647800000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G02</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100040</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-173</SimpleData>
+					<SimpleData name="xlong">-97.4061</SimpleData>
+					<SimpleData name="ylat">36.3814</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.40609699999999,36.38136299999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>E09</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100990</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-174</SimpleData>
+					<SimpleData name="xlong">-97.3924</SimpleData>
+					<SimpleData name="ylat">36.4036</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.39238000000002,36.40356400000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>F03</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100195</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-175</SimpleData>
+					<SimpleData name="xlong">-97.4109</SimpleData>
+					<SimpleData name="ylat">36.393</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.41088100000002,36.39300200000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>G07</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101464</SimpleData>
+					<SimpleData name="project">unknown Noble County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-176</SimpleData>
+					<SimpleData name="xlong">-97.3697</SimpleData>
+					<SimpleData name="ylat">36.3709</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.36972799999999,36.37089900000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J09</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099293</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-177</SimpleData>
+					<SimpleData name="xlong">-97.5119</SimpleData>
+					<SimpleData name="ylat">36.3847</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.51187899999999,36.38473899999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J05</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099262</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-178</SimpleData>
+					<SimpleData name="xlong">-97.4942</SimpleData>
+					<SimpleData name="ylat">36.3847</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.494179,36.38475000000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J04</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099294</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-179</SimpleData>
+					<SimpleData name="xlong">-97.4898</SimpleData>
+					<SimpleData name="ylat">36.385</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.48979200000001,36.38499100000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J02</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099047</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-180</SimpleData>
+					<SimpleData name="xlong">-97.481</SimpleData>
+					<SimpleData name="ylat">36.3851</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.48104899999998,36.38510500000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J08</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099238</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-181</SimpleData>
+					<SimpleData name="xlong">-97.5075</SimpleData>
+					<SimpleData name="ylat">36.3853</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.50749999999998,36.38527300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J03</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099198</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-182</SimpleData>
+					<SimpleData name="xlong">-97.4854</SimpleData>
+					<SimpleData name="ylat">36.3855</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.48536699999998,36.385456,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J01</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099500</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-183</SimpleData>
+					<SimpleData name="xlong">-97.4756</SimpleData>
+					<SimpleData name="ylat">36.387</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.47560899999999,36.38695899999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099042</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-184</SimpleData>
+					<SimpleData name="xlong">-97.466</SimpleData>
+					<SimpleData name="ylat">36.3872</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.466026,36.38722999999997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J07</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3098412</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-185</SimpleData>
+					<SimpleData name="xlong">-97.504</SimpleData>
+					<SimpleData name="ylat">36.3873</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.503998,36.38733300000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>J06</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099452</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-186</SimpleData>
+					<SimpleData name="xlong">-97.4997</SimpleData>
+					<SimpleData name="ylat">36.3879</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.49968699999999,36.38794300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3099103</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-187</SimpleData>
+					<SimpleData name="xlong">-97.471</SimpleData>
+					<SimpleData name="ylat">36.3886</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.470963,36.38861799999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100703</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-188</SimpleData>
+					<SimpleData name="xlong">-97.5229</SimpleData>
+					<SimpleData name="ylat">36.4023</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.52290300000001,36.40227900000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101425</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-189</SimpleData>
+					<SimpleData name="xlong">-97.5081</SimpleData>
+					<SimpleData name="ylat">36.4025</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.508095,36.402458,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3102256</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-190</SimpleData>
+					<SimpleData name="xlong">-97.486</SimpleData>
+					<SimpleData name="ylat">36.4027</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.48596999999999,36.40271000000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3103309</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-191</SimpleData>
+					<SimpleData name="xlong">-97.4903</SimpleData>
+					<SimpleData name="ylat">36.4028</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.49032599999998,36.40276,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100746</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-192</SimpleData>
+					<SimpleData name="xlong">-97.5035</SimpleData>
+					<SimpleData name="ylat">36.4028</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.503494,36.40279400000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101320</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-193</SimpleData>
+					<SimpleData name="xlong">-97.499</SimpleData>
+					<SimpleData name="ylat">36.4029</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.499039,36.40293500000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3102258</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-194</SimpleData>
+					<SimpleData name="xlong">-97.4815</SimpleData>
+					<SimpleData name="ylat">36.403</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.481506,36.40296899999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3102326</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-195</SimpleData>
+					<SimpleData name="xlong">-97.4947</SimpleData>
+					<SimpleData name="ylat">36.403</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.49469800000001,36.40299599999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100931</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-196</SimpleData>
+					<SimpleData name="xlong">-97.5124</SimpleData>
+					<SimpleData name="ylat">36.403</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.512413,36.40303400000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101582</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-197</SimpleData>
+					<SimpleData name="xlong">-97.5394</SimpleData>
+					<SimpleData name="ylat">36.4032</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.53936,36.40316,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101424</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-198</SimpleData>
+					<SimpleData name="xlong">-97.5183</SimpleData>
+					<SimpleData name="ylat">36.4066</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.51831799999998,36.40663499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100903</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-199</SimpleData>
+					<SimpleData name="xlong">-97.5347</SimpleData>
+					<SimpleData name="ylat">36.411</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.53467600000002,36.41097999999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101346</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-200</SimpleData>
+					<SimpleData name="xlong">-97.5392</SimpleData>
+					<SimpleData name="ylat">36.4127</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.539215,36.41271599999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101773</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-201</SimpleData>
+					<SimpleData name="xlong">-97.475</SimpleData>
+					<SimpleData name="ylat">36.4134</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.47502900000001,36.413422,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101949</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-202</SimpleData>
+					<SimpleData name="xlong">-97.4809</SimpleData>
+					<SimpleData name="ylat">36.4135</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.48085,36.41348299999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101457</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-203</SimpleData>
+					<SimpleData name="xlong">-97.5433</SimpleData>
+					<SimpleData name="ylat">36.4136</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.543335,36.41361200000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101977</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-204</SimpleData>
+					<SimpleData name="xlong">-97.5476</SimpleData>
+					<SimpleData name="ylat">36.414</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.547585,36.414047,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101438</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-205</SimpleData>
+					<SimpleData name="xlong">-97.5084</SimpleData>
+					<SimpleData name="ylat">36.4141</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.50837700000001,36.41412,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3102684</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-206</SimpleData>
+					<SimpleData name="xlong">-97.4852</SimpleData>
+					<SimpleData name="ylat">36.4143</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.48520700000002,36.41433699999997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3102452</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-207</SimpleData>
+					<SimpleData name="xlong">-97.4711</SimpleData>
+					<SimpleData name="ylat">36.4149</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.47112300000001,36.414932,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101598</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-208</SimpleData>
+					<SimpleData name="xlong">-97.5217</SimpleData>
+					<SimpleData name="ylat">36.4154</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.52171299999999,36.415401,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3102956</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-209</SimpleData>
+					<SimpleData name="xlong">-97.4633</SimpleData>
+					<SimpleData name="ylat">36.4161</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.463318,36.41614500000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3103317</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-210</SimpleData>
+					<SimpleData name="xlong">-97.4674</SimpleData>
+					<SimpleData name="ylat">36.4173</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.467422,36.41734700000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101465</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-211</SimpleData>
+					<SimpleData name="xlong">-97.5305</SimpleData>
+					<SimpleData name="ylat">36.4249</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.53051000000001,36.42493399999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101368</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-212</SimpleData>
+					<SimpleData name="xlong">-97.5264</SimpleData>
+					<SimpleData name="ylat">36.4272</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.52635200000002,36.42718499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3100577</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-213</SimpleData>
+					<SimpleData name="xlong">-97.5181</SimpleData>
+					<SimpleData name="ylat">36.4295</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.51811999999998,36.42948899999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_King_Plains_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3101448</SimpleData>
+					<SimpleData name="project">unknown Garfield County</SimpleData>
+					<SimpleData name="hub_height__m_">0</SimpleData>
+					<SimpleData name="rotor_diameter__m_">127</SimpleData>
+					<SimpleData name="turbine_model">GE2.8-214</SimpleData>
+					<SimpleData name="xlong">-97.5224</SimpleData>
+					<SimpleData name="ylat">36.4296</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.52243799999999,36.429581,0</coordinates>
+			</Point>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>
