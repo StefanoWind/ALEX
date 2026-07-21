@@ -16,7 +16,10 @@
       "PowerShell(python -m py_compile build_library.py; echo OK)",
       "PowerShell(python -m py_compile compare_hrrr.py; echo OK)",
       "PowerShell(python -m py_compile dashboard.py build_library.py; echo OK)",
-      "PowerShell(python -m py_compile utils.py; echo OK)"
+      "PowerShell(python -m py_compile utils.py; echo OK)",
+      "PowerShell(python -m py_compile compare_outages.py; echo OK)",
+      "Bash(powershell -NoProfile -Command \"\\(Get-Item 'C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\merged_outages_gf_15min\\\\qc_nans\\\\merged_outages_gf_15min_metA1only.input.library.xlsx'\\).LastWriteTime; \\(Get-Item 'C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\utils.py'\\).LastWriteTime\")",
+      "PowerShell(\\(Get-Item 'C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\data\\\\merged_outages_gf_15min\\\\qc_nans\\\\merged_outages_gf_15min_metA1only.input.library.xlsx'\\).LastWriteTime; \\(Get-Item 'C:\\\\Users\\\\sletizia\\\\OneDrive - NREL\\\\Desktop\\\\Main\\\\MMSEI\\\\ALEX\\\\utils.py'\\).LastWriteTime)"
     ]
   }
 }

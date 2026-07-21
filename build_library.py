@@ -119,6 +119,11 @@ for source_data in source_data_files:
     with xr.open_dataset(source_data) as _ds_meta0:
         _src_lat = _read_attr(_ds_meta0, ['latitude', 'lat', 'station_lat'], default=np.nan)
         _src_lon = _read_attr(_ds_meta0, ['longitude', 'lon', 'station_lon'], default=np.nan)%360
+        # wdir is display-only (dashboard wind-direction arrows), not a model
+        # predictor, so it's pulled straight from the source file rather than
+        # through load_data()/qc_data() (which only keep predictor_cols).
+        wdir = (_ds_meta0['wdir'].to_dataframe()['wdir']
+                if 'wdir' in _ds_meta0.data_vars else pd.Series(dtype=float))
 
     #%% Nearest HRRR grid point for this site
     hrrr_pt = pd.DataFrame()
@@ -316,6 +321,8 @@ for source_data in source_data_files:
         columns={c: c + '_det' for c in _pred_cols if c in df_det.columns}
     )
     data_sheet = pd.concat([_raw_part, _det_part], axis=1)
+    if not wdir.empty:
+        data_sheet['wdir'] = wdir.reindex(data_sheet.index)
     data_str = data_sheet.copy()
     data_str.index = data_str.index.strftime('%Y-%m-%d %H:%M:%S')
     data_str.index.name = 'timestamp'

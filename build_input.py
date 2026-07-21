@@ -29,6 +29,7 @@ source_config = tkinter.filedialog.askopenfilename(
 
 
 MAPPING={'wspd':'wind_speed',
+         'wdir':'wind_direction',
          'tair':'temperature',
          'relh':'relative_humidity',
          'pres':'pressure',
@@ -36,7 +37,8 @@ MAPPING={'wspd':'wind_speed',
          'wssd':'wind_speed',
          'wdsd':'wind_direction'}
 
-STATS={'wspd':'mean',
+STATS= {'wspd':'mean',
+        'wdir':'mean',
         'tair':'mean',
         'relh':'mean',
         'pres':'mean',
@@ -45,12 +47,13 @@ STATS={'wspd':'mean',
         'wdsd':'std'}
 
 CONVERSION={'wspd':1,
-        'tair':1,
-        'relh':1,
-        'pres':10,
-        'srad':1, #1000/0.2,
-        'wssd':1,
-        'wdsd':1}
+            'wdir':1,
+            'tair':1,
+            'relh':1,
+            'pres':10,
+            'srad':1, #1000/0.2,
+            'wssd':1,
+            'wdsd':1}
 
 #%% Initialization
 with open(source_config) as f:
@@ -166,4 +169,3 @@ for source_data in source_data_files:
 
     #%% Output — QC'd and raw versions saved separately for dashboards with/without QC
     ds_out_qc.drop('stat').to_netcdf(source_data.replace('.nc', '.input.nc'))
-    ds_out_raw.drop('stat').to_netcdf(source_data.replace('.nc', '.input.raw.nc'))

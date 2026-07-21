@@ -11,7 +11,9 @@ import numpy as np
 import xarray as xr
 import matplotlib
 matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -624,13 +626,37 @@ for _rc in rmse_cols:
     fmt[_rc] = '{:.3f}'
 
 
+_ZSCORE_CMAP = plt.get_cmap('coolwarm')
+
+
+def _zscore_colors(col):
+    """Color each cell by (value - median) / std, blue (low) to red (high)."""
+    med, std = col.median(), col.std()
+    if not np.isfinite(std) or std == 0:
+        return [''] * len(col)
+    z = (col - med) / std
+    max_abs = np.nanmax(np.abs(z.values))
+    max_abs = max_abs if np.isfinite(max_abs) and max_abs > 0 else 1.0
+    norm = mcolors.Normalize(vmin=-max_abs, vmax=max_abs)
+    styles = []
+    for v in z:
+        if pd.isna(v):
+            styles.append('')
+        else:
+            r, g, b, _ = _ZSCORE_CMAP(norm(v))
+            styles.append(f'background-color: rgba({int(r*255)}, {int(g*255)}, {int(b*255)}, 0.85)')
+    return styles
+
+
 def _highlight_selected_row(row):
     is_sel = _highlight_ts is not None and row.name == pd.Timestamp(_highlight_ts)
     return ['background-color: #ffcc66' if is_sel else ''] * len(row)
 
 
 ev = st.dataframe(
-    df_filt[table_cols].style.format(fmt, na_rep='—').apply(_highlight_selected_row, axis=1),
+    df_filt[table_cols].style.format(fmt, na_rep='—')
+        .apply(_zscore_colors, axis=0)
+        .apply(_highlight_selected_row, axis=1),
     use_container_width=True,
     selection_mode='single-row',
     on_select='rerun',
@@ -728,10 +754,11 @@ if view == 'ts':
     fig = plot_episode_ts(df_raw_ts, X_det, episode, config_ts, oof_pred=oof_pred,
                           figsize=(10, 2 * n_panels), fontsize=9)
 
+    buffer_h = pd.Timedelta(hours=config_ts['episode_buffer_hours'])
+    t0_plot  = ts - buffer_h
+    t1_plot  = t_end + buffer_h
+
     if not df_hrrr.empty:
-        buffer_h = pd.Timedelta(hours=config_ts['episode_buffer_hours'])
-        t0_plot  = ts - buffer_h
-        t1_plot  = t_end + buffer_h
         fcst_lead = fcst_sfx[2:] if fcst_sfx else None   # '18' from '_f18'
 
         for i, col in enumerate(pred_names):
@@ -752,6 +779,24 @@ if view == 'ts':
         ax0 = fig.axes[0]
         h, l = ax0.get_legend_handles_labels()
         ax0.legend(h, l, loc='upper left', fontsize=9, framealpha=0.7)
+
+    # Wind-direction arrows on top of the wind-speed panel. wdir is the
+    # meteorological "from" direction, so the arrow points the opposite way
+    # (where the wind is blowing to): from North (0°) -> down, from East (90°) -> left.
+    if 'wspd' in pred_names and 'wdir' in df_data.columns:
+        ax_wspd = fig.axes[pred_names.index('wspd')]
+        wdir_win = df_data['wdir'].loc[t0_plot:t1_plot].dropna()
+        if not wdir_win.empty:
+            step = max(1, len(wdir_win) // 40)
+            wdir_sub = wdir_win.iloc[::step]
+            y_anchor = df_raw_ts['wspd'].reindex(wdir_sub.index)
+            valid = y_anchor.notna()
+            wdir_sub, y_anchor = wdir_sub[valid], y_anchor[valid]
+            u = -np.sin(np.radians(wdir_sub.values))
+            v = -np.cos(np.radians(wdir_sub.values))
+            ax_wspd.quiver(wdir_sub.index, y_anchor.values, u, v,
+                           angles='xy', scale_units='inches', scale=3,
+                           width=0.004, color='k', zorder=4, alpha=0.8)
 
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
