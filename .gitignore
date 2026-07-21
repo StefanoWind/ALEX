@@ -15,4 +15,5 @@ __pycache__
 *.parquet
 *.out
 *.joblib
+*KVNX*
 build/
