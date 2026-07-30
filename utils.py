@@ -35,6 +35,7 @@ except ImportError:
     print("Warning: SHAP not installed. Run `pip install shap` for SHAP importance.")
 
 import re
+from xml.etree import ElementTree as ET
 
 _VAR_LABELS = {
     'relh': 'Relative humidity [%]',
@@ -66,6 +67,65 @@ def _feat_label(name: str) -> str:
         base, agg = m.group(1), m.group(2)
         return f'{_VAR_LABELS.get(base, base)} ({_AGG_LABELS[agg]})'
     return _VAR_LABELS.get(name, name)
+
+
+def _kml_text(kml_el, default=''):
+    if kml_el is None or kml_el.text is None:
+        return default
+    return str(kml_el.text).strip()
+
+
+def load_turbine_points(map_dir) -> pd.DataFrame:
+    map_dir_p = Path(map_dir)
+    rows = []
+    ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+
+    for kml_path in sorted(map_dir_p.glob('*.kml')):
+        farm_name = kml_path.stem
+        try:
+            root = ET.parse(kml_path).getroot()
+        except Exception:
+            continue
+
+        placemarks = root.findall('.//kml:Placemark', ns)
+        for pm in placemarks:
+            coord_el = pm.find('.//kml:Point/kml:coordinates', ns)
+            coord_text = _kml_text(coord_el)
+            if not coord_text:
+                continue
+
+            first_coord = coord_text.split()[0]
+            parts = [p.strip() for p in first_coord.split(',')]
+            if len(parts) < 2:
+                continue
+            try:
+                lon = float(parts[0])
+                lat = float(parts[1])
+            except Exception:
+                continue
+
+            turbine_id = _kml_text(pm.find('.//kml:SimpleData[@name="turbine_id"]', ns), default='')
+            if not turbine_id:
+                turbine_id = _kml_text(pm.find('kml:name', ns), default='')
+
+            rows.append({
+                'farm': farm_name,
+                'turbine_id': turbine_id,
+                'latitude': lat,
+                'longitude': lon,
+            })
+
+    if not rows:
+        return pd.DataFrame(columns=['farm', 'turbine_id', 'latitude', 'longitude'])
+
+    df_turb = pd.DataFrame(rows)
+    df_turb['latitude'] = pd.to_numeric(df_turb['latitude'], errors='coerce')
+    df_turb['longitude'] = pd.to_numeric(df_turb['longitude'], errors='coerce')
+    df_turb = df_turb[
+        df_turb['latitude'].between(-90, 90) &
+        df_turb['longitude'].between(-180, 180)
+    ].reset_index(drop=True)
+    return df_turb
 
 
 def _uf_find(x, parent):

@@ -12,7 +12,7 @@ import sys
 import tkinter
 import tkinter.filedialog
 import pandas as pd
-from utils import OutagePredictor, load_data, qc_data, build_event_matrix
+from utils import OutagePredictor, load_data, qc_data, build_event_matrix, load_turbine_points
 
 try:
     import shap as shap_lib
@@ -54,6 +54,10 @@ if not source_clim:
     sys.exit()
 
 AVAIL_FILE = Path(__file__).parent / 'data' / 'awaken_data_availability.csv'
+
+#%% Turbine locations (shared across all sites)
+turbine_df = load_turbine_points(Path(__file__).parent / 'map_data')
+print(f"Turbine locations: {len(turbine_df)} turbines across {turbine_df['farm'].nunique() if not turbine_df.empty else 0} farms")
 
 
 def _read_attr(ds, keys, default=np.nan):
@@ -334,6 +338,7 @@ for source_data in source_data_files:
     with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
         pd.concat([out_str, meta]).to_excel(writer, sheet_name='Library')
         site_df.to_excel(writer, sheet_name='Site', index=False)
+        turbine_df.to_excel(writer, sheet_name='Wind farms', index=False)
         data_str.to_excel(writer, sheet_name='Data')
         avail_str.to_excel(writer, sheet_name='wdh_avail')
         if not hrrr_pt.empty:

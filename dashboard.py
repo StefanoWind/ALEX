@@ -4,15 +4,11 @@ Run with: streamlit run dashboard.py
 '''
 
 import re
-import io
-import base64
-from xml.etree import ElementTree as ET
 from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
 import xarray as xr
-from PIL import Image
 import matplotlib
 matplotlib.use('Agg')
 
@@ -26,14 +22,6 @@ try:
     HAS_SHAP = True
 except ImportError:
     HAS_SHAP = False
-
-try:
-    import rasterio
-    from rasterio.enums import Resampling
-    from rasterio.warp import transform_bounds
-    HAS_RASTERIO = True
-except ImportError:
-    HAS_RASTERIO = False
 
 from utils import plot_episode_ts, download_plot_nexrad, _VAR_LABELS
 
@@ -55,73 +43,22 @@ _PLOTLY_MARKERS = {
 }
 _RANK_LABELS = ['1st dominant driver', '2nd dominant driver', '3rd dominant driver']
 _BASE_DIR = Path(__file__).resolve().parent
-_SOURCE_DATA_DIR = _BASE_DIR / 'data'
-_MAP_DATA_DIR = _BASE_DIR / 'map_data'
-_DEFAULT_TERRAIN_TIF = _MAP_DATA_DIR / 'USGS_1_n37w098_20181130.tif'
+_SOURCE_DATA_DIR = _BASE_DIR / 'data' / 'merged_outages_gf_15min'
 _DEFAULT_LIBRARY_PATH = str(_SOURCE_DATA_DIR / 'merged_outages_15min_metA1only.input.library.xlsx')
-
-
-def _mpl_cmap_to_plotly(cmap_name: str, n: int = 21):
-    cmap = plt.get_cmap(cmap_name)
-    scale = []
-    for i in range(n):
-        t = i / (n - 1)
-        r, g, b, _ = cmap(t)
-        scale.append([float(t), f'rgb({int(round(r * 255))},{int(round(g * 255))},{int(round(b * 255))})'])
-    return scale
-
-
-def _kml_text(kml_el, default=''):
-    if kml_el is None or kml_el.text is None:
-        return default
-    return str(kml_el.text).strip()
+_TERRAIN_TILE_URLS = [
+    f'https://{sub}.tile.opentopomap.org/{{z}}/{{x}}/{{y}}.png' for sub in ('a', 'b', 'c')
+]
+_TERRAIN_ATTRIBUTION = 'Map data: OpenStreetMap contributors, SRTM | Map display: OpenTopoMap (CC-BY-SA)'
 
 
 @st.cache_data
-def load_turbine_points(map_dir: str):
-    map_dir_p = Path(map_dir)
-    rows = []
-    ns = {'kml': 'http://www.opengis.net/kml/2.2'}
-
-    for kml_path in sorted(map_dir_p.glob('*.kml')):
-        farm_name = kml_path.stem
-        try:
-            root = ET.parse(kml_path).getroot()
-        except Exception:
-            continue
-
-        placemarks = root.findall('.//kml:Placemark', ns)
-        for pm in placemarks:
-            coord_el = pm.find('.//kml:Point/kml:coordinates', ns)
-            coord_text = _kml_text(coord_el)
-            if not coord_text:
-                continue
-
-            first_coord = coord_text.split()[0]
-            parts = [p.strip() for p in first_coord.split(',')]
-            if len(parts) < 2:
-                continue
-            try:
-                lon = float(parts[0])
-                lat = float(parts[1])
-            except Exception:
-                continue
-
-            turbine_id = _kml_text(pm.find('.//kml:SimpleData[@name="turbine_id"]', ns), default='')
-            if not turbine_id:
-                turbine_id = _kml_text(pm.find('kml:name', ns), default='')
-
-            rows.append({
-                'farm': farm_name,
-                'turbine_id': turbine_id,
-                'latitude': lat,
-                'longitude': lon,
-            })
-
-    if not rows:
+def load_turbine_points(xlsx_path: str, file_sig: float = 0.0):
+    """Read turbine locations from a library.xlsx's 'Wind farms' sheet."""
+    try:
+        df_turb = pd.read_excel(xlsx_path, sheet_name='Wind farms')
+    except Exception:
         return pd.DataFrame(columns=['farm', 'turbine_id', 'latitude', 'longitude'])
 
-    df_turb = pd.DataFrame(rows)
     df_turb['latitude'] = pd.to_numeric(df_turb['latitude'], errors='coerce')
     df_turb['longitude'] = pd.to_numeric(df_turb['longitude'], errors='coerce')
     df_turb = df_turb[
@@ -129,79 +66,6 @@ def load_turbine_points(map_dir: str):
         df_turb['longitude'].between(-180, 180)
     ].reset_index(drop=True)
     return df_turb
-
-
-@st.cache_data
-def load_terrain_overlay(tif_path: str, max_dim: int = 1400):
-    if not HAS_RASTERIO:
-        return None
-
-    tif = Path(tif_path)
-    if not tif.exists():
-        return None
-
-    try:
-        with rasterio.open(tif) as src:
-            h, w = src.height, src.width
-            scale = max(h / max_dim, w / max_dim, 1.0)
-            out_h = max(1, int(h / scale))
-            out_w = max(1, int(w / scale))
-
-            arr = src.read(
-                1,
-                out_shape=(out_h, out_w),
-                resampling=Resampling.bilinear,
-                masked=True,
-            )
-            bounds = src.bounds
-
-            if src.crs is not None:
-                west, south, east, north = transform_bounds(
-                    src.crs, 'EPSG:4326',
-                    bounds.left, bounds.bottom, bounds.right, bounds.top,
-                    densify_pts=21,
-                )
-            else:
-                west, south, east, north = bounds.left, bounds.bottom, bounds.right, bounds.top
-    except Exception:
-        return None
-
-    data = np.asarray(arr.filled(np.nan), dtype=float)
-    finite = np.isfinite(data)
-    if not finite.any():
-        return None
-
-    vmin = np.nanpercentile(data[finite], 2.0)
-    vmax = np.nanpercentile(data[finite], 98.0)
-    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
-        vmin = float(np.nanmin(data[finite]))
-        vmax = float(np.nanmax(data[finite]))
-        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
-            return None
-
-    terrain_cmap_name = 'terrain'
-    norm = np.clip((data - vmin) / (vmax - vmin), 0.0, 1.0)
-    rgba = plt.get_cmap(terrain_cmap_name)(norm)
-    rgba[..., 3] = np.where(finite, 0.72, 0.0)
-    rgba_u8 = (np.clip(rgba, 0.0, 1.0) * 255).astype(np.uint8)
-
-    image = Image.fromarray(rgba_u8, mode='RGBA')
-    buff = io.BytesIO()
-    image.save(buff, format='PNG')
-    source_uri = 'data:image/png;base64,' + base64.b64encode(buff.getvalue()).decode('ascii')
-
-    return {
-        'source': source_uri,
-        'coordinates': [
-            [float(west), float(north)],
-            [float(east), float(north)],
-            [float(east), float(south)],
-            [float(west), float(south)],
-        ],
-        'vmin': float(vmin),
-        'vmax': float(vmax),
-        'colorscale': _mpl_cmap_to_plotly(terrain_cmap_name),
-    }
 
 
 def _format_source_label(source_key: str, fallback_label: str):
@@ -389,8 +253,11 @@ for key, default in [
         st.session_state[key] = default
 
 sources_df = discover_library_sources(str(_SOURCE_DATA_DIR), data_sig=_data_dir_signature(str(_SOURCE_DATA_DIR)))
-turbine_df = load_turbine_points(str(_MAP_DATA_DIR))
-terrain_overlay = load_terrain_overlay(str(_DEFAULT_TERRAIN_TIF))
+if not sources_df.empty:
+    _turbine_source_path = sources_df.iloc[0]['path']
+    turbine_df = load_turbine_points(_turbine_source_path, file_sig=_file_mtime(_turbine_source_path))
+else:
+    turbine_df = pd.DataFrame(columns=['farm', 'turbine_id', 'latitude', 'longitude'])
 
 if not sources_df.empty:
     valid_keys = set(sources_df['source_key'])
@@ -476,19 +343,18 @@ if not sources_df.empty:
             lon=float(map_df['plot_lon'].mean()),
         )
 
-        map_layers = []
-        if terrain_overlay is not None:
-            map_layers.append(
-                dict(
-                    sourcetype='image',
-                    source=terrain_overlay['source'],
-                    coordinates=terrain_overlay['coordinates'],
-                    below='traces',
-                    opacity=0.95,
-                )
+        map_layers = [
+            dict(
+                sourcetype='raster',
+                type='raster',
+                source=_TERRAIN_TILE_URLS,
+                sourceattribution=_TERRAIN_ATTRIBUTION,
+                below='traces',
+                opacity=1.0,
             )
+        ]
 
-        map_style = 'open-street-map' if terrain_overlay is None else 'white-bg'
+        map_style = 'white-bg'
 
         if hasattr(go, 'Scattermap'):
             fig_map = go.Figure()
@@ -513,33 +379,6 @@ if not sources_df.empty:
                     )
                 )
             fig_map.add_trace(go.Scattermap(**site_marker_trace_kwargs))
-            if terrain_overlay is not None:
-                fig_map.add_trace(
-                    go.Scattermap(
-                        lon=[center_cfg['lon'], center_cfg['lon']],
-                        lat=[center_cfg['lat'], center_cfg['lat']],
-                        mode='markers',
-                        marker=dict(
-                            size=0.01,
-                            color=[terrain_overlay['vmin'], terrain_overlay['vmax']],
-                            colorscale=terrain_overlay['colorscale'],
-                            cmin=terrain_overlay['vmin'],
-                            cmax=terrain_overlay['vmax'],
-                            showscale=True,
-                            opacity=0.0,
-                            colorbar=dict(
-                                title='Terrain height [m]',
-                                x=0.995,
-                                y=0.5,
-                                len=0.92,
-                                thickness=14,
-                            ),
-                        ),
-                        hoverinfo='skip',
-                        showlegend=False,
-                        name='Terrain scale',
-                    )
-                )
             fig_map.update_layout(
                 margin=dict(l=0, r=0, t=0, b=0),
                 height=320,
@@ -569,33 +408,6 @@ if not sources_df.empty:
                     )
                 )
             fig_map.add_trace(go.Scattermapbox(**site_marker_trace_kwargs))
-            if terrain_overlay is not None:
-                fig_map.add_trace(
-                    go.Scattermapbox(
-                        lon=[center_cfg['lon'], center_cfg['lon']],
-                        lat=[center_cfg['lat'], center_cfg['lat']],
-                        mode='markers',
-                        marker=dict(
-                            size=0.01,
-                            color=[terrain_overlay['vmin'], terrain_overlay['vmax']],
-                            colorscale=terrain_overlay['colorscale'],
-                            cmin=terrain_overlay['vmin'],
-                            cmax=terrain_overlay['vmax'],
-                            showscale=True,
-                            opacity=0.0,
-                            colorbar=dict(
-                                title='Terrain height [m]',
-                                x=0.995,
-                                y=0.5,
-                                len=0.92,
-                                thickness=14,
-                            ),
-                        ),
-                        hoverinfo='skip',
-                        showlegend=False,
-                        name='Terrain scale',
-                    )
-                )
             fig_map.update_layout(
                 margin=dict(l=0, r=0, t=0, b=0),
                 height=320,
@@ -610,14 +422,8 @@ if not sources_df.empty:
             selection_mode='points',
         )
 
-        if terrain_overlay is None:
-            if HAS_RASTERIO:
-                st.info('Terrain overlay was not loaded; using OpenStreetMap basemap only.')
-            else:
-                st.info('Install rasterio to render the terrain GeoTIFF background layer.')
-
         if turbine_df.empty:
-            st.info('No turbine locations were parsed from KML files in map_data.')
+            st.info("No turbine locations found in the active library.xlsx's 'Wind farms' sheet.")
     map_pts = []
     try:
         if map_event and map_event.selection and map_event.selection.points:
