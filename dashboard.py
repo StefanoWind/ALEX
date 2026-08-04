@@ -821,6 +821,14 @@ if view == 'ts':
     pred_names = list(dict.fromkeys(
         re.split(r'_(mean|std|grad)', c)[0] for c in feat_cols
     ))
+    available_preds = [c for c in pred_names if c in df_data.columns and c != 'customers_out']
+    if 'wdir' in df_data.columns and 'wdir' not in available_preds:
+        available_preds.append('wdir')
+
+    # Requested panel order (top to bottom), then any remaining predictors.
+    preferred_order = ['wspd', 'wdir', 'aavi', 'tair', 'relh', 'pres']
+    pred_names_ts = [c for c in preferred_order if c in available_preds]
+    pred_names_ts += [c for c in available_preds if c not in pred_names_ts]
     w_match = re.search(r'_W(\d+)', feat_cols[0]) if feat_cols else None
     w_total = int(w_match.group(1)) if w_match else 16
     pre_w = post_w = w_total // 2
@@ -833,7 +841,7 @@ if view == 'ts':
     episode = pd.Series({'t_start': ts, 't_end': t_end})
 
     config_ts = {
-        'predictor_cols': pred_names,
+        'predictor_cols': pred_names_ts,
         'target_col': 'customers_out',
         'outage_threshold': outage_threshold,
         'episode_buffer_hours': 48,
@@ -842,10 +850,18 @@ if view == 'ts':
         'mode': 'binary',
     }
 
-    n_panels = len(pred_names) + 1
+    n_panels = len(pred_names_ts) + 1
     oof_pred = pd.Series([float(row['outage_probability'])], index=[ts])
     fig = plot_episode_ts(df_raw_ts, X_det, episode, config_ts, oof_pred=oof_pred,
                           figsize=(10, 2 * n_panels), fontsize=9)
+    fig.axes[-1].set_ylabel('Customers out of power', fontsize=9)
+
+    if 'wdir' in pred_names_ts:
+        ax_wdir = fig.axes[pred_names_ts.index('wdir')]
+        ax_wdir.set_ylim(0, 360)
+        ax_wdir.set_yticks([0, 90, 180, 270, 360])
+        ax_wdir.set_yticklabels(['N (0°)', 'E (90°)', 'S (180°)', 'W (270°)', 'N (360°)'])
+        ax_wdir.set_ylabel('Wind direction', fontsize=9)
 
     buffer_h = pd.Timedelta(hours=config_ts['episode_buffer_hours'])
     t0_plot  = ts - buffer_h
@@ -854,7 +870,7 @@ if view == 'ts':
     if not df_hrrr.empty:
         fcst_lead = fcst_sfx[2:] if fcst_sfx else None   # '18' from '_f18'
 
-        for i, col in enumerate(pred_names):
+        for i, col in enumerate(pred_names_ts):
             ax = fig.axes[i]
             if col in df_hrrr.columns:
                 hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
@@ -872,24 +888,6 @@ if view == 'ts':
         ax0 = fig.axes[0]
         h, l = ax0.get_legend_handles_labels()
         ax0.legend(h, l, loc='upper left', fontsize=9, framealpha=0.7)
-
-    # Wind-direction arrows on top of the wind-speed panel. wdir is the
-    # meteorological "from" direction, so the arrow points the opposite way
-    # (where the wind is blowing to): from North (0°) -> down, from East (90°) -> left.
-    if 'wspd' in pred_names and 'wdir' in df_data.columns:
-        ax_wspd = fig.axes[pred_names.index('wspd')]
-        wdir_win = df_data['wdir'].loc[t0_plot:t1_plot].dropna()
-        if not wdir_win.empty:
-            step = max(1, len(wdir_win) // 40)
-            wdir_sub = wdir_win.iloc[::step]
-            y_anchor = df_raw_ts['wspd'].reindex(wdir_sub.index)
-            valid = y_anchor.notna()
-            wdir_sub, y_anchor = wdir_sub[valid], y_anchor[valid]
-            u = -np.sin(np.radians(wdir_sub.values))
-            v = -np.cos(np.radians(wdir_sub.values))
-            ax_wspd.quiver(wdir_sub.index, y_anchor.values, u, v,
-                           angles='xy', scale_units='inches', scale=3,
-                           width=0.004, color='k', zorder=4, alpha=0.8)
 
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)

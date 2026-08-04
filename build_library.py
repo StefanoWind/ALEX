@@ -69,6 +69,24 @@ def _read_attr(ds, keys, default=np.nan):
                 continue
     return default
 
+
+def _extract_wdir_series(ds):
+    """Return wind direction as a time-indexed Series for dashboard plotting."""
+    for var_name in ('wdir', 'wind_direction'):
+        if var_name not in ds.data_vars:
+            continue
+        da = ds[var_name]
+        if 'stat' in da.dims:
+            stat_vals = [str(v) for v in da['stat'].values]
+            if 'mean' in stat_vals:
+                da = da.sel(stat='mean')
+            else:
+                da = da.isel(stat=0)
+        s = da.to_series().rename('wdir')
+        if not s.empty:
+            return s
+    return pd.Series(dtype=float)
+
 #%% Load model (shared across all sites)
 predictor = OutagePredictor(source_model)
 cfg = predictor.cfg
@@ -89,6 +107,7 @@ if _hrrr_files:
 
     # Unit conversions — analysis
     ds_hrrr['wspd'] = (ds_hrrr['u10']**2 + ds_hrrr['v10']**2)**0.5
+    ds_hrrr['wdir'] = (np.degrees(np.arctan2(-ds_hrrr['u10'], -ds_hrrr['v10'])) + 360) % 360
     ds_hrrr['pres'] = ds_hrrr['pres'] / 100        # Pa → hPa
     ds_hrrr['tair'] = ds_hrrr['tair'] - 273.15     # K → °C
 
@@ -97,12 +116,15 @@ if _hrrr_files:
         if f'u10{_fcst_sfx}' in ds_hrrr and f'v10{_fcst_sfx}' in ds_hrrr:
             ds_hrrr[f'wspd{_fcst_sfx}'] = (ds_hrrr[f'u10{_fcst_sfx}']**2
                                             + ds_hrrr[f'v10{_fcst_sfx}']**2) ** 0.5
+            ds_hrrr[f'wdir{_fcst_sfx}'] = (
+                np.degrees(np.arctan2(-ds_hrrr[f'u10{_fcst_sfx}'], -ds_hrrr[f'v10{_fcst_sfx}'])) + 360
+            ) % 360
         for _base, _op in (('pres', lambda x: x / 100), ('tair', lambda x: x - 273.15)):
             _fv = f'{_base}{_fcst_sfx}'
             if _fv in ds_hrrr:
                 ds_hrrr[_fv] = _op(ds_hrrr[_fv])
 
-    _anl_base = ('wspd', 'pres', 'srad', 'relh', 'tair', 'gust', 'prate')
+    _anl_base = ('wspd', 'wdir', 'pres', 'srad', 'relh', 'tair', 'gust', 'prate')
     _anl_vars = [v for v in _anl_base if v in ds_hrrr]
     _fct_vars = ([f'{v}{_fcst_sfx}' for v in _anl_vars if f'{v}{_fcst_sfx}' in ds_hrrr]
                  if _fcst_sfx else [])
@@ -126,8 +148,7 @@ for source_data in source_data_files:
         # wdir is display-only (dashboard wind-direction arrows), not a model
         # predictor, so it's pulled straight from the source file rather than
         # through load_data()/qc_data() (which only keep predictor_cols).
-        wdir = (_ds_meta0['wdir'].to_dataframe()['wdir']
-                if 'wdir' in _ds_meta0.data_vars else pd.Series(dtype=float))
+        wdir = _extract_wdir_series(_ds_meta0)
 
     #%% Nearest HRRR grid point for this site
     hrrr_pt = pd.DataFrame()
