@@ -7,6 +7,7 @@ import yaml
 import joblib
 import matplotlib
 import matplotlib.dates as mdates
+import matplotlib.animation as mpl_animation
 import warnings
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.inspection import permutation_importance
@@ -19,6 +20,7 @@ from nexradaws import NexradAwsInterface
 from datetime import timedelta, timezone
 import pyart
 from doe_dap_dl import DAP
+from functools import lru_cache
 
 plt.close('all')
 warnings.filterwarnings("ignore")
@@ -26,6 +28,13 @@ matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 12
 matplotlib.rcParams['savefig.dpi'] = 300
+matplotlib.rcParams['figure.facecolor'] = 'white'
+matplotlib.rcParams['axes.facecolor'] = 'white'
+matplotlib.rcParams['savefig.facecolor'] = 'white'
+matplotlib.rcParams['text.color'] = 'black'
+matplotlib.rcParams['axes.labelcolor'] = 'black'
+matplotlib.rcParams['xtick.color'] = 'black'
+matplotlib.rcParams['ytick.color'] = 'black'
 
 try:
     import shap
@@ -1018,20 +1027,29 @@ def download_plot_nexrad(episode: pd.Series,
                          max_lat: int = 39,
                          vmin: int = -10,
                          vmax: int = 70,
+                         map_resolution: str = '10m',
                          site_lat: float = None,
                          site_lon: float = None,
                          site_label: str = None,
+                         show_site_label: bool = True,
                          save_fig = False):
     
     target_time = episode['t_start'].replace(tzinfo=timezone.utc)
 
+    radar_dir = Path(radar_dir)
+    radar_dir.mkdir(parents=True, exist_ok=True)
+
     # Find nearest scan
-    conn = NexradAwsInterface()
+    conn = _get_nexrad_conn()
 
     start = target_time - timedelta(minutes=10)
     end = target_time + timedelta(minutes=10)
 
-    scans = conn.get_avail_scans_in_range(start, end, radar_id)
+    scans = list(_cached_nexrad_scan_query(
+        radar_id,
+        start.isoformat(),
+        end.isoformat(),
+    ))
 
     if len(scans) == 0:
         raise ValueError(
@@ -1042,14 +1060,7 @@ def download_plot_nexrad(episode: pd.Series,
         scans,
         key=lambda s: abs(s.scan_time - target_time)
     )
-
-    # Download file
-    downloaded_files = conn.download(
-        [nearest_scan],
-        str(radar_dir)
-    )
-
-    filename = downloaded_files.success[0].filepath
+    filename = _ensure_local_scan_file(nearest_scan, radar_dir, conn)
 
     # Read radar
     radar = pyart.io.read_nexrad_archive(filename)
@@ -1068,7 +1079,7 @@ def download_plot_nexrad(episode: pd.Series,
             max_lon=max_lon,
             min_lat=min_lat,
             max_lat=max_lat,
-            resolution="10m",
+            resolution=map_resolution,
             vmin=vmin,
             vmax=vmax,
         )
@@ -1085,7 +1096,7 @@ def download_plot_nexrad(episode: pd.Series,
                 ax.plot(site_lon, site_lat, marker='+', markersize=9,
                         color='black', zorder=7)
 
-            if site_label:
+            if show_site_label and site_label:
                 try:
                     ax = plt.gca()
                     ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
@@ -1108,6 +1119,275 @@ def download_plot_nexrad(episode: pd.Series,
             )
 
     return fig
+
+
+def list_nexrad_scans_in_range(start_time,
+                               end_time,
+                               radar_id: str = 'KVNX',
+                               cadence_minutes: int | None = None,
+                               max_scans: int | None = None) -> list:
+    """List available scans in [start_time, end_time], optionally sampled by cadence."""
+    start_utc = _to_utc_timestamp(start_time)
+    end_utc = _to_utc_timestamp(end_time)
+    if end_utc <= start_utc:
+        raise ValueError("end_time must be later than start_time.")
+
+    scans = list(_cached_nexrad_scan_query(
+        radar_id,
+        start_utc.isoformat(),
+        end_utc.isoformat(),
+    ))
+    if not scans:
+        return []
+
+    scans = sorted(scans, key=_scan_timestamp_utc)
+
+    if cadence_minutes is not None and cadence_minutes > 0:
+        picks = []
+        used_ids = set()
+        targets = pd.date_range(start_utc, end_utc, freq=f"{int(cadence_minutes)}min", tz='UTC')
+        for target in targets:
+            best = min(scans, key=lambda s: abs(_scan_timestamp_utc(s) - target))
+            sid = _scan_identity(best)
+            if sid not in used_ids:
+                used_ids.add(sid)
+                picks.append(best)
+        scans = sorted(picks, key=_scan_timestamp_utc)
+
+    if max_scans is not None and max_scans > 0:
+        scans = scans[:int(max_scans)]
+
+    return scans
+
+
+def download_nexrad_scans_in_range(start_time,
+                                   end_time,
+                                   radar_id: str = 'KVNX',
+                                   radar_dir: Path = 'data/',
+                                   cadence_minutes: int | None = None,
+                                   max_scans: int | None = None) -> list[Path]:
+    """Download and return local file paths for scans in a time window."""
+    radar_dir = Path(radar_dir)
+    radar_dir.mkdir(parents=True, exist_ok=True)
+    scans = list_nexrad_scans_in_range(
+        start_time,
+        end_time,
+        radar_id=radar_id,
+        cadence_minutes=cadence_minutes,
+        max_scans=max_scans,
+    )
+    conn = _get_nexrad_conn()
+    paths = []
+    for scan in scans:
+        paths.append(Path(_ensure_local_scan_file(scan, radar_dir, conn)))
+    return paths
+
+
+def animate_nexrad_reflectivity(start_time,
+                                end_time,
+                                output_path: str | Path,
+                                radar_id: str = 'KVNX',
+                                radar_dir: Path = 'data/',
+                                cadence_minutes: int = 5,
+                                fps: int = 6,
+                                dpi: int = 120,
+                                min_lon: int = -101,
+                                max_lon: int = -94,
+                                min_lat: int = 33,
+                                max_lat: int = 39,
+                                vmin: int = -10,
+                                vmax: int = 70,
+                                map_resolution: str = '50m',
+                                site_lat: float = None,
+                                site_lon: float = None,
+                                site_label: str = None,
+                                show_site_label: bool = True,
+                                sweep: int = 0,
+                                interval_ms: int = None) -> Path:
+    """Create a reflectivity animation over a time range and save it as MP4 or GIF."""
+    scans = list_nexrad_scans_in_range(
+        start_time,
+        end_time,
+        radar_id=radar_id,
+        cadence_minutes=cadence_minutes,
+    )
+    if not scans:
+        raise ValueError("No NEXRAD scans found for the requested time window.")
+
+    radar_dir = Path(radar_dir)
+    radar_dir.mkdir(parents=True, exist_ok=True)
+    conn = _get_nexrad_conn()
+
+    frame_paths = []
+    frame_times = []
+    for scan in scans:
+        frame_paths.append(_ensure_local_scan_file(scan, radar_dir, conn))
+        frame_times.append(_scan_timestamp_utc(scan))
+
+    out_path = Path(output_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if interval_ms is None:
+        interval_ms = int(1000 / max(int(fps), 1))
+
+    with plt.style.context("dark_background"):
+        fig = plt.figure(figsize=(10, 8), facecolor="black")
+
+        def _draw_frame(frame_idx):
+            fig.clf()
+            plt.figure(fig.number)
+            radar = pyart.io.read_nexrad_archive(frame_paths[frame_idx])
+            display = pyart.graph.RadarMapDisplay(radar)
+            display.plot_ppi_map(
+                "reflectivity",
+                sweep=sweep,
+                min_lon=min_lon,
+                max_lon=max_lon,
+                min_lat=min_lat,
+                max_lat=max_lat,
+                resolution=map_resolution,
+                vmin=vmin,
+                vmax=vmax,
+                title_flag=False,
+            )
+            ax = plt.gca()
+            if site_lat is not None and site_lon is not None and np.isfinite(site_lat) and np.isfinite(site_lon):
+                try:
+                    display.plot_point(site_lon, site_lat, symbol='wo', markersize=11)
+                    display.plot_point(site_lon, site_lat, symbol='k+', markersize=10)
+                except Exception:
+                    ax.plot(site_lon, site_lat, marker='o', markersize=8,
+                        markerfacecolor='white', markeredgecolor='black', zorder=10)
+                    ax.plot(site_lon, site_lat, marker='+', markersize=9, color='black', zorder=11)
+                if show_site_label and site_label:
+                    ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
+                            color='white', fontsize=9,
+                            bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
+                            zorder=12)
+            ax.set_title(
+                f"{radar_id} reflectivity | {frame_times[frame_idx].strftime('%Y-%m-%d %H:%M UTC')}",
+                pad=10,
+            )
+            return ax
+
+        ani = mpl_animation.FuncAnimation(
+            fig,
+            _draw_frame,
+            frames=len(frame_paths),
+            interval=interval_ms,
+            repeat=False,
+            blit=False,
+        )
+
+        suffix = out_path.suffix.lower()
+        if suffix == '.gif':
+            writer = mpl_animation.PillowWriter(fps=max(int(fps), 1))
+            ani.save(str(out_path), writer=writer, dpi=dpi)
+        else:
+            try:
+                writer = mpl_animation.FFMpegWriter(fps=max(int(fps), 1), bitrate=2000)
+                ani.save(str(out_path), writer=writer, dpi=dpi)
+            except (FileNotFoundError, RuntimeError) as exc:
+                raise RuntimeError(
+                    "FFmpeg is required for MP4 output. Use a .gif output_path or install ffmpeg."
+                ) from exc
+        plt.close(fig)
+
+    print(f"  Saved reflectivity animation -> {out_path}")
+    return out_path
+
+
+_NEXRAD_CONN = None
+_DOWNLOADED_SCAN_PATHS: dict[str, str] = {}
+
+
+def _get_nexrad_conn() -> NexradAwsInterface:
+    """Reuse one nexradaws client per Python process."""
+    global _NEXRAD_CONN
+    if _NEXRAD_CONN is None:
+        _NEXRAD_CONN = NexradAwsInterface()
+    return _NEXRAD_CONN
+
+
+@lru_cache(maxsize=4096)
+def _cached_nexrad_scan_query(radar_id: str, start_iso: str, end_iso: str) -> tuple:
+    """Cache scan availability lookups by radar and time window."""
+    conn = _get_nexrad_conn()
+    start = pd.Timestamp(start_iso).to_pydatetime()
+    end = pd.Timestamp(end_iso).to_pydatetime()
+    scans = conn.get_avail_scans_in_range(start, end, radar_id)
+    return tuple(scans)
+
+
+def _scan_identity(scan) -> str:
+    """Build a stable in-session identity string for a NEXRAD scan object."""
+    for attr in ('filename', 'key', 'filepath'):
+        val = getattr(scan, attr, None)
+        if isinstance(val, str) and val:
+            return val
+    scan_time = getattr(scan, 'scan_time', None)
+    radar = getattr(scan, 'radar_id', 'unknown')
+    if scan_time is not None:
+        return f"{radar}:{pd.Timestamp(scan_time).isoformat()}"
+    return f"{radar}:{repr(scan)}"
+
+
+def _find_local_scan_file(scan, radar_dir: Path) -> Path | None:
+    """Try to match an already-downloaded local radar file for a scan."""
+    names = []
+    for attr in ('filename', 'filepath', 'key'):
+        val = getattr(scan, attr, None)
+        if isinstance(val, str) and val:
+            names.append(Path(val).name)
+
+    for name in names:
+        candidate = radar_dir / name
+        if candidate.exists():
+            return candidate
+
+    scan_time = getattr(scan, 'scan_time', None)
+    if scan_time is not None:
+        ts = pd.Timestamp(scan_time)
+        # Use minute-level pattern as a fallback when exact names are unknown.
+        pattern = f"*{ts.strftime('%Y%m%d_%H%M')}*"
+        matches = sorted(radar_dir.glob(pattern))
+        if matches:
+            return matches[0]
+
+    return None
+
+
+def _to_utc_timestamp(ts) -> pd.Timestamp:
+    t = pd.Timestamp(ts)
+    if t.tzinfo is None:
+        return t.tz_localize('UTC')
+    return t.tz_convert('UTC')
+
+
+def _scan_timestamp_utc(scan) -> pd.Timestamp:
+    return _to_utc_timestamp(getattr(scan, 'scan_time'))
+
+
+def _ensure_local_scan_file(scan, radar_dir: Path, conn: NexradAwsInterface) -> str:
+    """Resolve or download a scan file and return a local path."""
+    scan_id = _scan_identity(scan)
+    filename = _DOWNLOADED_SCAN_PATHS.get(scan_id)
+    if filename is not None and Path(filename).exists():
+        return filename
+
+    local_file = _find_local_scan_file(scan, radar_dir)
+    if local_file is not None:
+        filename = str(local_file)
+        _DOWNLOADED_SCAN_PATHS[scan_id] = filename
+        return filename
+
+    downloaded_files = conn.download([scan], str(radar_dir))
+    if not downloaded_files.success:
+        raise ValueError(
+            f"Download failed for scan {scan_id}."
+        )
+    filename = downloaded_files.success[0].filepath
+    _DOWNLOADED_SCAN_PATHS[scan_id] = filename
+    return filename
 
 
 def build_event_matrix(df_preds: pd.DataFrame,

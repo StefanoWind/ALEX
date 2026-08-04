@@ -4,6 +4,9 @@ Run with: streamlit run dashboard.py
 '''
 
 import re
+import io
+import shutil
+import tempfile
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -23,10 +26,22 @@ try:
 except ImportError:
     HAS_SHAP = False
 
-from utils import plot_episode_ts, download_plot_nexrad, _VAR_LABELS
+from utils import (
+    plot_episode_ts,
+    download_plot_nexrad,
+    animate_nexrad_reflectivity,
+    _VAR_LABELS,
+)
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['font.size'] = 7
+matplotlib.rcParams['figure.facecolor'] = 'white'
+matplotlib.rcParams['axes.facecolor'] = 'white'
+matplotlib.rcParams['savefig.facecolor'] = 'white'
+matplotlib.rcParams['text.color'] = 'black'
+matplotlib.rcParams['axes.labelcolor'] = 'black'
+matplotlib.rcParams['xtick.color'] = 'black'
+matplotlib.rcParams['ytick.color'] = 'black'
 
 st.set_page_config(page_title='ALEX Event Library', layout='wide')
 st.title('ALEX — Outage Event Library')
@@ -241,6 +256,40 @@ def _file_mtime(path: str):
         return 0.0
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def render_nexrad_png(event_start_iso: str,
+                      event_end_iso: str,
+                      marker_lat: float | None,
+                      marker_lon: float | None,
+                      site_label: str | None,
+                      radar_id: str = 'KVNX') -> bytes:
+    """Render and cache a NEXRAD figure as PNG bytes for fast repeat viewing."""
+    episode = pd.Series({
+        't_start': pd.Timestamp(event_start_iso),
+        't_end': pd.Timestamp(event_end_iso),
+    })
+    fig = download_plot_nexrad(
+        episode,
+        radar_id=radar_id,
+        radar_dir=_BASE_DIR / 'data' / 'nexrad_cache',
+        map_resolution='10m',
+        site_lat=marker_lat,
+        site_lon=marker_lon,
+        site_label=site_label,
+        show_site_label=True,
+    )
+    buf = io.BytesIO()
+    fig.savefig(
+        buf,
+        format='png',
+        dpi=150,
+        bbox_inches='tight',
+        facecolor=fig.get_facecolor(),
+    )
+    plt.close(fig)
+    return buf.getvalue()
+
+
 for key, default in [
     ('selected_source_key', None),
     ('prev_source_key', None),
@@ -251,6 +300,9 @@ for key, default in [
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
+
+if 'nexrad_anim_event_ts' not in st.session_state:
+    st.session_state['nexrad_anim_event_ts'] = None
 
 sources_df = discover_library_sources(str(_SOURCE_DATA_DIR), data_sig=_data_dir_signature(str(_SOURCE_DATA_DIR)))
 if not sources_df.empty:
@@ -821,6 +873,14 @@ if view == 'ts':
     pred_names = list(dict.fromkeys(
         re.split(r'_(mean|std|grad)', c)[0] for c in feat_cols
     ))
+    available_preds = [c for c in pred_names if c in df_data.columns and c != 'customers_out']
+    if 'wdir' in df_data.columns and 'wdir' not in available_preds:
+        available_preds.append('wdir')
+
+    # Requested panel order (top to bottom), then any remaining predictors.
+    preferred_order = ['wspd', 'wdir', 'aavi', 'tair', 'relh', 'pres']
+    pred_names_ts = [c for c in preferred_order if c in available_preds]
+    pred_names_ts += [c for c in available_preds if c not in pred_names_ts]
     w_match = re.search(r'_W(\d+)', feat_cols[0]) if feat_cols else None
     w_total = int(w_match.group(1)) if w_match else 16
     pre_w = post_w = w_total // 2
@@ -833,7 +893,7 @@ if view == 'ts':
     episode = pd.Series({'t_start': ts, 't_end': t_end})
 
     config_ts = {
-        'predictor_cols': pred_names,
+        'predictor_cols': pred_names_ts,
         'target_col': 'customers_out',
         'outage_threshold': outage_threshold,
         'episode_buffer_hours': 48,
@@ -842,10 +902,23 @@ if view == 'ts':
         'mode': 'binary',
     }
 
-    n_panels = len(pred_names) + 1
+    n_panels = len(pred_names_ts) + 1
     oof_pred = pd.Series([float(row['outage_probability'])], index=[ts])
-    fig = plot_episode_ts(df_raw_ts, X_det, episode, config_ts, oof_pred=oof_pred,
-                          figsize=(10, 2 * n_panels), fontsize=9)
+    with plt.style.context('default'):
+        fig = plot_episode_ts(df_raw_ts, X_det, episode, config_ts, oof_pred=oof_pred,
+                              figsize=(10, 2 * n_panels), fontsize=9)
+
+    fig.patch.set_facecolor('white')
+    for ax in fig.axes:
+        ax.set_facecolor('white')
+    fig.axes[-1].set_ylabel('Customers out of power', fontsize=9)
+
+    if 'wdir' in pred_names_ts:
+        ax_wdir = fig.axes[pred_names_ts.index('wdir')]
+        ax_wdir.set_ylim(0, 360)
+        ax_wdir.set_yticks([0, 90, 180, 270, 360])
+        ax_wdir.set_yticklabels(['N (0°)', 'E (90°)', 'S (180°)', 'W (270°)', 'N (360°)'])
+        ax_wdir.set_ylabel('Wind direction', fontsize=9)
 
     buffer_h = pd.Timedelta(hours=config_ts['episode_buffer_hours'])
     t0_plot  = ts - buffer_h
@@ -854,7 +927,7 @@ if view == 'ts':
     if not df_hrrr.empty:
         fcst_lead = fcst_sfx[2:] if fcst_sfx else None   # '18' from '_f18'
 
-        for i, col in enumerate(pred_names):
+        for i, col in enumerate(pred_names_ts):
             ax = fig.axes[i]
             if col in df_hrrr.columns:
                 hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
@@ -873,24 +946,6 @@ if view == 'ts':
         h, l = ax0.get_legend_handles_labels()
         ax0.legend(h, l, loc='upper left', fontsize=9, framealpha=0.7)
 
-    # Wind-direction arrows on top of the wind-speed panel. wdir is the
-    # meteorological "from" direction, so the arrow points the opposite way
-    # (where the wind is blowing to): from North (0°) -> down, from East (90°) -> left.
-    if 'wspd' in pred_names and 'wdir' in df_data.columns:
-        ax_wspd = fig.axes[pred_names.index('wspd')]
-        wdir_win = df_data['wdir'].loc[t0_plot:t1_plot].dropna()
-        if not wdir_win.empty:
-            step = max(1, len(wdir_win) // 40)
-            wdir_sub = wdir_win.iloc[::step]
-            y_anchor = df_raw_ts['wspd'].reindex(wdir_sub.index)
-            valid = y_anchor.notna()
-            wdir_sub, y_anchor = wdir_sub[valid], y_anchor[valid]
-            u = -np.sin(np.radians(wdir_sub.values))
-            v = -np.cos(np.radians(wdir_sub.values))
-            ax_wspd.quiver(wdir_sub.index, y_anchor.values, u, v,
-                           angles='xy', scale_units='inches', scale=3,
-                           width=0.004, color='k', zorder=4, alpha=0.8)
-
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
@@ -908,10 +963,15 @@ elif view == 'shap':
         feature_names = feat_labels,
     )
 
-    fig = plt.figure(figsize=(6, max(3, len(shap_cols) * 0.28 + 1.5)))
-    shap_lib.plots.waterfall(expl, show=False)
-    plt.title(f'SHAP — {ts.strftime("%Y-%m-%d %H:%M")}', fontsize=8)
-    plt.tight_layout()
+    with plt.style.context('default'):
+        fig = plt.figure(figsize=(6, max(3, len(shap_cols) * 0.28 + 1.5)))
+        shap_lib.plots.waterfall(expl, show=False)
+        plt.title(f'SHAP — {ts.strftime("%Y-%m-%d %H:%M")}', fontsize=8)
+        plt.tight_layout()
+
+    fig.patch.set_facecolor('white')
+    for ax in fig.axes:
+        ax.set_facecolor('white')
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
@@ -925,11 +985,132 @@ if view == 'nexrad':
 
     marker_lat = selected_site_lat if np.isfinite(selected_site_lat) else lat_meta
     marker_lon = selected_site_lon if np.isfinite(selected_site_lon) else lon_meta
-    fig = download_plot_nexrad(
-        episode,
-        site_lat=marker_lat if np.isfinite(marker_lat) else None,
-        site_lon=marker_lon if np.isfinite(marker_lon) else None,
-        site_label=selected_site_label,
+    marker_lat_val = float(marker_lat) if np.isfinite(marker_lat) else None
+    marker_lon_val = float(marker_lon) if np.isfinite(marker_lon) else None
+
+    st.markdown('#### Animation')
+
+    cache_col, _ = st.columns([1, 3])
+    if cache_col.button('Clear NEXRAD cache', use_container_width=True, key='nexrad_clear_cache'):
+        cleared_dirs = []
+        for cache_dir in [
+            _BASE_DIR / 'data' / 'nexrad_cache',
+            _BASE_DIR / 'data' / 'nexrad_animation_cache',
+        ]:
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir, ignore_errors=True)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cleared_dirs.append(cache_dir.name)
+
+        render_nexrad_png.clear()
+        st.session_state.pop('nexrad_anim_last', None)
+        st.success(f"Cleared cache: {', '.join(cleared_dirs)}")
+
+    default_start = (ts - pd.Timedelta(hours=2)).to_pydatetime()
+    default_end = (ts + pd.Timedelta(hours=4)).to_pydatetime()
+
+    current_event_ts = ts.isoformat()
+    if st.session_state.get('nexrad_anim_event_ts') != current_event_ts:
+        st.session_state['nexrad_anim_start'] = default_start
+        st.session_state['nexrad_anim_end'] = default_end
+        st.session_state['nexrad_anim_event_ts'] = current_event_ts
+
+    c_start, c_end = st.columns(2)
+    anim_start = c_start.datetime_input(
+        'Start time (UTC)',
+        value=default_start,
+        key='nexrad_anim_start',
     )
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
+    anim_end = c_end.datetime_input(
+        'End time (UTC)',
+        value=default_end,
+        key='nexrad_anim_end',
+    )
+
+    c_cad, c_fps, c_fmt, c_res = st.columns(4)
+    cadence_minutes = c_cad.slider('Cadence (min)', 5, 60, 30, key='nexrad_anim_cad')
+    fps = c_fps.slider('FPS', 1, 12, 3, key='nexrad_anim_fps')
+    out_fmt = c_fmt.selectbox('Format', ['mp4', 'gif'], key='nexrad_anim_fmt')
+    map_res = c_res.selectbox('Map resolution', ['10m', '50m', '110m'], index=1,
+                              key='nexrad_anim_res')
+
+    if st.button('Generate animation', use_container_width=True, key='nexrad_anim_generate'):
+        out_path = None
+        try:
+            source_key = st.session_state.get('selected_source_key', 'source') or 'source'
+            t0_str = pd.Timestamp(anim_start).strftime('%Y%m%d_%H%M')
+            t1_str = pd.Timestamp(anim_end).strftime('%Y%m%d_%H%M')
+            display_name = f'{source_key}_{t0_str}_{t1_str}.{out_fmt}'
+
+            with tempfile.NamedTemporaryFile(suffix=f'.{out_fmt}', delete=False) as tmp_file:
+                out_path = Path(tmp_file.name)
+
+            with st.spinner('Building NEXRAD animation...'):
+                animate_nexrad_reflectivity(
+                    start_time=anim_start,
+                    end_time=anim_end,
+                    output_path=out_path,
+                    radar_id='KVNX',
+                    radar_dir=_BASE_DIR / 'data' / 'nexrad_animation_cache',
+                    cadence_minutes=cadence_minutes,
+                    fps=fps,
+                    map_resolution=map_res,
+                    site_lat=marker_lat_val,
+                    site_lon=marker_lon_val,
+                    site_label=selected_site_label,
+                    show_site_label=True,
+                )
+
+            with open(out_path, 'rb') as f:
+                anim_bytes = f.read()
+
+            st.session_state['nexrad_anim_last'] = {
+                'name': display_name,
+                'format': out_fmt,
+                'bytes': anim_bytes,
+            }
+            st.success('Animation ready.')
+        except Exception as e:
+            st.error(f'Unable to create animation: {e}')
+            st.session_state.pop('nexrad_anim_last', None)
+        finally:
+            if out_path is not None:
+                out_path.unlink(missing_ok=True)
+
+    last_anim = st.session_state.get('nexrad_anim_last')
+    if last_anim:
+        anim_format = str(last_anim.get('format', '')).lower()
+        anim_bytes = last_anim.get('bytes')
+        anim_name = last_anim.get('name', f'nexrad_animation.{anim_format or "gif"}')
+
+        if anim_bytes:
+            if anim_format == 'mp4':
+                st.video(anim_bytes)
+                mime = 'video/mp4'
+            else:
+                st.image(anim_bytes, use_container_width=True)
+                mime = 'image/gif'
+
+            st.download_button(
+                'Download animation',
+                data=anim_bytes,
+                file_name=anim_name,
+                mime=mime,
+                use_container_width=True,
+                key='nexrad_anim_download',
+            )
+
+    st.markdown('---')
+    st.markdown('#### Reflectivity')
+    try:
+        with st.spinner('Loading NEXRAD reflectivity...'):
+            nexrad_png = render_nexrad_png(
+                ts.isoformat(),
+                t_end.isoformat(),
+                marker_lat_val,
+                marker_lon_val,
+                selected_site_label,
+            )
+        st.image(nexrad_png, use_container_width=True)
+    except Exception as e:
+        st.error(f'Unable to load NEXRAD plot: {e}')

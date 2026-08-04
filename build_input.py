@@ -100,6 +100,22 @@ def _qc_signal(da, lims, max_flat):
     return qc.copy(data=values)
 
 
+def _extract_wdir_da(ds):
+    """Return wind direction DataArray for display-only export as `wdir`."""
+    for var_name in ('wdir', 'wind_direction'):
+        if var_name not in ds.data_vars:
+            continue
+        da = ds[var_name]
+        if 'stat' in da.dims:
+            stat_vals = [str(v) for v in da['stat'].values]
+            if 'mean' in stat_vals:
+                da = da.sel(stat='mean')
+            else:
+                da = da.isel(stat=0)
+        return da.rename('wdir')
+    return None
+
+
 def _plot_qc(raw_signals, qc_signals, out_path):
     variables = list(raw_signals.keys())
     fig, axes = plt.subplots(len(variables), 1, figsize=(12, 2.2 * len(variables)), sharex=True)
@@ -146,6 +162,12 @@ for source_data in source_data_files:
 
     ds_out_qc['customers_out']  = ds_in.outages
     ds_out_raw['customers_out'] = ds_in.outages
+
+    # Keep wind direction for dashboard plotting without adding it to model predictors.
+    wdir_da = _extract_wdir_da(ds_in)
+    if wdir_da is not None:
+        ds_out_qc['wdir'] = wdir_da
+        ds_out_raw['wdir'] = wdir_da
 
     # Preserve station geolocation metadata so downstream products can export it.
     lat_val = _read_attr(ds_in, ['latitude', 'lat', 'station_lat'])
