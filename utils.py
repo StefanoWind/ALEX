@@ -918,9 +918,9 @@ def plot_episode_ts(df_raw: pd.DataFrame, X: pd.DataFrame,
     ev_end = episode['t_start'] + post_w * dt
     has_event_window = pre_w > 0 or post_w > 0
 
-    lbl_raw1 = f'raw ({label1})' if label1 else 'raw'
+    lbl_raw1 = f'met data ({label1})' if label1 else 'met data'
     lbl_det1 = f'detrended ({label1})' if label1 else 'detrended'
-    lbl_raw2 = f'raw ({label2})' if label2 else 'raw'
+    lbl_raw2 = f'met data ({label2})' if label2 else 'met data'
     lbl_det2 = f'detrended ({label2})' if label2 else 'detrended'
 
     if figsize is None:
@@ -1099,7 +1099,7 @@ def download_plot_nexrad(episode: pd.Series,
             if show_site_label and site_label:
                 try:
                     ax = plt.gca()
-                    ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
+                    ax.text(site_lon + 0.03, site_lat + 0.02, site_label,
                             color='white', fontsize=9,
                             bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
                             zorder=8)
@@ -1137,6 +1137,7 @@ def list_nexrad_scans_in_range(start_time,
         start_utc.isoformat(),
         end_utc.isoformat(),
     ))
+    scans = [s for s in scans if not str(getattr(s, 'filename', '')).endswith('_MDM')]
     if not scans:
         return []
 
@@ -1177,10 +1178,8 @@ def download_nexrad_scans_in_range(start_time,
         max_scans=max_scans,
     )
     conn = _get_nexrad_conn()
-    paths = []
-    for scan in scans:
-        paths.append(Path(_ensure_local_scan_file(scan, radar_dir, conn)))
-    return paths
+    paths = _resolve_or_bulk_download_scans(scans, radar_dir, conn)
+    return [Path(p) for p in paths]
 
 
 def animate_nexrad_reflectivity(start_time,
@@ -1218,11 +1217,8 @@ def animate_nexrad_reflectivity(start_time,
     radar_dir.mkdir(parents=True, exist_ok=True)
     conn = _get_nexrad_conn()
 
-    frame_paths = []
-    frame_times = []
-    for scan in scans:
-        frame_paths.append(_ensure_local_scan_file(scan, radar_dir, conn))
-        frame_times.append(_scan_timestamp_utc(scan))
+    frame_paths = _resolve_or_bulk_download_scans(scans, radar_dir, conn)
+    frame_times = [_scan_timestamp_utc(scan) for scan in scans]
 
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1259,7 +1255,7 @@ def animate_nexrad_reflectivity(start_time,
                         markerfacecolor='white', markeredgecolor='black', zorder=10)
                     ax.plot(site_lon, site_lat, marker='+', markersize=9, color='black', zorder=11)
                 if show_site_label and site_label:
-                    ax.text(site_lon + 0.06, site_lat + 0.04, site_label,
+                    ax.text(site_lon + 0.03, site_lat + 0.02, site_label,
                             color='white', fontsize=9,
                             bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
                             zorder=12)
@@ -1388,6 +1384,61 @@ def _ensure_local_scan_file(scan, radar_dir: Path, conn: NexradAwsInterface) -> 
     filename = downloaded_files.success[0].filepath
     _DOWNLOADED_SCAN_PATHS[scan_id] = filename
     return filename
+
+
+def _resolve_or_bulk_download_scans(scans, radar_dir: Path, conn: NexradAwsInterface) -> list[str]:
+    """Resolve local paths for scans, bulk-downloading any missing files."""
+    resolved: dict[str, str] = {}
+    missing = []
+
+    for scan in scans:
+        scan_id = _scan_identity(scan)
+
+        filename = _DOWNLOADED_SCAN_PATHS.get(scan_id)
+        if filename is not None and Path(filename).exists():
+            resolved[scan_id] = filename
+            continue
+
+        local_file = _find_local_scan_file(scan, radar_dir)
+        if local_file is not None:
+            filename = str(local_file)
+            _DOWNLOADED_SCAN_PATHS[scan_id] = filename
+            resolved[scan_id] = filename
+            continue
+
+        missing.append(scan)
+
+    if missing:
+        downloaded = conn.download(missing, str(radar_dir))
+        if not downloaded.success:
+            raise ValueError(f"Bulk download failed for {len(missing)} scan(s).")
+
+        by_name = {Path(f.filepath).name: f.filepath for f in downloaded.success}
+
+        for scan in missing:
+            scan_id = _scan_identity(scan)
+            filename = None
+
+            for attr in ('filename', 'filepath', 'key'):
+                val = getattr(scan, attr, None)
+                if isinstance(val, str) and val:
+                    candidate = by_name.get(Path(val).name)
+                    if candidate:
+                        filename = candidate
+                        break
+
+            if filename is None:
+                local_file = _find_local_scan_file(scan, radar_dir)
+                if local_file is not None:
+                    filename = str(local_file)
+
+            if filename is None:
+                raise ValueError(f"Downloaded scan could not be resolved locally for {scan_id}.")
+
+            _DOWNLOADED_SCAN_PATHS[scan_id] = filename
+            resolved[scan_id] = filename
+
+    return [resolved[_scan_identity(scan)] for scan in scans]
 
 
 def build_event_matrix(df_preds: pd.DataFrame,
