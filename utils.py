@@ -1032,8 +1032,9 @@ def download_plot_nexrad(episode: pd.Series,
                          site_lon: float = None,
                          site_label: str = None,
                          show_site_label: bool = True,
-                         save_fig = False):
-    
+                         save_fig = False,
+                         range_stride: int = 2):
+
     target_time = episode['t_start'].replace(tzinfo=timezone.utc)
 
     radar_dir = Path(radar_dir)
@@ -1062,8 +1063,9 @@ def download_plot_nexrad(episode: pd.Series,
     )
     filename = _ensure_local_scan_file(nearest_scan, radar_dir, conn)
 
-    # Read radar
-    radar = pyart.io.read_nexrad_archive(filename)
+    # Read radar (sweep 0 only; that's the only sweep plotted below)
+    radar = pyart.io.read_nexrad_archive(filename, scans=[0])
+    radar = _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat, range_stride=range_stride)
 
     # Plot reflectivity (dark background scoped to this figure only, so it
     # doesn't leak into subsequently drawn time series / SHAP plots)
@@ -1182,12 +1184,14 @@ def download_nexrad_scans_in_range(start_time,
     return [Path(p) for p in paths]
 
 
-def _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat, margin=1.15):
-    """Drop gates beyond the range needed to cover a lat/lon bbox, shrinking the plotted mesh.
+def _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat, margin=1.15, range_stride=1):
+    """Drop/decimate gates beyond what's needed for a lat/lon bbox, shrinking the plotted mesh.
 
     plot_ppi_map reprojects and rasterizes every gate out to the radar's full
     unambiguous range even though only gates inside the map extent are visible,
-    so this cuts render time roughly in proportion to the gate count removed.
+    so cropping cuts render time roughly in proportion to the gate count removed.
+    `range_stride` additionally keeps every Nth gate — native 250 m gate spacing
+    is far finer than a rendered map can resolve, so this is visually near-free.
     """
     lat0 = float(radar.latitude['data'][0])
     lon0 = float(radar.longitude['data'][0])
@@ -1211,13 +1215,18 @@ def _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat, margin=
     range_data = radar.range['data']
     n_gates_keep = int(np.searchsorted(range_data, max_range_m)) + 1
     n_gates_keep = max(1, min(n_gates_keep, radar.ngates))
-    if n_gates_keep >= radar.ngates:
-        return radar
+    if n_gates_keep < radar.ngates:
+        radar.range['data'] = range_data[:n_gates_keep]
+        radar.ngates = n_gates_keep
+        for fdict in radar.fields.values():
+            fdict['data'] = fdict['data'][:, :n_gates_keep]
 
-    radar.range['data'] = range_data[:n_gates_keep]
-    radar.ngates = n_gates_keep
-    for fdict in radar.fields.values():
-        fdict['data'] = fdict['data'][:, :n_gates_keep]
+    if range_stride > 1:
+        radar.range['data'] = radar.range['data'][::range_stride]
+        radar.ngates = len(radar.range['data'])
+        for fdict in radar.fields.values():
+            fdict['data'] = fdict['data'][:, ::range_stride]
+
     return radar
 
 
@@ -1241,7 +1250,8 @@ def animate_nexrad_reflectivity(start_time,
                                 site_label: str = None,
                                 show_site_label: bool = True,
                                 sweep: int = 0,
-                                interval_ms: int = None) -> Path:
+                                interval_ms: int = None,
+                                range_stride: int = 2) -> Path:
     """Create a reflectivity animation over a time range and save it as MP4 or GIF."""
     scans = list_nexrad_scans_in_range(
         start_time,
@@ -1270,12 +1280,12 @@ def animate_nexrad_reflectivity(start_time,
         def _draw_frame(frame_idx):
             fig.clf()
             plt.figure(fig.number)
-            radar = pyart.io.read_nexrad_archive(frame_paths[frame_idx])
-            radar = _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat)
+            radar = pyart.io.read_nexrad_archive(frame_paths[frame_idx], scans=[sweep])
+            radar = _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat, range_stride=range_stride)
             display = pyart.graph.RadarMapDisplay(radar)
             display.plot_ppi_map(
                 "reflectivity",
-                sweep=sweep,
+                sweep=0,
                 min_lon=min_lon,
                 max_lon=max_lon,
                 min_lat=min_lat,

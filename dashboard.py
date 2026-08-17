@@ -6,8 +6,6 @@ Run with: streamlit run dashboard.py
 import re
 import io
 import shutil
-import tempfile
-from datetime import datetime
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -30,7 +28,7 @@ except ImportError:
 from utils import (
     plot_episode_ts,
     download_plot_nexrad,
-    animate_nexrad_reflectivity,
+    list_nexrad_scans_in_range,
     _VAR_LABELS,
 )
 
@@ -257,18 +255,29 @@ def _file_mtime(path: str):
         return 0.0
 
 
+def _as_utc(t) -> pd.Timestamp:
+    t = pd.Timestamp(t)
+    return t.tz_localize('UTC') if t.tzinfo is None else t.tz_convert('UTC')
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
-def render_nexrad_png(event_start_iso: str,
-                      event_end_iso: str,
-                      marker_lat: float | None,
-                      marker_lon: float | None,
-                      site_label: str | None,
-                      radar_id: str = 'KVNX') -> bytes:
-    """Render and cache a NEXRAD figure as PNG bytes for fast repeat viewing."""
-    episode = pd.Series({
-        't_start': pd.Timestamp(event_start_iso),
-        't_end': pd.Timestamp(event_end_iso),
-    })
+def list_nexrad_scan_times(start_iso: str, end_iso: str, radar_id: str = 'KVNX') -> list[str]:
+    """List available NEXRAD scan timestamps in a window (metadata only, no download)."""
+    scans = list_nexrad_scans_in_range(
+        pd.Timestamp(start_iso), pd.Timestamp(end_iso), radar_id=radar_id, cadence_minutes=None,
+    )
+    return [pd.Timestamp(s.scan_time).isoformat() for s in scans]
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def render_nexrad_scan_png(scan_time_iso: str,
+                           marker_lat: float | None,
+                           marker_lon: float | None,
+                           site_label: str | None,
+                           radar_id: str = 'KVNX') -> bytes:
+    """Render and cache a single NEXRAD scan as PNG bytes; downloads only this one scan."""
+    scan_time = pd.Timestamp(scan_time_iso)
+    episode = pd.Series({'t_start': scan_time, 't_end': scan_time})
     fig = download_plot_nexrad(
         episode,
         radar_id=radar_id,
@@ -301,9 +310,6 @@ for key, default in [
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
-
-if 'nexrad_anim_event_ts' not in st.session_state:
-    st.session_state['nexrad_anim_event_ts'] = None
 
 sources_df = discover_library_sources(str(_SOURCE_DATA_DIR), data_sig=_data_dir_signature(str(_SOURCE_DATA_DIR)))
 if not sources_df.empty:
@@ -979,144 +985,75 @@ elif view == 'shap':
 # ── NEXRAD reflectivity ────────────────────────────────────────────────────────────
 
 if view == 'nexrad':
-    
-    dur_h = float(row.get('duration_h', np.nan))
-    t_end = ts + pd.Timedelta(hours=dur_h) if not np.isnan(dur_h) else ts
-    episode = pd.Series({'t_start': ts, 't_end': t_end})
 
     marker_lat = selected_site_lat if np.isfinite(selected_site_lat) else lat_meta
     marker_lon = selected_site_lon if np.isfinite(selected_site_lon) else lon_meta
     marker_lat_val = float(marker_lat) if np.isfinite(marker_lat) else None
     marker_lon_val = float(marker_lon) if np.isfinite(marker_lon) else None
 
-    st.markdown('#### Animation')
+    st.markdown('#### Reflectivity')
 
     cache_col, _ = st.columns([1, 3])
     if cache_col.button('Clear NEXRAD cache', use_container_width=True, key='nexrad_clear_cache'):
-        cleared_dirs = []
-        for cache_dir in [
-            _BASE_DIR / 'data' / 'nexrad_cache',
-            _BASE_DIR / 'data' / 'nexrad_animation_cache',
-        ]:
-            if cache_dir.exists():
-                shutil.rmtree(cache_dir, ignore_errors=True)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            cleared_dirs.append(cache_dir.name)
+        cache_dir = _BASE_DIR / 'data' / 'nexrad_cache'
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir, ignore_errors=True)
+        cache_dir.mkdir(parents=True, exist_ok=True)
 
-        render_nexrad_png.clear()
-        st.session_state.pop('nexrad_anim_last', None)
-        st.success(f"Cleared cache: {', '.join(cleared_dirs)}")
+        render_nexrad_scan_png.clear()
+        list_nexrad_scan_times.clear()
+        st.session_state.pop('nexrad_scan_idx', None)
+        st.success(f"Cleared cache: {cache_dir.name}")
 
-    default_start = (ts - pd.Timedelta(hours=2)).to_pydatetime()
-    default_end = (ts + pd.Timedelta(hours=4)).to_pydatetime()
+    browse_start = ts - pd.Timedelta(hours=2)
+    browse_end = ts + pd.Timedelta(hours=4)
 
-    current_event_ts = ts.isoformat()
-    if st.session_state.get('nexrad_anim_event_ts') != current_event_ts:
-        st.session_state['nexrad_anim_start_date'] = default_start.date()
-        st.session_state['nexrad_anim_start_time'] = default_start.time()
-        st.session_state['nexrad_anim_end_date'] = default_end.date()
-        st.session_state['nexrad_anim_end_time'] = default_end.time()
-        st.session_state['nexrad_anim_event_ts'] = current_event_ts
-
-    c_start, c_end = st.columns(2)
-    with c_start:
-        st.markdown('Start time (UTC)')
-        cs_date, cs_time = st.columns(2)
-        start_date = cs_date.date_input('Date', value=default_start.date(), key='nexrad_anim_start_date')
-        start_time = cs_time.time_input('Time', value=default_start.time(), key='nexrad_anim_start_time')
-    with c_end:
-        st.markdown('End time (UTC)')
-        ce_date, ce_time = st.columns(2)
-        end_date = ce_date.date_input('Date', value=default_end.date(), key='nexrad_anim_end_date')
-        end_time = ce_time.time_input('Time', value=default_end.time(), key='nexrad_anim_end_time')
-
-    anim_start = datetime.combine(start_date, start_time)
-    anim_end = datetime.combine(end_date, end_time)
-
-    c_cad, c_fps, c_fmt, c_res = st.columns(4)
-    cadence_minutes = c_cad.slider('Cadence (min)', 5, 60, 30, key='nexrad_anim_cad')
-    fps = c_fps.slider('FPS', 1, 12, 3, key='nexrad_anim_fps')
-    out_fmt = c_fmt.selectbox('Format', ['gif', 'mp4'], key='nexrad_anim_fmt')
-    map_res = c_res.selectbox('Map resolution', ['10m', '50m', '110m'], index=1,
-                              key='nexrad_anim_res')
-
-    if st.button('Generate animation', use_container_width=True, key='nexrad_anim_generate'):
-        out_path = None
-        try:
-            source_key = st.session_state.get('selected_source_key', 'source') or 'source'
-            t0_str = pd.Timestamp(anim_start).strftime('%Y%m%d_%H%M')
-            t1_str = pd.Timestamp(anim_end).strftime('%Y%m%d_%H%M')
-            display_name = f'{source_key}_{t0_str}_{t1_str}.{out_fmt}'
-
-            with tempfile.NamedTemporaryFile(suffix=f'.{out_fmt}', delete=False) as tmp_file:
-                out_path = Path(tmp_file.name)
-
-            with st.spinner('Building NEXRAD animation...'):
-                animate_nexrad_reflectivity(
-                    start_time=anim_start,
-                    end_time=anim_end,
-                    output_path=out_path,
-                    radar_id='KVNX',
-                    radar_dir=_BASE_DIR / 'data' / 'nexrad_animation_cache',
-                    cadence_minutes=cadence_minutes,
-                    fps=fps,
-                    map_resolution=map_res,
-                    site_lat=marker_lat_val,
-                    site_lon=marker_lon_val,
-                    site_label=selected_site_label,
-                    show_site_label=True,
-                )
-
-            with open(out_path, 'rb') as f:
-                anim_bytes = f.read()
-
-            st.session_state['nexrad_anim_last'] = {
-                'name': display_name,
-                'format': out_fmt,
-                'bytes': anim_bytes,
-            }
-            st.success('Animation ready.')
-        except Exception as e:
-            st.error(f'Unable to create animation: {e}')
-            st.session_state.pop('nexrad_anim_last', None)
-        finally:
-            if out_path is not None:
-                out_path.unlink(missing_ok=True)
-
-    last_anim = st.session_state.get('nexrad_anim_last')
-    if last_anim:
-        anim_format = str(last_anim.get('format', '')).lower()
-        anim_bytes = last_anim.get('bytes')
-        anim_name = last_anim.get('name', f'nexrad_animation.{anim_format or "gif"}')
-
-        if anim_bytes:
-            if anim_format == 'mp4':
-                st.video(anim_bytes)
-                mime = 'video/mp4'
-            else:
-                st.image(anim_bytes, use_container_width=True)
-                mime = 'image/gif'
-
-            st.download_button(
-                'Download animation',
-                data=anim_bytes,
-                file_name=anim_name,
-                mime=mime,
-                use_container_width=True,
-                key='nexrad_anim_download',
-            )
-
-    st.markdown('---')
-    st.markdown('#### Reflectivity')
     try:
-        with st.spinner('Loading NEXRAD reflectivity...'):
-            nexrad_png = render_nexrad_png(
-                ts.isoformat(),
-                t_end.isoformat(),
-                marker_lat_val,
-                marker_lon_val,
-                selected_site_label,
-            )
-        st.image(nexrad_png, use_container_width=True)
+        scan_times = list_nexrad_scan_times(
+            browse_start.isoformat(), browse_end.isoformat(), radar_id='KVNX',
+        )
     except Exception as e:
-        st.error(f'Unable to load NEXRAD plot: {e}')
+        scan_times = []
+        st.error(f'Unable to list NEXRAD scans: {e}')
+
+    if not scan_times:
+        st.warning('No NEXRAD scans found for this window.')
+    else:
+        current_event_ts = ts.isoformat()
+        if st.session_state.get('nexrad_scan_event_ts') != current_event_ts:
+            nearest_idx = min(
+                range(len(scan_times)),
+                key=lambda i: abs(_as_utc(scan_times[i]) - _as_utc(ts)),
+            )
+            st.session_state['nexrad_scan_idx'] = nearest_idx
+            st.session_state['nexrad_scan_event_ts'] = current_event_ts
+
+        idx = st.session_state.get('nexrad_scan_idx', 0)
+        idx = max(0, min(idx, len(scan_times) - 1))
+
+        c_prev, c_label, c_next = st.columns([1, 3, 1])
+        if c_prev.button('< Prev', use_container_width=True, disabled=(idx <= 0), key='nexrad_scan_prev'):
+            st.session_state['nexrad_scan_idx'] = idx - 1
+            st.rerun()
+        if c_next.button('Next >', use_container_width=True, disabled=(idx >= len(scan_times) - 1), key='nexrad_scan_next'):
+            st.session_state['nexrad_scan_idx'] = idx + 1
+            st.rerun()
+
+        scan_time = _as_utc(scan_times[idx])
+        c_label.markdown(
+            f"<div style='text-align:center; padding-top:0.4em'>Scan {idx + 1} / {len(scan_times)} "
+            f"&nbsp;—&nbsp; {scan_time.strftime('%Y-%m-%d %H:%M UTC')}</div>",
+            unsafe_allow_html=True,
+        )
+
+        try:
+            with st.spinner('Loading NEXRAD reflectivity...'):
+                nexrad_png = render_nexrad_scan_png(
+                    scan_times[idx],
+                    marker_lat_val,
+                    marker_lon_val,
+                    selected_site_label,
+                )
+            st.image(nexrad_png, use_container_width=True)
+        except Exception as e:
+            st.error(f'Unable to load NEXRAD plot: {e}')
