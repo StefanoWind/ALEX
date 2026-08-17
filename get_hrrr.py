@@ -26,8 +26,13 @@ else:
 CFG = {'start':sdate,
        'end': edate,
         'freq':             '1h',
-        'fxx_fcst':         18,               # forecast lead (hours); 18h is the max for all HRRR cycles
-        'fcst_cycle_hours': list(range(24)),  # all cycles support fxx=18h → every hour is filled
+        # forecast leads (hours) to save. HRRRv4 [Dowell et al., 2022, Bull. Amer.
+        # Meteor. Soc.] runs every hour out to 18h, but only the 00/06/12/18z
+        # cycles are extended out to 48h — so fxx>18h is only available from
+        # those 4 cycles/day, not every hour.
+        'fxx_fcst':             [18, 24, 30, 36, 42, 48],
+        'fcst_cycle_hours':     list(range(24)),  # cycles with fxx<=18h forecasts (every hour)
+        'extended_cycle_hours': [0, 6, 12, 18],   # cycles with fxx>18h forecasts (extended runs only)
         'product':          'sfc',
         'lat_range':        [36.0, 36.5],   # AWAKEN domain — northern Oklahoma
         'lon_range':        [360-97.75, 360-97.25],
@@ -105,29 +110,35 @@ def _fetch_vars(dates: pd.DatetimeIndex, fxx: int, cfg: dict) -> dict:
 
 
 def fetch_chunk(dates: pd.DatetimeIndex, cfg: dict) -> xr.Dataset | None:
-    fcst_h = cfg['fxx_fcst']
-
     # ── Analysis (fxx=0, all dates) ──────────────────────────────────────────
     anl_arrays = _fetch_vars(dates, 0, cfg)
     if not anl_arrays:
         return None
     ds_anl = _subset(xr.Dataset(anl_arrays), cfg['lat_range'], cfg['lon_range'])
 
-    # ── Forecast (fxx=fcst_h) ────────────────────────────────────────────────
+    # ── Forecasts (fxx=fcst_h, for each requested lead) ─────────────────────
     # Back-compute cycle times from target valid times so that cycle + fcst_h = valid.
-    # With fxx=18h and all 24 cycle hours included, every hourly slot is covered.
-    target_valid = dates[np.isin(dates.hour, cfg['fcst_cycle_hours'])]
-    if len(target_valid) > 0:
+    # fxx<=18h is filled from every cycle; fxx>18h only from the extended cycles
+    # (see 'extended_cycle_hours'), so those slots are sparser (every 6h).
+    ds_list = [ds_anl]
+    for fcst_h in cfg['fxx_fcst']:
+        cycle_hours = (cfg['fcst_cycle_hours'] if fcst_h <= 18
+                       else cfg['extended_cycle_hours'])
+        target_valid = dates[np.isin(dates.hour, cycle_hours)]
+        if len(target_valid) == 0:
+            continue
         fcst_cycles = target_valid - pd.Timedelta(hours=fcst_h)
         fcst_arrays = _fetch_vars(fcst_cycles, fcst_h, cfg)
-        if fcst_arrays:
-            ds_fcst_sub = _subset(xr.Dataset(fcst_arrays), cfg['lat_range'], cfg['lon_range'])
-            # reindex to guard against any edge-case timestamp mismatch
-            ds_fcst = ds_fcst_sub.reindex(time=ds_anl.time)
-            ds_fcst = ds_fcst.rename({v: f'{v}_f{fcst_h}' for v in ds_fcst.data_vars})
-            return xr.merge([ds_anl, ds_fcst], compat='override')
+        if not fcst_arrays:
+            continue
+        ds_fcst_sub = _subset(xr.Dataset(fcst_arrays), cfg['lat_range'], cfg['lon_range'])
+        # reindex to guard against any edge-case timestamp mismatch; leaves NaN
+        # on hours the extended-only cycles don't cover
+        ds_fcst = ds_fcst_sub.reindex(time=ds_anl.time)
+        ds_fcst = ds_fcst.rename({v: f'{v}_f{fcst_h}' for v in ds_fcst.data_vars})
+        ds_list.append(ds_fcst)
 
-    return ds_anl
+    return xr.merge(ds_list, compat='override')
 
 
 def _run_chunk(args: tuple) -> tuple:
@@ -154,7 +165,9 @@ if __name__ == '__main__':
     print(f"Date range : {dates[0]} → {dates[-1]}  ({len(dates)} hours)")
     print(f"Variables  : {list(CFG['variables'].keys())}")
     print(f"Domain     : lat={CFG['lat_range']}, lon={CFG['lon_range']}")
-    print(f"Forecast   : fxx={CFG['fxx_fcst']}h from {CFG['fcst_cycle_hours']}z cycles only")
+    print(f"Forecast   : fxx={CFG['fxx_fcst']}h; "
+          f"<=18h from {CFG['fcst_cycle_hours']}z cycles, "
+          f">18h from {CFG['extended_cycle_hours']}z cycles only")
 
     for (year, month), indexed_chunks in sorted(monthly_chunks.items()):
         out_path = Path(CFG['output'].format(year=year, month=month))
