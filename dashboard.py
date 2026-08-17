@@ -7,6 +7,7 @@ import re
 import io
 import shutil
 import tempfile
+from datetime import datetime
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -1011,26 +1012,31 @@ if view == 'nexrad':
 
     current_event_ts = ts.isoformat()
     if st.session_state.get('nexrad_anim_event_ts') != current_event_ts:
-        st.session_state['nexrad_anim_start'] = default_start
-        st.session_state['nexrad_anim_end'] = default_end
+        st.session_state['nexrad_anim_start_date'] = default_start.date()
+        st.session_state['nexrad_anim_start_time'] = default_start.time()
+        st.session_state['nexrad_anim_end_date'] = default_end.date()
+        st.session_state['nexrad_anim_end_time'] = default_end.time()
         st.session_state['nexrad_anim_event_ts'] = current_event_ts
 
     c_start, c_end = st.columns(2)
-    anim_start = c_start.datetime_input(
-        'Start time (UTC)',
-        value=default_start,
-        key='nexrad_anim_start',
-    )
-    anim_end = c_end.datetime_input(
-        'End time (UTC)',
-        value=default_end,
-        key='nexrad_anim_end',
-    )
+    with c_start:
+        st.markdown('Start time (UTC)')
+        cs_date, cs_time = st.columns(2)
+        start_date = cs_date.date_input('Date', value=default_start.date(), key='nexrad_anim_start_date')
+        start_time = cs_time.time_input('Time', value=default_start.time(), key='nexrad_anim_start_time')
+    with c_end:
+        st.markdown('End time (UTC)')
+        ce_date, ce_time = st.columns(2)
+        end_date = ce_date.date_input('Date', value=default_end.date(), key='nexrad_anim_end_date')
+        end_time = ce_time.time_input('Time', value=default_end.time(), key='nexrad_anim_end_time')
+
+    anim_start = datetime.combine(start_date, start_time)
+    anim_end = datetime.combine(end_date, end_time)
 
     c_cad, c_fps, c_fmt, c_res = st.columns(4)
     cadence_minutes = c_cad.slider('Cadence (min)', 5, 60, 30, key='nexrad_anim_cad')
     fps = c_fps.slider('FPS', 1, 12, 3, key='nexrad_anim_fps')
-    out_fmt = c_fmt.selectbox('Format', ['mp4', 'gif'], key='nexrad_anim_fmt')
+    out_fmt = c_fmt.selectbox('Format', ['gif', 'mp4'], key='nexrad_anim_fmt')
     map_res = c_res.selectbox('Map resolution', ['10m', '50m', '110m'], index=1,
                               key='nexrad_anim_res')
 

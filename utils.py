@@ -1182,6 +1182,45 @@ def download_nexrad_scans_in_range(start_time,
     return [Path(p) for p in paths]
 
 
+def _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat, margin=1.15):
+    """Drop gates beyond the range needed to cover a lat/lon bbox, shrinking the plotted mesh.
+
+    plot_ppi_map reprojects and rasterizes every gate out to the radar's full
+    unambiguous range even though only gates inside the map extent are visible,
+    so this cuts render time roughly in proportion to the gate count removed.
+    """
+    lat0 = float(radar.latitude['data'][0])
+    lon0 = float(radar.longitude['data'][0])
+
+    corner_lats = [min_lat, min_lat, max_lat, max_lat]
+    corner_lons = [min_lon, max_lon, min_lon, max_lon]
+
+    R = 6371000.0
+    lat0_r = np.radians(lat0)
+    lon0_r = np.radians(lon0)
+    dists = []
+    for lat, lon in zip(corner_lats, corner_lons):
+        lat_r = np.radians(lat)
+        lon_r = np.radians(lon)
+        dlat = lat_r - lat0_r
+        dlon = lon_r - lon0_r
+        a = np.sin(dlat / 2) ** 2 + np.cos(lat0_r) * np.cos(lat_r) * np.sin(dlon / 2) ** 2
+        dists.append(2 * R * np.arcsin(np.sqrt(a)))
+    max_range_m = max(dists) * margin
+
+    range_data = radar.range['data']
+    n_gates_keep = int(np.searchsorted(range_data, max_range_m)) + 1
+    n_gates_keep = max(1, min(n_gates_keep, radar.ngates))
+    if n_gates_keep >= radar.ngates:
+        return radar
+
+    radar.range['data'] = range_data[:n_gates_keep]
+    radar.ngates = n_gates_keep
+    for fdict in radar.fields.values():
+        fdict['data'] = fdict['data'][:, :n_gates_keep]
+    return radar
+
+
 def animate_nexrad_reflectivity(start_time,
                                 end_time,
                                 output_path: str | Path,
@@ -1232,6 +1271,7 @@ def animate_nexrad_reflectivity(start_time,
             fig.clf()
             plt.figure(fig.number)
             radar = pyart.io.read_nexrad_archive(frame_paths[frame_idx])
+            radar = _crop_radar_range_to_bbox(radar, min_lon, max_lon, min_lat, max_lat)
             display = pyart.graph.RadarMapDisplay(radar)
             display.plot_ppi_map(
                 "reflectivity",

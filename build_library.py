@@ -53,7 +53,7 @@ if not source_clim:
     print('No climatology file selected. Exiting.')
     sys.exit()
 
-AVAIL_FILE = Path(__file__).parent / 'data' / 'awaken_data_availability.csv'
+AVAIL_DIR = Path(__file__).parent / 'data' / 'awaken_data_availability'
 
 #%% Turbine locations (shared across all sites)
 turbine_df = load_turbine_points(Path(__file__).parent / 'map_data')
@@ -292,12 +292,14 @@ for source_data in source_data_files:
                 rmse_df.loc[t, f'rmse_{v}'] = float(np.sqrt(((both['h'] - both['m'])**2).mean()))
 
     #%% WDH data availability
-    avail_raw = pd.read_csv(AVAIL_FILE) if AVAIL_FILE.exists() else pd.DataFrame(columns=['channel', 'date_time'])
+    avail_files = sorted(AVAIL_DIR.glob('*.csv')) if AVAIL_DIR.exists() else []
+    avail_raw = (pd.concat([pd.read_csv(f) for f in avail_files], ignore_index=True)
+                 if avail_files else pd.DataFrame(columns=['channel', 'date_time']))
     channels = avail_raw['channel'].unique().tolist() if not avail_raw.empty else []
     avail = pd.DataFrame(False, index=probs.index, columns=channels, dtype=bool)
 
     if avail_raw.empty:
-        print(f"Warning: {AVAIL_FILE} not found — run awaken_data_availability.py first")
+        print(f"Warning: {AVAIL_DIR} not found or empty — run awaken_data_availability.py first")
     else:
         avail_raw['date_time'] = pd.to_datetime(avail_raw['date_time'],
                                                  format='%Y%m%d%H%M%S', errors='coerce')
