@@ -70,6 +70,14 @@ def _read_attr(ds, keys, default=np.nan):
     return default
 
 
+def _strip_fcst_sfx(v, sfxs):
+    """Map a possibly-forecast column name back to its base (analysis) name."""
+    for sfx in sfxs:
+        if v.endswith(sfx):
+            return v[:-len(sfx)]
+    return v
+
+
 def _extract_wdir_series(ds):
     """Return wind direction as a time-indexed Series for dashboard plotting."""
     for var_name in ('wdir', 'wind_direction'):
@@ -94,16 +102,15 @@ cfg = predictor.cfg
 #%% Load HRRR grid (shared across all sites; nearest point is extracted per site below)
 _hrrr_files = sorted((Path(__file__).parent / 'data' / 'hrrr').glob('*.nc'))
 ds_hrrr = None
-_fcst_sfx = None
+_fcst_sfxs = []
 if _hrrr_files:
     ds_hrrr = xr.open_mfdataset(_hrrr_files, combine='nested', concat_dim='time',
                                   coords='minimal', compat='override')
 
-    for _hv in ds_hrrr.data_vars:
-        _m = re.search(r'(_f\d+)$', _hv)
-        if _m:
-            _fcst_sfx = _m.group(1)
-            break
+    _fcst_sfxs = sorted(
+        {_m.group(1) for _hv in ds_hrrr.data_vars for _m in [re.search(r'(_f\d+)$', _hv)] if _m},
+        key=lambda s: int(s[2:]),
+    )
 
     # Unit conversions — analysis
     ds_hrrr['wspd'] = (ds_hrrr['u10']**2 + ds_hrrr['v10']**2)**0.5
@@ -111,8 +118,8 @@ if _hrrr_files:
     ds_hrrr['pres'] = ds_hrrr['pres'] / 100        # Pa → hPa
     ds_hrrr['tair'] = ds_hrrr['tair'] - 273.15     # K → °C
 
-    # Unit conversions — forecast
-    if _fcst_sfx:
+    # Unit conversions — forecast (every horizon)
+    for _fcst_sfx in _fcst_sfxs:
         if f'u10{_fcst_sfx}' in ds_hrrr and f'v10{_fcst_sfx}' in ds_hrrr:
             ds_hrrr[f'wspd{_fcst_sfx}'] = (ds_hrrr[f'u10{_fcst_sfx}']**2
                                             + ds_hrrr[f'v10{_fcst_sfx}']**2) ** 0.5
@@ -126,8 +133,7 @@ if _hrrr_files:
 
     _anl_base = ('wspd', 'wdir', 'pres', 'srad', 'relh', 'tair', 'gust', 'prate')
     _anl_vars = [v for v in _anl_base if v in ds_hrrr]
-    _fct_vars = ([f'{v}{_fcst_sfx}' for v in _anl_vars if f'{v}{_fcst_sfx}' in ds_hrrr]
-                 if _fcst_sfx else [])
+    _fct_vars = [f'{v}{sfx}' for sfx in _fcst_sfxs for v in _anl_vars if f'{v}{sfx}' in ds_hrrr]
     _hrrr_keep = _anl_vars + _fct_vars
     _lat2d = ds_hrrr['latitude'].values
     _lon2d = ds_hrrr['longitude'].values
@@ -168,7 +174,7 @@ for source_data in source_data_files:
         _meso_h_bias.index = df_qc.index + pd.Timedelta(minutes=7.5)
         _meso_h_bias = _meso_h_bias.resample('1h').nearest()
         for v in hrrr_pt.columns:
-            met_v = v[:-len(_fcst_sfx)] if (_fcst_sfx and v.endswith(_fcst_sfx)) else v
+            met_v = _strip_fcst_sfx(v, _fcst_sfxs)
             if met_v not in _meso_h_bias.columns:
                 continue
             _both = pd.concat([hrrr_pt[v].rename('h'), _meso_h_bias[met_v].rename('m')],
@@ -269,8 +275,7 @@ for source_data in source_data_files:
     #%% HRRR–mesonet RMSE per event window
     _RMSE_VARS = ('wspd', 'pres', 'srad', 'relh', 'tair')
     _anl_rmse  = [v for v in _RMSE_VARS if not hrrr_pt.empty and v in hrrr_pt.columns and v in df_qc.columns]
-    _fct_rmse  = ([f'{v}{_fcst_sfx}' for v in _anl_rmse if f'{v}{_fcst_sfx}' in hrrr_pt.columns]
-                  if _fcst_sfx else [])
+    _fct_rmse  = [f'{v}{sfx}' for sfx in _fcst_sfxs for v in _anl_rmse if f'{v}{sfx}' in hrrr_pt.columns]
     _all_rmse  = _anl_rmse + _fct_rmse
     rmse_df = pd.DataFrame({f'rmse_{v}': np.nan for v in _all_rmse},
                            index=probs.index, dtype=float)
@@ -284,7 +289,7 @@ for source_data in source_data_files:
             hrrr_w  = hrrr_pt.loc[w_start:w_end]
             met_w   = _meso_shifted.loc[w_start:w_end].resample('1h').nearest()
             for v in _all_rmse:
-                met_v = v[:-len(_fcst_sfx)] if (_fcst_sfx and v.endswith(_fcst_sfx)) else v
+                met_v = _strip_fcst_sfx(v, _fcst_sfxs)
                 both = pd.concat([hrrr_w[v].rename('h'), met_w[met_v].rename('m')],
                                  axis=1).dropna()
                 if len(both) < 2:
@@ -292,7 +297,13 @@ for source_data in source_data_files:
                 rmse_df.loc[t, f'rmse_{v}'] = float(np.sqrt(((both['h'] - both['m'])**2).mean()))
 
     #%% WDH data availability
-    avail_files = sorted(AVAIL_DIR.glob('*.csv')) if AVAIL_DIR.exists() else []
+    # Channels still mid-collection (or never found) leave a 0-byte file rather than a
+    # header-only one — skip those here instead of letting pd.read_csv raise on them.
+    _all_avail_files = sorted(AVAIL_DIR.glob('*.csv')) if AVAIL_DIR.exists() else []
+    avail_files = [f for f in _all_avail_files if f.stat().st_size > 0]
+    if len(avail_files) < len(_all_avail_files):
+        print(f"Warning: skipped {len(_all_avail_files) - len(avail_files)} empty/incomplete "
+              f"availability files in {AVAIL_DIR} (run awaken_data_availability.py to fill them)")
     avail_raw = (pd.concat([pd.read_csv(f) for f in avail_files], ignore_index=True)
                  if avail_files else pd.DataFrame(columns=['channel', 'date_time']))
     channels = avail_raw['channel'].unique().tolist() if not avail_raw.empty else []

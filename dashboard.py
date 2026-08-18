@@ -237,15 +237,13 @@ def load(path: str, file_sig: float = 0.0):
     except Exception:
         df_hrrr = pd.DataFrame()
 
-    fcst_sfx = None
-    for col in df_hrrr.columns:
-        m = re.search(r'(_f\d+)$', col)
-        if m:
-            fcst_sfx = m.group(1)
-            break
+    fcst_sfxs = sorted(
+        {m.group(1) for col in df_hrrr.columns for m in [re.search(r'(_f\d+)$', col)] if m},
+        key=lambda s: int(s[2:]),
+    )
 
     return (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
-            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx, lat_meta, lon_meta)
+            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfxs, lat_meta, lon_meta)
 
 
 def _file_mtime(path: str):
@@ -534,7 +532,7 @@ if st.session_state.prev_source_key != st.session_state.selected_source_key:
 
 try:
     (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
-    shap_base, outage_threshold, df_data, df_hrrr, fcst_sfx,
+    shap_base, outage_threshold, df_data, df_hrrr, fcst_sfxs,
     lat_meta, lon_meta) = load(path, file_sig=_file_mtime(path))
 except FileNotFoundError:
     st.error(f'File not found: {path}')
@@ -545,6 +543,19 @@ except Exception as e:
 
 out_mask = df['peak_customers_out'].notna()
 out_df   = df[out_mask]
+
+# ── Sidebar: HRRR forecast horizon ─────────────────────────────────────────────
+
+st.sidebar.header('HRRR forecast horizon')
+if fcst_sfxs:
+    selected_horizon = st.sidebar.selectbox(
+        'Lead time', fcst_sfxs,
+        format_func=lambda s: f'+{s[2:]}h',
+        help='Used for the time series overlay and for the RMSE column shown in the event table.',
+    )
+else:
+    selected_horizon = None
+    st.sidebar.caption('No HRRR forecast data in this library.')
 
 # ── Sidebar: filters ──────────────────────────────────────────────────────────
 
@@ -771,10 +782,16 @@ _highlight_ts = _pending_cdata or st.session_state.get('sel_ts')
 
 # ── Event table ───────────────────────────────────────────────────────────────
 
-table_cols = ['outage_probability'] + stat_cols + rmse_cols
+# Show analysis RMSE always; forecast RMSE only for the horizon selected in the sidebar.
+rmse_cols_shown = [
+    c for c in rmse_cols
+    if not re.search(r'_f\d+$', c) or (selected_horizon and c.endswith(selected_horizon))
+]
+
+table_cols = ['outage_probability'] + stat_cols + rmse_cols_shown
 fmt        = {c: '{:.3f}' for c in ['outage_probability', 'duration_h', 'auc_customer_h']}
 fmt['peak_customers_out'] = '{:.0f}'
-for _rc in rmse_cols:
+for _rc in rmse_cols_shown:
     fmt[_rc] = '{:.3f}'
 
 
@@ -932,7 +949,7 @@ if view == 'ts':
     t1_plot  = t_end + buffer_h
 
     if not df_hrrr.empty:
-        fcst_lead = fcst_sfx[2:] if fcst_sfx else None   # '18' from '_f18'
+        fcst_lead = selected_horizon[2:] if selected_horizon else None   # '18' from '_f18'
 
         for i, col in enumerate(pred_names_ts):
             ax = fig.axes[i]
@@ -940,8 +957,8 @@ if view == 'ts':
                 hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
                 ax.scatter(hw.index, hw.values, color='firebrick', s=14,
                            zorder=3, alpha=0.85, label='HRRR anl')
-            if fcst_sfx:
-                hrrr_fcol = f'{col}{fcst_sfx}'
+            if selected_horizon:
+                hrrr_fcol = f'{col}{selected_horizon}'
                 if hrrr_fcol in df_hrrr.columns:
                     hw = df_hrrr[hrrr_fcol].loc[t0_plot:t1_plot].dropna()
                     ax.scatter(hw.index, hw.values, color='darkorange', s=14,
