@@ -6,6 +6,7 @@ Run with: streamlit run dashboard.py
 import re
 import io
 import shutil
+import threading
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -30,6 +31,8 @@ from utils import (
     download_plot_nexrad,
     list_nexrad_scans_in_range,
     _VAR_LABELS,
+    _get_nexrad_conn,
+    _resolve_or_bulk_download_scans,
 )
 
 matplotlib.rcParams['font.family'] = 'serif'
@@ -237,13 +240,19 @@ def load(path: str, file_sig: float = 0.0):
     except Exception:
         df_hrrr = pd.DataFrame()
 
+    try:
+        df_avail = pd.read_excel(path, sheet_name='wdh_avail', index_col=0)
+        df_avail.index = pd.to_datetime(df_avail.index)
+    except Exception:
+        df_avail = pd.DataFrame()
+
     fcst_sfxs = sorted(
         {m.group(1) for col in df_hrrr.columns for m in [re.search(r'(_f\d+)$', col)] if m},
         key=lambda s: int(s[2:]),
     )
 
     return (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
-            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfxs, lat_meta, lon_meta)
+            shap_base, outage_threshold, df_data, df_hrrr, fcst_sfxs, df_avail, lat_meta, lon_meta)
 
 
 def _file_mtime(path: str):
@@ -265,6 +274,32 @@ def list_nexrad_scan_times(start_iso: str, end_iso: str, radar_id: str = 'KVNX')
         pd.Timestamp(start_iso), pd.Timestamp(end_iso), radar_id=radar_id, cadence_minutes=None,
     )
     return [pd.Timestamp(s.scan_time).isoformat() for s in scans]
+
+
+def _prefetch_nearest_nexrad_scans(event_ts_iso: str, radar_dir: Path, radar_id: str = 'KVNX', n: int = 5):
+    """
+    Background download of the n NEXRAD scans nearest the event window center.
+    Runs in a plain thread (not st.cache_data — that ties to the Streamlit
+    script-run context, which doesn't exist off the main thread) and only
+    touches pure I/O helpers, so it's safe to overlap with the main script.
+    Populates utils._DOWNLOADED_SCAN_PATHS, which render_nexrad_scan_png's
+    download_plot_nexrad call also consults, so a later click on the NEXRAD
+    view finds the files already local.
+    """
+    try:
+        t_center = pd.Timestamp(event_ts_iso)
+        browse_start = t_center - pd.Timedelta(hours=2)
+        browse_end = t_center + pd.Timedelta(hours=4)
+        scans = list_nexrad_scans_in_range(
+            browse_start, browse_end, radar_id=radar_id, cadence_minutes=None,
+        )
+        if not scans:
+            return
+        nearest = sorted(scans, key=lambda s: abs(_as_utc(s.scan_time) - _as_utc(t_center)))[:n]
+        conn = _get_nexrad_conn()
+        _resolve_or_bulk_download_scans(nearest, Path(radar_dir), conn)
+    except Exception:
+        pass  # best-effort warmup; failures surface normally when the user opens NEXRAD
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -532,7 +567,7 @@ if st.session_state.prev_source_key != st.session_state.selected_source_key:
 
 try:
     (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
-    shap_base, outage_threshold, df_data, df_hrrr, fcst_sfxs,
+    shap_base, outage_threshold, df_data, df_hrrr, fcst_sfxs, df_avail,
     lat_meta, lon_meta) = load(path, file_sig=_file_mtime(path))
 except FileNotFoundError:
     st.error(f'File not found: {path}')
@@ -544,18 +579,19 @@ except Exception as e:
 out_mask = df['peak_customers_out'].notna()
 out_df   = df[out_mask]
 
-# ── Sidebar: HRRR forecast horizon ─────────────────────────────────────────────
+# ── Sidebar: HRRR horizon ───────────────────────────────────────────────────────
 
-st.sidebar.header('HRRR forecast horizon')
-if fcst_sfxs:
+st.sidebar.header('HRRR horizon')
+if not df_hrrr.empty:
+    horizon_opts = ['anl'] + fcst_sfxs
     selected_horizon = st.sidebar.selectbox(
-        'Lead time', fcst_sfxs,
-        format_func=lambda s: f'+{s[2:]}h',
+        'Horizon', horizon_opts,
+        format_func=lambda s: 'Analysis' if s == 'anl' else f'+{s[2:]}h forecast',
         help='Used for the time series overlay and for the RMSE column shown in the event table.',
     )
 else:
     selected_horizon = None
-    st.sidebar.caption('No HRRR forecast data in this library.')
+    st.sidebar.caption('No HRRR data in this library.')
 
 # ── Sidebar: filters ──────────────────────────────────────────────────────────
 
@@ -782,11 +818,13 @@ _highlight_ts = _pending_cdata or st.session_state.get('sel_ts')
 
 # ── Event table ───────────────────────────────────────────────────────────────
 
-# Show analysis RMSE always; forecast RMSE only for the horizon selected in the sidebar.
-rmse_cols_shown = [
-    c for c in rmse_cols
-    if not re.search(r'_f\d+$', c) or (selected_horizon and c.endswith(selected_horizon))
-]
+# Show only the RMSE columns for the horizon selected in the sidebar (analysis or one forecast lead).
+if selected_horizon == 'anl':
+    rmse_cols_shown = [c for c in rmse_cols if not re.search(r'_f\d+$', c)]
+elif selected_horizon:
+    rmse_cols_shown = [c for c in rmse_cols if c.endswith(selected_horizon)]
+else:
+    rmse_cols_shown = []
 
 table_cols = ['outage_probability'] + stat_cols + rmse_cols_shown
 fmt        = {c: '{:.3f}' for c in ['outage_probability', 'duration_h', 'auc_customer_h']}
@@ -874,18 +912,34 @@ if row is None:
 
 st.subheader(f'Event: {ts.strftime("%Y-%m-%d %H:%M")}')
 
+# Warm the NEXRAD cache for this event as soon as it's selected, before the user
+# clicks NEXRAD. Streamlit reruns the whole script on every interaction, so a
+# per-event session_state flag keeps this from re-launching a thread each rerun.
+_prefetch_flag = f'nexrad_prefetched_{ts.isoformat()}'
+if not st.session_state.get(_prefetch_flag):
+    st.session_state[_prefetch_flag] = True
+    threading.Thread(
+        target=_prefetch_nearest_nexrad_scans,
+        args=(ts.isoformat(), _BASE_DIR / 'data' / 'nexrad_cache'),
+        daemon=True,
+    ).start()
+
 # ── Time series / SHAP / NEXRAD buttons ────────────────────────────────────────────────
 
 if 'view' not in st.session_state:
     st.session_state['view'] = None
 
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4, c5 = st.columns(5)
 if c1.button('Time series', use_container_width=True):
     st.session_state['view'] = 'ts'
 if c2.button('SHAP', use_container_width=True, disabled=not HAS_SHAP):
     st.session_state['view'] = 'shap'
 if c3.button('NEXRAD', use_container_width=True):
     st.session_state['view'] = 'nexrad'
+if c4.button('AWAKEN Data', use_container_width=True):
+    st.session_state['view'] = 'awaken'
+if c5.button('Histograms', use_container_width=True):
+    st.session_state['view'] = 'hist'
 
 view = st.session_state['view']
 if view is None:
@@ -898,11 +952,10 @@ if view == 'ts':
         re.split(r'_(mean|std|grad)', c)[0] for c in feat_cols
     ))
     available_preds = [c for c in pred_names if c in df_data.columns and c != 'customers_out']
-    if 'wdir' in df_data.columns and 'wdir' not in available_preds:
-        available_preds.append('wdir')
+    # wdir isn't its own panel — it's overlaid as arrows on the wind-speed panel below.
 
     # Requested panel order (top to bottom), then any remaining predictors.
-    preferred_order = ['wspd', 'wdir', 'aavi', 'tair', 'relh', 'pres']
+    preferred_order = ['wspd', 'aavi', 'tair', 'relh', 'pres']
     pred_names_ts = [c for c in preferred_order if c in available_preds]
     pred_names_ts += [c for c in available_preds if c not in pred_names_ts]
     w_match = re.search(r'_W(\d+)', feat_cols[0]) if feat_cols else None
@@ -937,27 +990,22 @@ if view == 'ts':
         ax.set_facecolor('white')
     fig.axes[-1].set_ylabel('Customers out of power', fontsize=9)
 
-    if 'wdir' in pred_names_ts:
-        ax_wdir = fig.axes[pred_names_ts.index('wdir')]
-        ax_wdir.set_ylim(0, 360)
-        ax_wdir.set_yticks([0, 90, 180, 270, 360])
-        ax_wdir.set_yticklabels(['N (0°)', 'E (90°)', 'S (180°)', 'W (270°)', 'N (360°)'])
-        ax_wdir.set_ylabel('Wind direction', fontsize=9)
-
     buffer_h = pd.Timedelta(hours=config_ts['episode_buffer_hours'])
     t0_plot  = ts - buffer_h
     t1_plot  = t_end + buffer_h
 
-    if not df_hrrr.empty:
-        fcst_lead = selected_horizon[2:] if selected_horizon else None   # '18' from '_f18'
+    if not df_hrrr.empty and selected_horizon:
+        is_anl = selected_horizon == 'anl'
+        fcst_lead = None if is_anl else selected_horizon[2:]   # '18' from '_f18'
 
         for i, col in enumerate(pred_names_ts):
             ax = fig.axes[i]
-            if col in df_hrrr.columns:
-                hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
-                ax.scatter(hw.index, hw.values, color='firebrick', s=14,
-                           zorder=3, alpha=0.85, label='HRRR anl')
-            if selected_horizon:
+            if is_anl:
+                if col in df_hrrr.columns:
+                    hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
+                    ax.scatter(hw.index, hw.values, color='firebrick', s=14,
+                               zorder=3, alpha=0.85, label='HRRR anl')
+            else:
                 hrrr_fcol = f'{col}{selected_horizon}'
                 if hrrr_fcol in df_hrrr.columns:
                     hw = df_hrrr[hrrr_fcol].loc[t0_plot:t1_plot].dropna()
@@ -969,6 +1017,31 @@ if view == 'ts':
         ax0 = fig.axes[0]
         h, l = ax0.get_legend_handles_labels()
         ax0.legend(h, l, loc='upper left', fontsize=9, framealpha=0.7)
+
+    # Wind direction as small arrows on top of the wind-speed panel, rather than
+    # its own panel — direction only matters in the context of speed/timing.
+    wspd_col = next((c for c in ('wspd', 'aavi') if c in pred_names_ts), None)
+    if wspd_col is not None and 'wdir' in df_raw_ts.columns:
+        ax_wspd = fig.axes[pred_names_ts.index(wspd_col)]
+        wdir_win = df_raw_ts['wdir'].loc[t0_plot:t1_plot].dropna()
+        wspd_win = df_raw_ts[wspd_col].loc[t0_plot:t1_plot]
+
+        n_arrows = 24
+        step = max(1, len(wdir_win) // n_arrows)
+        wdir_sub = wdir_win.iloc[::step]
+        # Anchor each arrow to the wind-speed value at the same time (nan → skip).
+        y_sub = wspd_win.reindex(wdir_sub.index, method='nearest', tolerance=pd.Timedelta(minutes=30))
+        valid = y_sub.notna()
+        wdir_sub, y_sub = wdir_sub[valid], y_sub[valid]
+
+        if not wdir_sub.empty:
+            theta = np.radians(wdir_sub.values)
+            u, v = -np.sin(theta), -np.cos(theta)   # points where the wind is blowing toward
+            ax_wspd.quiver(
+                wdir_sub.index, y_sub.values, u, v,
+                angles='uv', scale_units='inches', scale=6, width=0.004,
+                pivot='mid', color='black', alpha=0.8, zorder=5,
+            )
 
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
@@ -1074,3 +1147,95 @@ if view == 'nexrad':
             st.image(nexrad_png, use_container_width=True)
         except Exception as e:
             st.error(f'Unable to load NEXRAD plot: {e}')
+
+# ── AWAKEN data availability ────────────────────────────────────────────────────
+
+if view == 'awaken':
+    st.markdown('#### AWAKEN channels available in this event window')
+
+    if df_avail.empty:
+        st.warning("No 'wdh_avail' sheet found in this library — run build_library.py "
+                   "with awaken_data_availability.py output present.")
+    elif ts not in df_avail.index:
+        st.warning('No availability record for this event window.')
+    else:
+        avail_row = df_avail.loc[ts].fillna(False).astype(bool)
+        avail_channels = sorted(avail_row.index[avail_row].tolist())
+        st.caption(f'{len(avail_channels)} / {len(avail_row)} channels available.')
+
+        if avail_channels:
+            def _split_channel(ch):
+                parts = ch.split('/')[-1].split('.')
+                site, level, zid = parts[0], parts[-1], parts[-2]
+                instrument = '.'.join(parts[1:-2])
+                return site, instrument, zid, level
+
+            rows = [dict(zip(['site', 'instrument', 'zid', 'level'], _split_channel(ch)),
+                         channel=ch)
+                    for ch in avail_channels]
+            st.dataframe(
+                pd.DataFrame(rows)[['site', 'instrument', 'zid', 'level', 'channel']],
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.info('No AWAKEN channels flagged available for this event window.')
+
+# ── Feature histograms ──────────────────────────────────────────────────────────
+
+if view == 'hist':
+    st.markdown('#### Feature distributions — event window vs. full dataset')
+
+    _HIST_VARS = ['wspd', 'aavi', 'pres', 'relh']
+    hist_vars = [v for v in _HIST_VARS if v in df_data.columns]
+
+    if not hist_vars:
+        st.warning('None of the expected weather features (wind speed, wind variability '
+                   'index, pressure, relative humidity) are present in this library.')
+    else:
+        w_match = re.search(r'_W(\d+)', feat_cols[0]) if feat_cols else None
+        w_total = int(w_match.group(1)) if w_match else 16
+        pre_w = post_w = w_total // 2
+        dt = df_data.index.to_series().diff().median()
+        w_start = ts - pre_w * dt
+        w_end   = ts + post_w * dt
+        st.caption(f'Event window: {w_start.strftime("%Y-%m-%d %H:%M")} to '
+                  f'{w_end.strftime("%Y-%m-%d %H:%M")}')
+
+        ncols = 2
+        nrows = (len(hist_vars) + ncols - 1) // ncols
+        with plt.style.context('default'):
+            fig, axes = plt.subplots(nrows, ncols, figsize=(10, 3.2 * nrows), squeeze=False)
+        axes_flat = axes.ravel()
+
+        for ax, var in zip(axes_flat, hist_vars):
+            full_vals = df_data[var].dropna()
+            ax.hist(full_vals, bins=40, color='steelblue', alpha=0.8)
+
+            win_vals = df_data[var][(df_data.index >= w_start) & (df_data.index < w_end)].dropna()
+            if not win_vals.empty:
+                lo, hi = float(win_vals.min()), float(win_vals.max())
+                if lo == hi:
+                    span = float(full_vals.max() - full_vals.min())
+                    pad = span * 0.01 if span > 0 else 0.5
+                    lo, hi = lo - pad, hi + pad
+                ax.axvspan(lo, hi, color='red', alpha=0.3, zorder=3)
+                ax.axvline(float(win_vals.mean()), color='red', linewidth=1.5, zorder=4)
+
+            ax.set_xlabel(_VAR_LABELS.get(var, var), fontsize=9)
+            ax.set_ylabel('Count', fontsize=9)
+            ax.grid(alpha=0.3)
+
+        for ax in axes_flat[len(hist_vars):]:
+            ax.set_visible(False)
+
+        legend_patch = plt.Rectangle((0, 0), 1, 1, color='red', alpha=0.3)
+        fig.legend([legend_patch], ['Event window range'], loc='upper right', fontsize=9)
+        fig.suptitle(f'Event: {ts.strftime("%Y-%m-%d %H:%M")}', fontsize=11)
+        fig.tight_layout(rect=(0, 0, 1, 0.96))
+
+        fig.patch.set_facecolor('white')
+        for ax in fig.axes:
+            ax.set_facecolor('white')
+
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)

@@ -54,9 +54,10 @@ if not source_clim:
     sys.exit()
 
 AVAIL_DIR = Path(__file__).parent / 'data' / 'awaken_data_availability'
+MAP_DIR = Path(__file__).parent / 'data' / 'maps'
 
 #%% Turbine locations (shared across all sites)
-turbine_df = load_turbine_points(Path(__file__).parent / 'map_data')
+turbine_df = load_turbine_points(MAP_DIR)
 print(f"Turbine locations: {len(turbine_df)} turbines across {turbine_df['farm'].nunique() if not turbine_df.empty else 0} farms")
 
 
@@ -316,10 +317,17 @@ for source_data in source_data_files:
                                                  format='%Y%m%d%H%M%S', errors='coerce')
         ch_timestamps = {ch: pd.DatetimeIndex(grp['date_time'].dropna())
                          for ch, grp in avail_raw.groupby('channel')}
+        # Each flag marks an hour-long coverage bucket [ts, ts+1h), not an instant, so
+        # match it against the window by interval overlap rather than a point-in-window
+        # test — otherwise a bucket starting just before a non-hour-aligned window start
+        # would be missed even though its coverage extends into the window.
+        _avail_bucket = pd.Timedelta(hours=1)
         for ch in channels:
             ts = ch_timestamps[ch]
             for t in probs.index:
-                avail.loc[t, ch] = bool(((ts >= t - pre_w * dt) & (ts < t + post_w * dt)).any())
+                w_start = t - pre_w * dt
+                w_end   = t + post_w * dt
+                avail.loc[t, ch] = bool((((ts + _avail_bucket) > w_start) & (ts < w_end)).any())
 
     #%% Assemble and save
     frames = [probs.rename('outage_probability'), feat_df, feat_raw_df, stats, rmse_df]

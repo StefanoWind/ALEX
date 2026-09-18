@@ -1,0 +1,1798 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Red_dirt.csv</name>
+	<Schema name="Red_dirt" id="S_Red_dirt_SISDDSDD">
+		<SimpleField type="string" name="tag"><displayName>&lt;b&gt;tag&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="int" name="turbine_id"><displayName>&lt;b&gt;turbine_id&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="string" name="project"><displayName>&lt;b&gt;project&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="hub_height"><displayName>&lt;b&gt;hub height&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="rotor_diameter"><displayName>&lt;b&gt;rotor diameter&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="string" name="turbine_model"><displayName>&lt;b&gt;turbine model&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="xlong"><displayName>&lt;b&gt;xlong&lt;/b&gt;</displayName>
+</SimpleField>
+		<SimpleField type="double" name="ylat"><displayName>&lt;b&gt;ylat&lt;/b&gt;</displayName>
+</SimpleField>
+	</Schema>
+	<Style id="hlightPointStyle15">
+		<IconStyle>
+			<color>ff000000</color>
+			<scale>0.6</scale>
+			<Icon>
+				<href>files/blackdot_1_0_0_0_1_0.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+		<LabelStyle>
+			<scale>2</scale>
+		</LabelStyle>
+		<BalloonStyle>
+			<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+		</BalloonStyle>
+	</Style>
+	<Style id="normPointStyle15">
+		<IconStyle>
+			<color>ff000000</color>
+			<scale>0.6</scale>
+			<Icon>
+				<href>files/blackdot_1_0_0_0_1_0.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+		<LabelStyle>
+			<scale>2</scale>
+		</LabelStyle>
+		<BalloonStyle>
+			<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+		</BalloonStyle>
+	</Style>
+	<StyleMap id="pointStyleMap15">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#normPointStyle15</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#hlightPointStyle15</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Folder id="layer 0">
+		<name>Red_dirt</name>
+		<Placemark>
+			<name>Red Dirt</name>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag">Red Dirt</SimpleData>
+					<SimpleData name="turbine_id">3080945</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8102</SimpleData>
+					<SimpleData name="ylat">36.0353</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.810242,36.03529700000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077110</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7844</SimpleData>
+					<SimpleData name="ylat">36.0641</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.784386,36.06414,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077188</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7271</SimpleData>
+					<SimpleData name="ylat">36.027</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.727119,36.02703500000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079837</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8518</SimpleData>
+					<SimpleData name="ylat">36.0606</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.85184500000001,36.06059999999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077864</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.6965</SimpleData>
+					<SimpleData name="ylat">36.0091</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.69654799999999,36.00913599999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076861</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.6911</SimpleData>
+					<SimpleData name="ylat">36.0081</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.69109300000001,36.008141,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077687</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7095</SimpleData>
+					<SimpleData name="ylat">36.018</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.70945699999999,36.01802100000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076924</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7055</SimpleData>
+					<SimpleData name="ylat">36.0202</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.705544,36.02018700000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079911</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7979</SimpleData>
+					<SimpleData name="ylat">36.0275</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.79789699999999,36.02748500000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076852</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7761</SimpleData>
+					<SimpleData name="ylat">36.0503</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.776115,36.05027400000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080652</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7323</SimpleData>
+					<SimpleData name="ylat">36.0534</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.73226200000001,36.05337099999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077697</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8079</SimpleData>
+					<SimpleData name="ylat">36.0744</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.80791499999999,36.07435199999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081151</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.6732</SimpleData>
+					<SimpleData name="ylat">35.9884</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.673241,35.9884,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077286</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7986</SimpleData>
+					<SimpleData name="ylat">36.0524</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.79856100000001,36.052364,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076422</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.678</SimpleData>
+					<SimpleData name="ylat">36.0028</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.67797900000001,36.00280399999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080138</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8261</SimpleData>
+					<SimpleData name="ylat">36.0347</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82609600000002,36.03470200000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077107</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7981</SimpleData>
+					<SimpleData name="ylat">36.0687</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.79814899999998,36.068657,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077543</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7497</SimpleData>
+					<SimpleData name="ylat">36.0224</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.749664,36.02239600000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079776</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8296</SimpleData>
+					<SimpleData name="ylat">36.0709</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.829559,36.07086900000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077711</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7803</SimpleData>
+					<SimpleData name="ylat">36.0472</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.780304,36.04717599999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080916</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7673</SimpleData>
+					<SimpleData name="ylat">36.0357</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.76728799999999,36.03570200000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076225</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.6879</SimpleData>
+					<SimpleData name="ylat">36.0022</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.68785099999999,36.00217800000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077454</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8205</SimpleData>
+					<SimpleData name="ylat">36.061</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82054100000001,36.06096300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077814</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.736</SimpleData>
+					<SimpleData name="ylat">36.0202</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.73597700000002,36.02018700000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079809</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7495</SimpleData>
+					<SimpleData name="ylat">36.0503</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.74951200000001,36.05032299999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081038</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8338</SimpleData>
+					<SimpleData name="ylat">36.1056</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.83384700000002,36.10556799999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079797</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7626</SimpleData>
+					<SimpleData name="ylat">36.0516</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.76261899999999,36.05164700000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076228</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7726</SimpleData>
+					<SimpleData name="ylat">36.0657</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.772606,36.06572300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076299</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7934</SimpleData>
+					<SimpleData name="ylat">36.0676</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.793442,36.06759299999997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077205</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7226</SimpleData>
+					<SimpleData name="ylat">36.0259</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.722588,36.02592499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076346</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8247</SimpleData>
+					<SimpleData name="ylat">36.0901</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82466099999999,36.09005699999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077723</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7536</SimpleData>
+					<SimpleData name="ylat">36.0525</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.753609,36.05251300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076349</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7135</SimpleData>
+					<SimpleData name="ylat">36.0265</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.71345500000001,36.02645100000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081138</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7853</SimpleData>
+					<SimpleData name="ylat">36.0357</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.78530899999998,36.03567900000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076093</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7886</SimpleData>
+					<SimpleData name="ylat">36.0643</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.788574,36.06433499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079545</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8383</SimpleData>
+					<SimpleData name="ylat">36.0342</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.83833300000001,36.03415699999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076360</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7581</SimpleData>
+					<SimpleData name="ylat">36.0643</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.758118,36.064251,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077703</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7093</SimpleData>
+					<SimpleData name="ylat">36.0062</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.70929,36.006203,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3082158</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7366</SimpleData>
+					<SimpleData name="ylat">36.0535</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.73659499999999,36.05348599999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080703</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.79</SimpleData>
+					<SimpleData name="ylat">36.0354</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.79001599999999,36.03540399999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079108</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8152</SimpleData>
+					<SimpleData name="ylat">36.0902</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.815208,36.090191,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3075977</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7134</SimpleData>
+					<SimpleData name="ylat">36.0091</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.71339399999999,36.00911300000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080959</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7761</SimpleData>
+					<SimpleData name="ylat">36.0345</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.776077,36.03448100000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077672</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.785</SimpleData>
+					<SimpleData name="ylat">36.0474</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.78501900000002,36.04738200000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081065</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7937</SimpleData>
+					<SimpleData name="ylat">36.0251</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.793739,36.02511199999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076829</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7013</SimpleData>
+					<SimpleData name="ylat">36.0091</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.701302,36.00914800000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076362</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8379</SimpleData>
+					<SimpleData name="ylat">36.106</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.83793600000001,36.10599100000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076347</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7541</SimpleData>
+					<SimpleData name="ylat">36.0356</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.75406599999998,36.035618,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077989</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7717</SimpleData>
+					<SimpleData name="ylat">36.0498</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.771652,36.04983099999997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3075938</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7493</SimpleData>
+					<SimpleData name="ylat">36.0348</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.749252,36.03483199999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077479</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7182</SimpleData>
+					<SimpleData name="ylat">36.0274</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.71824599999999,36.027351,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076722</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8158</SimpleData>
+					<SimpleData name="ylat">36.1122</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.81577299999999,36.11216000000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077307</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8477</SimpleData>
+					<SimpleData name="ylat">36.1077</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.84768699999999,36.107708,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080291</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7407</SimpleData>
+					<SimpleData name="ylat">36.0518</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.74073,36.051796,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081290</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7673</SimpleData>
+					<SimpleData name="ylat">36.0498</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.76725,36.04981199999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080431</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7899</SimpleData>
+					<SimpleData name="ylat">36.022</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.789879,36.02201799999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079565</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8572</SimpleData>
+					<SimpleData name="ylat">36.0613</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.857208,36.06133999999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076688</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8199</SimpleData>
+					<SimpleData name="ylat">36.0901</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.81988499999999,36.09012600000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077172</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7584</SimpleData>
+					<SimpleData name="ylat">36.0368</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.758354,36.036774,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076171</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7939</SimpleData>
+					<SimpleData name="ylat">36.0521</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.79392200000001,36.052067,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080573</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7451</SimpleData>
+					<SimpleData name="ylat">36.0504</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.74509400000001,36.05036499999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079787</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8162</SimpleData>
+					<SimpleData name="ylat">36.0351</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.81620799999999,36.03508799999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080659</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8216</SimpleData>
+					<SimpleData name="ylat">36.0357</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82158700000001,36.03567100000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077293</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8161</SimpleData>
+					<SimpleData name="ylat">36.0608</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.816063,36.06078300000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3075982</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8384</SimpleData>
+					<SimpleData name="ylat">36.0603</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.838371,36.06029899999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076337</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.807</SimpleData>
+					<SimpleData name="ylat">36.0635</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.80701399999998,36.06351899999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080226</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8338</SimpleData>
+					<SimpleData name="ylat">36.0844</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.83376300000002,36.08444199999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076075</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8206</SimpleData>
+					<SimpleData name="ylat">36.1096</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82055699999999,36.10956600000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080167</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7579</SimpleData>
+					<SimpleData name="ylat">36.0517</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.757942,36.05167399999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077238</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8339</SimpleData>
+					<SimpleData name="ylat">36.0553</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.833885,36.05533600000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076779</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7406</SimpleData>
+					<SimpleData name="ylat">36.0201</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.740601,36.020142,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080074</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7634</SimpleData>
+					<SimpleData name="ylat">36.0372</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.76340499999999,36.03722400000002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081042</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7718</SimpleData>
+					<SimpleData name="ylat">36.0357</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.77176699999998,36.03570900000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079771</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8472</SimpleData>
+					<SimpleData name="ylat">36.0344</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.84715299999999,36.034351,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077704</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7046</SimpleData>
+					<SimpleData name="ylat">36.0062</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.70462000000001,36.00618000000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081344</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7864</SimpleData>
+					<SimpleData name="ylat">36.0189</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.786407,36.01893599999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079547</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8339</SimpleData>
+					<SimpleData name="ylat">36.0376</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.833916,36.037571,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076190</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8339</SimpleData>
+					<SimpleData name="ylat">36.0699</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.8339,36.06992300000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076537</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8108</SimpleData>
+					<SimpleData name="ylat">36.0915</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.81079099999998,36.09151099999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081201</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7788</SimpleData>
+					<SimpleData name="ylat">36.0638</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.77880899999998,36.06379299999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077319</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7005</SimpleData>
+					<SimpleData name="ylat">36.02</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.700531,36.01997,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3075944</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7674</SimpleData>
+					<SimpleData name="ylat">36.066</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.76740300000002,36.06599,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079634</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7806</SimpleData>
+					<SimpleData name="ylat">36.0345</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.78057899999999,36.03450399999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076163</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8252</SimpleData>
+					<SimpleData name="ylat">36.1099</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82517199999998,36.10988600000003,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081070</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.82</SimpleData>
+					<SimpleData name="ylat">36.0744</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82002300000002,36.07438299999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077708</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.6825</SimpleData>
+					<SimpleData name="ylat">36.0038</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.682541,36.003765,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076266</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8304</SimpleData>
+					<SimpleData name="ylat">36.1095</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.83035999999998,36.10951599999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076263</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7631</SimpleData>
+					<SimpleData name="ylat">36.0641</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.76314499999998,36.06414,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077384</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7448</SimpleData>
+					<SimpleData name="ylat">36.0224</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.74482700000002,36.02240399999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3077715</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8428</SimpleData>
+					<SimpleData name="ylat">36.1076</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.842834,36.10763199999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3076411</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.7312</SimpleData>
+					<SimpleData name="ylat">36.0202</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.73120100000001,36.02019900000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080351</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.6683</SimpleData>
+					<SimpleData name="ylat">35.9889</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.668289,35.98893699999999,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3080598</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8294</SimpleData>
+					<SimpleData name="ylat">36.0382</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.82943,36.03823499999998,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3081966</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8113</SimpleData>
+					<SimpleData name="ylat">36.0599</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.81128699999999,36.059906,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#pointStyleMap15</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_Red_dirt_SISDDSDD">
+					<SimpleData name="tag"></SimpleData>
+					<SimpleData name="turbine_id">3079691</SimpleData>
+					<SimpleData name="project">Red Dirt</SimpleData>
+					<SimpleData name="hub_height">87.5</SimpleData>
+					<SimpleData name="rotor_diameter">125</SimpleData>
+					<SimpleData name="turbine_model">AW125/3150</SimpleData>
+					<SimpleData name="xlong">-97.8044</SimpleData>
+					<SimpleData name="ylat">36.0353</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-97.804367,36.03527099999998,0</coordinates>
+			</Point>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>

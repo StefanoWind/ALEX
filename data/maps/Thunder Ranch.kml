@@ -1,0 +1,2449 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Folder>
+	<name>Thunder Ranch</name>
+	<visibility>0</visibility>
+	<open>1</open>
+	<Document>
+		<name>Thunder_Ranch_02.csv</name>
+		<visibility>0</visibility>
+		<Schema name="Thunder_Ranch_02" id="S_Thunder_Ranch_02_SISDDSDD">
+			<SimpleField type="string" name="tag"><displayName>&lt;b&gt;tag&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="int" name="turbine_id"><displayName>&lt;b&gt;turbine_id&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="string" name="project"><displayName>&lt;b&gt;project&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="hub_height__m_"><displayName>&lt;b&gt;hub height (m)&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="rotor_diameter__m_"><displayName>&lt;b&gt;rotor diameter (m)&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="string" name="turbine_model"><displayName>&lt;b&gt;turbine model&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="xlong"><displayName>&lt;b&gt;xlong&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="ylat"><displayName>&lt;b&gt;ylat&lt;/b&gt;</displayName>
+</SimpleField>
+		</Schema>
+		<Style id="hlightPointStyle17">
+			<IconStyle>
+				<color>ff000000</color>
+				<scale>0.6</scale>
+				<Icon>
+					<href>files/blackdot_1_0_0_0_1_0.png</href>
+				</Icon>
+				<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+			</IconStyle>
+			<BalloonStyle>
+				<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+			</BalloonStyle>
+		</Style>
+		<Style id="normPointStyle17">
+			<IconStyle>
+				<color>ff000000</color>
+				<scale>0.6</scale>
+				<Icon>
+					<href>files/blackdot_1_0_0_0_1_0.png</href>
+				</Icon>
+				<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+			</IconStyle>
+			<BalloonStyle>
+				<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+			</BalloonStyle>
+		</Style>
+		<StyleMap id="pointStyleMap17">
+			<Pair>
+				<key>normal</key>
+				<styleUrl>#normPointStyle17</styleUrl>
+			</Pair>
+			<Pair>
+				<key>highlight</key>
+				<styleUrl>#hlightPointStyle17</styleUrl>
+			</Pair>
+		</StyleMap>
+		<Folder id="layer 0">
+			<name>Thunder_Ranch_02</name>
+			<visibility>0</visibility>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag">Thunder Ranch</SimpleData>
+						<SimpleData name="turbine_id">3076741</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.3962</SimpleData>
+						<SimpleData name="ylat">36.5744</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.39624799999999,36.57441699999997,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3081875</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.3874</SimpleData>
+						<SimpleData name="ylat">36.6251</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.38735200000002,36.62509900000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077037</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.4955</SimpleData>
+						<SimpleData name="ylat">36.5732</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.495476,36.57315399999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075531</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.1945</SimpleData>
+						<SimpleData name="ylat">36.574</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.19452700000001,36.574017,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075551</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.329</SimpleData>
+						<SimpleData name="ylat">36.5567</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.32899499999999,36.55670200000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075583</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.3031</SimpleData>
+						<SimpleData name="ylat">36.5706</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.303055,36.57061,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075572</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.2807</SimpleData>
+						<SimpleData name="ylat">36.5461</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.28073900000001,36.54605900000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077763</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.486</SimpleData>
+						<SimpleData name="ylat">36.5742</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.48600799999998,36.57422600000003,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076673</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.4907</SimpleData>
+						<SimpleData name="ylat">36.5739</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.49070700000001,36.57386400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075568</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.2937</SimpleData>
+						<SimpleData name="ylat">36.5336</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.29373900000002,36.53364199999997,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap17</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_02_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075575</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">80</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.3-116</SimpleData>
+						<SimpleData name="xlong">-97.3071</SimpleData>
+						<SimpleData name="ylat">36.569</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.307091,36.56896200000001,0</coordinates>
+				</Point>
+			</Placemark>
+		</Folder>
+	</Document>
+	<Document>
+		<name>Thunder_Ranch_01.csv</name>
+		<visibility>0</visibility>
+		<Schema name="Thunder_Ranch_01" id="S_Thunder_Ranch_01_SISDDSDD">
+			<SimpleField type="string" name="tag"><displayName>&lt;b&gt;tag&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="int" name="turbine_id"><displayName>&lt;b&gt;turbine_id&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="string" name="project"><displayName>&lt;b&gt;project&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="hub_height__m_"><displayName>&lt;b&gt;hub height (m)&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="rotor_diameter__m_"><displayName>&lt;b&gt;rotor diameter (m)&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="string" name="turbine_model"><displayName>&lt;b&gt;turbine model&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="xlong"><displayName>&lt;b&gt;xlong&lt;/b&gt;</displayName>
+</SimpleField>
+			<SimpleField type="double" name="ylat"><displayName>&lt;b&gt;ylat&lt;/b&gt;</displayName>
+</SimpleField>
+		</Schema>
+		<Style id="hlightPointStyle18">
+			<IconStyle>
+				<color>ff000000</color>
+				<scale>0.6</scale>
+				<Icon>
+					<href>files/blackdot_1_0_0_0_1_0.png</href>
+				</Icon>
+				<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+			</IconStyle>
+			<BalloonStyle>
+				<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+			</BalloonStyle>
+		</Style>
+		<Style id="normPointStyle18">
+			<IconStyle>
+				<color>ff000000</color>
+				<scale>0.6</scale>
+				<Icon>
+					<href>files/blackdot_1_0_0_0_1_0.png</href>
+				</Icon>
+				<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+			</IconStyle>
+			<BalloonStyle>
+				<text><![CDATA[<table border="0">
+  <tr><td><b>tag</b></td><td>$[Blackwell/tag]</td></tr>
+  <tr><td><b>turbine_id</b></td><td>$[Blackwell/turbine_id]</td></tr>
+  <tr><td><b>project</b></td><td>$[Blackwell/project]</td></tr>
+  <tr><td><b>hub height (m)</b></td><td>$[Blackwell/hub_height__m_]</td></tr>
+  <tr><td><b>rotor diameter (m)</b></td><td>$[Blackwell/rotor_diameter__m_]</td></tr>
+  <tr><td><b>turbine model</b></td><td>$[Blackwell/turbine_model]</td></tr>
+  <tr><td><b>xlong</b></td><td>$[Blackwell/xlong]</td></tr>
+  <tr><td><b>ylat</b></td><td>$[Blackwell/ylat]</td></tr>
+</table>]]></text>
+			</BalloonStyle>
+		</Style>
+		<StyleMap id="pointStyleMap18">
+			<Pair>
+				<key>normal</key>
+				<styleUrl>#normPointStyle18</styleUrl>
+			</Pair>
+			<Pair>
+				<key>highlight</key>
+				<styleUrl>#hlightPointStyle18</styleUrl>
+			</Pair>
+		</StyleMap>
+		<Folder id="layer 0">
+			<name>Thunder_Ranch_01</name>
+			<visibility>0</visibility>
+			<Placemark>
+				<name>Thunder Ranch</name>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag">Thunder Ranch</SimpleData>
+						<SimpleData name="turbine_id">3075547</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2372</SimpleData>
+						<SimpleData name="ylat">36.5672</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.237167,36.56718100000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077449</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1636</SimpleData>
+						<SimpleData name="ylat">36.5793</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.16361999999998,36.57930800000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075582</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2938</SimpleData>
+						<SimpleData name="ylat">36.5701</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.29379300000001,36.57007599999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075552</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1869</SimpleData>
+						<SimpleData name="ylat">36.5697</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.18686700000001,36.56974400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077439</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4593</SimpleData>
+						<SimpleData name="ylat">36.5667</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.45928200000002,36.566719,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3078049</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3836</SimpleData>
+						<SimpleData name="ylat">36.6323</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.38355299999999,36.63231699999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075548</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2312</SimpleData>
+						<SimpleData name="ylat">36.5669</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.23120899999999,36.56686400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076686</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3805</SimpleData>
+						<SimpleData name="ylat">36.6097</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.380539,36.60972599999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075560</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2415</SimpleData>
+						<SimpleData name="ylat">36.5281</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.24145499999999,36.528137,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076179</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3658</SimpleData>
+						<SimpleData name="ylat">36.6119</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.36584499999998,36.61194599999997,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075533</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3409</SimpleData>
+						<SimpleData name="ylat">36.5616</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.340897,36.56159600000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076772</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4464</SimpleData>
+						<SimpleData name="ylat">36.5703</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.446442,36.570267,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077322</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4133</SimpleData>
+						<SimpleData name="ylat">36.5731</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.413292,36.57307099999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077465</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2929</SimpleData>
+						<SimpleData name="ylat">36.5852</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.29291499999999,36.58517099999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076544</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2983</SimpleData>
+						<SimpleData name="ylat">36.5852</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.298294,36.585232,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077127</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3795</SimpleData>
+						<SimpleData name="ylat">36.6305</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.379532,36.63050499999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075518</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.0994</SimpleData>
+						<SimpleData name="ylat">36.5629</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.099358,36.56286599999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3082267</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3986</SimpleData>
+						<SimpleData name="ylat">36.6056</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.39859,36.60557900000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076199</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3709</SimpleData>
+						<SimpleData name="ylat">36.6105</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.37085,36.61049299999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075530</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1912</SimpleData>
+						<SimpleData name="ylat">36.5684</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.191216,36.56843599999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075561</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2449</SimpleData>
+						<SimpleData name="ylat">36.5312</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.24491100000002,36.53122699999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075576</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3121</SimpleData>
+						<SimpleData name="ylat">36.5679</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.31214900000001,36.56789000000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075584</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3492</SimpleData>
+						<SimpleData name="ylat">36.5629</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.349152,36.56290799999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075522</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1198</SimpleData>
+						<SimpleData name="ylat">36.5561</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.11975099999998,36.55605299999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077186</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4318</SimpleData>
+						<SimpleData name="ylat">36.5701</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.431839,36.57007999999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075579</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2807</SimpleData>
+						<SimpleData name="ylat">36.5292</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.280716,36.52918999999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075585</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3807</SimpleData>
+						<SimpleData name="ylat">36.566</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.38072200000002,36.56598300000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076915</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3029</SimpleData>
+						<SimpleData name="ylat">36.5853</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.302864,36.58527000000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075577</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2854</SimpleData>
+						<SimpleData name="ylat">36.5296</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.28543100000002,36.52957900000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075549</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2432</SimpleData>
+						<SimpleData name="ylat">36.5634</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.24324,36.563427,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075529</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2075</SimpleData>
+						<SimpleData name="ylat">36.5707</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.207466,36.57070199999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075570</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.306</SimpleData>
+						<SimpleData name="ylat">36.5273</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.30596199999999,36.52734400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075536</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2135</SimpleData>
+						<SimpleData name="ylat">36.5704</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.213509,36.57042700000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075544</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1683</SimpleData>
+						<SimpleData name="ylat">36.5681</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.16831199999999,36.56813399999997,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076902</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2969</SimpleData>
+						<SimpleData name="ylat">36.5529</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.29686700000001,36.55286000000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077102</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3752</SimpleData>
+						<SimpleData name="ylat">36.6261</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.37519100000002,36.62609500000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076288</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3983</SimpleData>
+						<SimpleData name="ylat">36.5604</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.39827700000001,36.56036400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075556</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2501</SimpleData>
+						<SimpleData name="ylat">36.5413</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.250137,36.54133200000003,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075564</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2719</SimpleData>
+						<SimpleData name="ylat">36.5563</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.27191199999999,36.55632000000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076763</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2914</SimpleData>
+						<SimpleData name="ylat">36.5521</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.29135100000001,36.55212800000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075545</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1641</SimpleData>
+						<SimpleData name="ylat">36.5705</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.16413900000001,36.57047699999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075521</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1136</SimpleData>
+						<SimpleData name="ylat">36.5557</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.11360899999998,36.55567199999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075541</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1236</SimpleData>
+						<SimpleData name="ylat">36.5669</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.12357299999999,36.56688699999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3079831</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3929</SimpleData>
+						<SimpleData name="ylat">36.6053</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.392853,36.60532399999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075540</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1635</SimpleData>
+						<SimpleData name="ylat">36.5917</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.16346000000001,36.591675,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077120</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.437</SimpleData>
+						<SimpleData name="ylat">36.5704</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.437012,36.57041500000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075566</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2987</SimpleData>
+						<SimpleData name="ylat">36.532</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.29868300000001,36.53201700000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077825</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3526</SimpleData>
+						<SimpleData name="ylat">36.5661</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.35264599999999,36.56605100000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076326</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3928</SimpleData>
+						<SimpleData name="ylat">36.5607</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.392822,36.56073800000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076715</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4111</SimpleData>
+						<SimpleData name="ylat">36.6291</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.41106400000001,36.62906300000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075526</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1989</SimpleData>
+						<SimpleData name="ylat">36.5752</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.198898,36.57518800000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077089</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2887</SimpleData>
+						<SimpleData name="ylat">36.5824</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.28872699999998,36.582439,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075550</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2257</SimpleData>
+						<SimpleData name="ylat">36.5675</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.225708,36.56746300000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076139</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4735</SimpleData>
+						<SimpleData name="ylat">36.5696</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.47350300000001,36.569557,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077671</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4244</SimpleData>
+						<SimpleData name="ylat">36.5703</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.42443799999998,36.57029699999996,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3082113</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4026</SimpleData>
+						<SimpleData name="ylat">36.6098</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.40261100000001,36.609844,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075510</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.097</SimpleData>
+						<SimpleData name="ylat">36.5662</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.096985,36.566204,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075538</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1585</SimpleData>
+						<SimpleData name="ylat">36.5892</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.15848500000001,36.58921100000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3082260</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.402</SimpleData>
+						<SimpleData name="ylat">36.6251</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.40200000000002,36.62507600000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075519</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1014</SimpleData>
+						<SimpleData name="ylat">36.5584</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.10140200000001,36.55841100000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075537</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1596</SimpleData>
+						<SimpleData name="ylat">36.5812</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.15964499999998,36.58123000000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3081956</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3878</SimpleData>
+						<SimpleData name="ylat">36.6034</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.38784800000002,36.603416,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075534</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2222</SimpleData>
+						<SimpleData name="ylat">36.5707</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.22219800000001,36.57074399999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075559</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3209</SimpleData>
+						<SimpleData name="ylat">36.571</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.320892,36.571037,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3081892</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4162</SimpleData>
+						<SimpleData name="ylat">36.6265</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.416206,36.62645300000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3082085</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4065</SimpleData>
+						<SimpleData name="ylat">36.6272</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.406487,36.627151,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075578</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2898</SimpleData>
+						<SimpleData name="ylat">36.5298</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.28984800000001,36.52978899999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075991</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4775</SimpleData>
+						<SimpleData name="ylat">36.5654</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.477501,36.56538,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075558</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3251</SimpleData>
+						<SimpleData name="ylat">36.5586</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.325119,36.55862800000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075516</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1285</SimpleData>
+						<SimpleData name="ylat">36.5671</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.12851000000001,36.56712,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077670</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2849</SimpleData>
+						<SimpleData name="ylat">36.5486</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.284897,36.54863699999997,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075511</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.0914</SimpleData>
+						<SimpleData name="ylat">36.5676</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.091446,36.56763500000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3079814</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4108</SimpleData>
+						<SimpleData name="ylat">36.6149</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.41083500000001,36.614891,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075562</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2626</SimpleData>
+						<SimpleData name="ylat">36.5488</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.262573,36.54876300000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076854</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.326</SimpleData>
+						<SimpleData name="ylat">36.5707</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.32598900000001,36.57073199999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075563</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2588</SimpleData>
+						<SimpleData name="ylat">36.5454</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.258835,36.54541400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075565</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2671</SimpleData>
+						<SimpleData name="ylat">36.5559</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.267067,36.555859,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075557</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3217</SimpleData>
+						<SimpleData name="ylat">36.562</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.32172399999999,36.56203500000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075567</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3028</SimpleData>
+						<SimpleData name="ylat">36.5307</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.30284899999999,36.53067800000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075573</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2754</SimpleData>
+						<SimpleData name="ylat">36.5617</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.27536800000001,36.56167999999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077115</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4056</SimpleData>
+						<SimpleData name="ylat">36.5732</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.40556300000001,36.57318499999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076112</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3884</SimpleData>
+						<SimpleData name="ylat">36.5584</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.388435,36.55837600000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075539</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1552</SimpleData>
+						<SimpleData name="ylat">36.5782</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.15522799999999,36.57822,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075574</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2807</SimpleData>
+						<SimpleData name="ylat">36.5699</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.28070099999999,36.56987400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076485</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4506</SimpleData>
+						<SimpleData name="ylat">36.5684</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.45064499999999,36.568428,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075542</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1818</SimpleData>
+						<SimpleData name="ylat">36.568</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.18180799999999,36.56795499999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077117</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4637</SimpleData>
+						<SimpleData name="ylat">36.5661</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.463745,36.56605500000002,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3076021</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4011</SimpleData>
+						<SimpleData name="ylat">36.5748</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.4011,36.574787,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075571</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2758</SimpleData>
+						<SimpleData name="ylat">36.5291</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.27583299999999,36.52911000000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075581</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2986</SimpleData>
+						<SimpleData name="ylat">36.5709</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.298569,36.570938,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077752</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3852</SimpleData>
+						<SimpleData name="ylat">36.566</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.38523900000001,36.56603199999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077096</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4418</SimpleData>
+						<SimpleData name="ylat">36.5708</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.441811,36.570782,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075543</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1766</SimpleData>
+						<SimpleData name="ylat">36.5694</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.17663599999999,36.56937400000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077900</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4197</SimpleData>
+						<SimpleData name="ylat">36.5702</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.41970799999999,36.570225,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075525</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2027</SimpleData>
+						<SimpleData name="ylat">36.5732</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.202675,36.57317700000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077007</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3976</SimpleData>
+						<SimpleData name="ylat">36.6254</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.397552,36.62540799999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075555</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2549</SimpleData>
+						<SimpleData name="ylat">36.5414</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.254913,36.54137000000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077104</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3764</SimpleData>
+						<SimpleData name="ylat">36.5669</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.376419,36.56687900000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075532</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3347</SimpleData>
+						<SimpleData name="ylat">36.5591</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.33474699999998,36.559082,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3077064</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4554</SimpleData>
+						<SimpleData name="ylat">36.5689</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.455414,36.56886299999998,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3081918</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3842</SimpleData>
+						<SimpleData name="ylat">36.6066</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.38423199999998,36.60659399999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075535</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.2183</SimpleData>
+						<SimpleData name="ylat">36.5684</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.218315,36.56841299999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075546</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1724</SimpleData>
+						<SimpleData name="ylat">36.5705</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.172363,36.57051500000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075517</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1328</SimpleData>
+						<SimpleData name="ylat">36.5701</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.13275899999999,36.57007599999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075930</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4687</SimpleData>
+						<SimpleData name="ylat">36.5716</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.468727,36.57163199999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075569</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.3164</SimpleData>
+						<SimpleData name="ylat">36.5706</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.316383,36.57056399999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3081923</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.4062</SimpleData>
+						<SimpleData name="ylat">36.6134</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.406181,36.61336900000001,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3075520</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.1061</SimpleData>
+						<SimpleData name="ylat">36.556</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.106064,36.55596899999999,0</coordinates>
+				</Point>
+			</Placemark>
+			<Placemark>
+				<visibility>0</visibility>
+				<styleUrl>#pointStyleMap18</styleUrl>
+				<ExtendedData>
+					<SchemaData schemaUrl="#S_Thunder_Ranch_01_SISDDSDD">
+						<SimpleData name="tag"></SimpleData>
+						<SimpleData name="turbine_id">3081855</SimpleData>
+						<SimpleData name="project">Thunder Ranch</SimpleData>
+						<SimpleData name="hub_height__m_">90</SimpleData>
+						<SimpleData name="rotor_diameter__m_">116</SimpleData>
+						<SimpleData name="turbine_model">GE2.5-116</SimpleData>
+						<SimpleData name="xlong">-97.377</SimpleData>
+						<SimpleData name="ylat">36.6059</SimpleData>
+					</SchemaData>
+				</ExtendedData>
+				<Point>
+					<coordinates>-97.37702899999999,36.60591500000001,0</coordinates>
+				</Point>
+			</Placemark>
+		</Folder>
+	</Document>
+</Folder>
+</kml>
