@@ -1,0 +1,29 @@
+# Core analysis
+numpy>=2.3.4
+pandas>=2.3.3
+xarray>=2025.10.1
+scipy>=1.16.3
+scikit-learn>=1.7.2
+joblib>=1.5.2
+matplotlib>=3.10.6
+PyYAML>=6.0.3
+tqdm>=4.67.1
+shap>=0.51.0
+
+# File I/O backends
+netCDF4>=1.7.2
+openpyxl>=3.1.5
+cfgrib>=0.9.15.1
+
+# Data access (AWAKEN / WDH, NEXRAD, HRRR)
+doe-dap-dl>=0.4.0
+nexradaws>=2.0.0
+herbie-data>=2026.3.0
+
+# Radar and mapping
+arm_pyart>=2.1.1
+Cartopy>=0.25.0
+
+# Dashboard
+streamlit>=1.51.0
+plotly>=6.3.0

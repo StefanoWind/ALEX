@@ -59,6 +59,38 @@ _PLOTLY_MARKERS = {
     'mean': 'circle', 'std': 'star', 'grad_mean': 'square', 'grad_std': 'diamond',
 }
 _RANK_LABELS = ['1st dominant driver', '2nd dominant driver', '3rd dominant driver']
+_FTYPE_LABELS = {
+    'mean': 'mean', 'std': 'std', 'grad_mean': 'gradient mean', 'grad_std': 'gradient std',
+}
+_TABLE_LABELS = {
+    'timestamp':'Time (UTC)',
+    'outage_probability': 'Outage probability',
+    'peak_customers_out': 'Peak customers out',
+    'duration_h': 'Duration [h]',
+    'auc_customer_h': 'AUC [customer·h]',
+}
+_AWAKEN_SITE_LABELS = {
+    'sc1': 'Site C1a',
+    'rmgc': 'Rolling Meadows Golf Course',
+    'rad1': 'Radar Site 1',
+    'rad2': 'Radar Site 2',
+    'rad': 'Radar Sites',
+}
+_AWAKEN_INSTRUMENT_LABELS = {
+    'aeri': 'AERI',
+    'assist': 'ASSIST',
+    'assist.tropoe': 'TROPoe retrieval',
+    'ceil': 'Ceilometer',
+    'ld': 'Laser disdrometer',
+    'lidar': 'Doppler lidar',
+    'met': 'Meteorological station',
+    'mwr': 'Microwave radiometer',
+    'radar': 'Radar',
+    'sonic': 'Sonic anemometer',
+    'vtower': 'Virtual tower',
+}
+
+_WDH_URL = 'https://wdh.energy.gov/ds/'
 _BASE_DIR = Path(__file__).resolve().parent
 _SOURCE_DATA_DIR = _BASE_DIR / 'data' / 'merged_outages_gf_15min'
 _DEFAULT_LIBRARY_PATH = str(_SOURCE_DATA_DIR / 'merged_outages_15min_metA1only.input.library.xlsx')
@@ -106,7 +138,37 @@ def _base_var(name):
 
 def _var_label(base):
     raw = _VAR_LABELS.get(base, base)
-    return re.sub(r'\s*\[.*?\]', '', raw).replace('\n', ' ').strip()
+    return ' '.join(re.sub(r'\s*\[.*?\]', '', raw).split())
+
+
+def _var_units(base):
+    m = re.search(r'\[(.*?)\]', _VAR_LABELS.get(base, ''))
+    return m.group(1) if m else ''
+
+
+def _feat_plain(name):
+    return f'{_var_label(_base_var(name))} {_FTYPE_LABELS.get(_feat_type(name), "")}'.strip()
+
+
+def _table_col_label(col):
+    if col in _TABLE_LABELS:
+        return _TABLE_LABELS[col]
+    m = re.match(r'^rmse_([a-zA-Z]+)(?:_f(\d+))?$', col)
+    if not m:
+        return col
+    var, lead = m.groups()
+    name = _var_label(var)
+    source = f'HRRR f{lead}' if lead else 'HRRR analysis'
+    units = _var_units(var)
+    label = f'RMSE of {name[0].lower() + name[1:]} ({source})'
+    return f'{label} [{units}]' if units else label
+
+
+def _awaken_site_label(site):
+    if site in _AWAKEN_SITE_LABELS:
+        return _AWAKEN_SITE_LABELS[site]
+    m = re.match(r'^s([a-z]\d*)$', site)
+    return f'Site {m.group(1).upper()}' if m else site
 
 
 def _source_key_from_filename(filename: str):
@@ -336,13 +398,23 @@ def render_nexrad_scan_png(scan_time_iso: str,
 for key, default in [
     ('selected_source_key', None),
     ('prev_source_key', None),
-    ('prev_table_sel', []),
+    ('prev_scatter_cdata', None),
     ('sel_ts', None),
     ('scatter_gen', 0),
+    ('table_gen', 0),
     ('view', None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
+
+
+# Neither the Plotly nor the data_editor selection can be written from code, so
+# both widgets are re-created under a fresh key whenever sel_ts changes; they then
+# render the selection from sel_ts instead of their own stale frontend state.
+def _refresh_selection_widgets():
+    st.session_state.scatter_gen += 1
+    st.session_state.table_gen += 1
+    st.session_state.prev_scatter_cdata = None
 
 sources_df = discover_library_sources(str(_SOURCE_DATA_DIR), data_sig=_data_dir_signature(str(_SOURCE_DATA_DIR)))
 if not sources_df.empty:
@@ -360,7 +432,7 @@ if not sources_df.empty:
     if st.session_state.prev_source_key is None:
         st.session_state.prev_source_key = st.session_state.selected_source_key
 
-    st.markdown('### Input Source Map')
+    st.markdown('### Input source map')
     map_df = sources_df.copy()
     map_df['plot_lat'] = map_df['latitude']
     map_df['plot_lon'] = map_df['longitude']
@@ -509,7 +581,7 @@ if not sources_df.empty:
         map_event = st.plotly_chart(
             fig_map,
             key='source_map',
-            use_container_width=True,
+            width='stretch',
             on_select='rerun',
             selection_mode='points',
         )
@@ -559,11 +631,9 @@ else:
 
 if st.session_state.prev_source_key != st.session_state.selected_source_key:
     st.session_state.sel_ts = None
-    st.session_state.prev_table_sel = []
-    st.session_state.scatter_gen += 1
+    _refresh_selection_widgets()
     st.session_state.view = None
     st.session_state.prev_source_key = st.session_state.selected_source_key
-    st.session_state.pop('event_table', None)
 
 try:
     (df, feat_cols, raw_cols, shap_cols, stat_cols, rmse_cols,
@@ -597,36 +667,21 @@ else:
 
 st.sidebar.header('Filters')
 
-prob_range  = st.sidebar.slider('RF probability', 0.0, 1.0, (0.0, 1.0), step=0.01)
+prob_range  = st.sidebar.slider('Outage probability', 0.0, 1.0, (0.0, 1.0), step=0.01)
 outage_only = st.sidebar.checkbox('Outage events only', value=False)
 
 st.sidebar.subheader('Outage characteristics')
-peak_max = float(out_df['peak_customers_out'].max()) if not out_df.empty else 1.0
+peak_max = int(np.ceil(out_df['peak_customers_out'].max())) if not out_df.empty else 1
 dur_max  = float(out_df['duration_h'].max())         if not out_df.empty else 24.0
 
 peak_range = st.sidebar.slider(
-    'Peak customers out', 0.0, peak_max, (0.0, peak_max), disabled=not outage_only,
+    'Peak customers out', 0, peak_max, (0, peak_max), disabled=not outage_only,
 )
 dur_range = st.sidebar.slider(
-    'Duration (h)', 0.0, dur_max, (0.0, dur_max), disabled=not outage_only,
+    'Duration [h]', 0.0, dur_max, (0.0, dur_max), disabled=not outage_only,
 )
 
-st.sidebar.subheader('Dominant SHAP feature')
-shap_opts = ['(none)'] + shap_cols
-shap_feat = st.sidebar.selectbox(
-    'Feature', shap_opts,
-    format_func=lambda x: x.replace('shap_', '').replace('_W16', '') if x != '(none)' else x,
-)
-shap_thresh = st.sidebar.slider(
-    '|SHAP| ≥', 0.0, 0.5, 0.0, step=0.005, disabled=(shap_feat == '(none)'),
-)
-
-st.sidebar.subheader('SHAP settings')
-_default_base = shap_base if not np.isnan(shap_base) else 0.5
-base_val = st.sidebar.number_input(
-    'Base value', value=_default_base, step=0.01, format='%.4f',
-    help='Expected RF output before calibration, read from the library file.',
-)
+base_val = shap_base if not np.isnan(shap_base) else 0.5
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
 
@@ -635,30 +690,25 @@ if outage_only:
     mask &= out_mask
     mask &= df['peak_customers_out'].between(peak_range[0], peak_range[1])
     mask &= df['duration_h'].between(dur_range[0], dur_range[1])
-if shap_feat != '(none)':
-    mask &= df[shap_feat].abs() >= shap_thresh
 
 df_filt = df[mask].sort_values('outage_probability', ascending=False)
 
 # Reset selection when filter widgets change.
 # Also bump scatter_gen so the Plotly widget gets a fresh key → clears its
 # internal frontend selection state (avoids stale highlighted markers).
-_filter_sig = (prob_range, outage_only, peak_range, dur_range, shap_feat, shap_thresh)
+_filter_sig = (prob_range, outage_only, peak_range, dur_range)
 if 'prev_filter_sig' in st.session_state and st.session_state.prev_filter_sig != _filter_sig:
     st.session_state.sel_ts = None
-    st.session_state.scatter_gen += 1
-    st.session_state.pop('event_table', None)
+    _refresh_selection_widgets()
 st.session_state.prev_filter_sig = _filter_sig
 
 # ── Header row: event count + Clear button ────────────────────────────────────
 
 _col_count, _col_clear = st.columns([6, 1])
 _col_count.markdown(f'**{len(df_filt)} events** match filters (of {len(df)} total)')
-if _col_clear.button('Clear selection', use_container_width=True):
+if _col_clear.button('Clear selection', width='stretch'):
     st.session_state.sel_ts = None
-    st.session_state.prev_table_sel = []
-    st.session_state.scatter_gen += 1  # force fresh Plotly widget → no stale highlights
-    st.session_state.pop('event_table', None)
+    _refresh_selection_widgets()
 
 # ── SHAP scatter (outage events only, shown above table) ──────────────────────
 
@@ -733,7 +783,7 @@ if not df_out_filt.empty and shap_cols:
                 else:
                     ec, ew = '#333333', 0.5
 
-                label       = f'{_var_label(base)} / {ftype}'
+                label       = f'{_var_label(base)} {_FTYPE_LABELS[ftype]}'
                 trace_cdata = [ts_strs[i] for i in idx_sel]
 
                 group_key   = (base, ftype)
@@ -772,7 +822,7 @@ if not df_out_filt.empty and shap_cols:
                         hovertemplate=(
                             '<b>%{customdata}</b><br>'
                             'Duration: %{x:.0f} min<br>'
-                            f'Driver: {_var_label(base)} / {ftype}<br>'
+                            f'Driver: {label}<br>'
                             'z-score: %{y:.2f}<extra></extra>'
                         ),
                         **sel_kw,
@@ -781,25 +831,26 @@ if not df_out_filt.empty and shap_cols:
                 )
 
         fig_sc.update_yaxes(
-            title_text=f'{_RANK_LABELS[k]} (z-score)', title_font_size=8,
-            tickfont_size=8, row=k + 1, col=1,
+            title_text='z-score', title_font_size=14,
+            tickfont_size=14, row=k + 1, col=1,
         )
 
     fig_sc.update_xaxes(
-        title_text='Duration (min)', title_font_size=8, tickfont_size=8,
+        title_text='Duration [min]', title_font_size=14, tickfont_size=14,
         row=n_ranks, col=1,
     )
     fig_sc.update_layout(
         height=550,
-        margin=dict(l=60, r=160, t=30, b=40),
-        legend=dict(orientation='v', x=1.02, y=1, xanchor='left', font_size=8),
+        margin=dict(l=80, r=220, t=30, b=50),
+        legend=dict(orientation='v', x=1.02, y=1, xanchor='left', font_size=14),
         font=dict(size=8),
     )
+    fig_sc.update_annotations(font_size=16)
 
     scatter_event = st.plotly_chart(
         fig_sc, on_select='rerun', selection_mode='points',
         key=f'shap_scatter_{st.session_state.scatter_gen}',
-        use_container_width=True,
+        width='stretch',
     )
 
 scatter_pts = []
@@ -809,12 +860,14 @@ try:
 except (AttributeError, TypeError):
     pass
 
-# Streamlit does not allow programmatically writing a dataframe widget's
-# native selection state, so the scatter → table link is done visually via
-# row highlighting instead: whichever event is "current" (latest scatter
-# click, falling back to the last table selection) gets its row shaded.
-_pending_cdata = scatter_pts[0].get('customdata') if scatter_pts else None
-_highlight_ts = _pending_cdata or st.session_state.get('sel_ts')
+# The Plotly selection persists across reruns, so only a click on a different
+# point than last time counts as a new scatter selection.
+_scatter_cdata = scatter_pts[0].get('customdata') if scatter_pts else None
+if _scatter_cdata and _scatter_cdata != st.session_state.prev_scatter_cdata:
+    st.session_state.prev_scatter_cdata = _scatter_cdata
+    st.session_state.sel_ts = pd.Timestamp(_scatter_cdata).isoformat()
+    st.session_state.table_gen += 1
+    st.rerun()
 
 # ── Event table ───────────────────────────────────────────────────────────────
 
@@ -831,6 +884,7 @@ fmt        = {c: '{:.3f}' for c in ['outage_probability', 'duration_h', 'auc_cus
 fmt['peak_customers_out'] = '{:.0f}'
 for _rc in rmse_cols_shown:
     fmt[_rc] = '{:.3f}'
+fmt = {_table_col_label(c): f for c, f in fmt.items()}
 
 
 _ZSCORE_CMAP = plt.get_cmap('coolwarm')
@@ -855,42 +909,30 @@ def _zscore_colors(col):
     return styles
 
 
-def _highlight_selected_row(row):
-    is_sel = _highlight_ts is not None and row.name == pd.Timestamp(_highlight_ts)
-    return ['background-color: #ffcc66' if is_sel else ''] * len(row)
+_cur_sel = pd.Timestamp(st.session_state.sel_ts) if st.session_state.get('sel_ts') else None
+df_table = df_filt[table_cols].rename(columns=_table_col_label).rename_axis('Time (UTC)')
+data_labels = list(df_table.columns)
+df_table.insert(0, 'Select', df_table.index == _cur_sel)
 
-
-ev = st.dataframe(
-    df_filt[table_cols].style.format(fmt, na_rep='—')
-        .apply(_zscore_colors, axis=0)
-        .apply(_highlight_selected_row, axis=1),
-    use_container_width=True,
-    selection_mode='single-row',
-    on_select='rerun',
-    key='event_table',
+ev_df = st.data_editor(
+    df_table.style.format(fmt, na_rep='—').apply(_zscore_colors, axis=0, subset=data_labels),
+    width='stretch',
+    disabled=['_index'] + data_labels,
+    column_config={'Select': st.column_config.CheckboxColumn('Select', width='small')},
+    key=f'event_table_{st.session_state.table_gen}',
 )
-table_sel = list(ev.selection.rows) if ev.selection else []
 
 # ── Selection resolution ──────────────────────────────────────────────────────
 
-table_changed = (table_sel != st.session_state.prev_table_sel)
-
-if table_changed:
-    if table_sel and table_sel[0] < len(df_filt):
-        st.session_state.sel_ts = df_filt.index[table_sel[0]].isoformat()
-    else:
-        st.session_state.sel_ts = None
-    st.session_state.prev_table_sel = table_sel
-elif scatter_pts:
-    cdata = scatter_pts[0].get('customdata')
-    if cdata:
-        changed = (cdata != st.session_state.get('sel_ts'))
-        st.session_state.sel_ts = cdata
-        st.session_state.prev_table_sel = table_sel
-        if changed:
-            st.rerun()
-    else:
-        st.session_state.prev_table_sel = table_sel
+_checked = ev_df.index[ev_df['Select']]
+_newly_checked = [t for t in _checked if t != _cur_sel]
+if _newly_checked:
+    st.session_state.sel_ts = _newly_checked[0].isoformat()
+elif _cur_sel is not None and _cur_sel in df_table.index and _cur_sel not in _checked:
+    st.session_state.sel_ts = None
+if (pd.Timestamp(st.session_state.sel_ts) if st.session_state.sel_ts else None) != _cur_sel:
+    _refresh_selection_widgets()
+    st.rerun()
 
 # Resolve current row
 row, ts = None, None
@@ -907,10 +949,10 @@ if sel_ts_str:
         pass
 
 if row is None:
-    st.caption('Click a table row or scatter point to inspect the event.')
+    st.caption('Check a table row or click a scatter point to inspect the event.')
     st.stop()
 
-st.subheader(f'Event: {ts.strftime("%Y-%m-%d %H:%M")}')
+st.subheader(f'Event: {ts.strftime("%Y-%m-%d %H:%M")} UTC')
 
 # Warm the NEXRAD cache for this event as soon as it's selected, before the user
 # clicks NEXRAD. Streamlit reruns the whole script on every interaction, so a
@@ -930,15 +972,15 @@ if 'view' not in st.session_state:
     st.session_state['view'] = None
 
 c1, c2, c3, c4, c5 = st.columns(5)
-if c1.button('Time series', use_container_width=True):
+if c1.button('Time series', width='stretch'):
     st.session_state['view'] = 'ts'
-if c2.button('SHAP', use_container_width=True, disabled=not HAS_SHAP):
+if c2.button('SHAP', width='stretch', disabled=not HAS_SHAP):
     st.session_state['view'] = 'shap'
-if c3.button('NEXRAD', use_container_width=True):
+if c3.button('NEXRAD', width='stretch'):
     st.session_state['view'] = 'nexrad'
-if c4.button('AWAKEN Data', use_container_width=True):
+if c4.button('AWAKEN Data', width='stretch'):
     st.session_state['view'] = 'awaken'
-if c5.button('Histograms', use_container_width=True):
+if c5.button('Histograms', width='stretch'):
     st.session_state['view'] = 'hist'
 
 view = st.session_state['view']
@@ -978,6 +1020,8 @@ if view == 'ts':
         'post_window': post_w,
         'mode': 'binary',
     }
+    
+    st.markdown('#### Event time series')
 
     n_panels = len(pred_names_ts) + 1
     oof_pred = pd.Series([float(row['outage_probability'])], index=[ts])
@@ -1004,19 +1048,25 @@ if view == 'ts':
                 if col in df_hrrr.columns:
                     hw = df_hrrr[col].loc[t0_plot:t1_plot].dropna()
                     ax.scatter(hw.index, hw.values, color='firebrick', s=14,
-                               zorder=3, alpha=0.85, label='HRRR anl')
+                               zorder=3, alpha=0.85, label='HRRR analysis')
             else:
                 hrrr_fcol = f'{col}{selected_horizon}'
                 if hrrr_fcol in df_hrrr.columns:
                     hw = df_hrrr[hrrr_fcol].loc[t0_plot:t1_plot].dropna()
                     ax.scatter(hw.index, hw.values, color='darkorange', s=14,
                                marker='^', zorder=3, alpha=0.85,
-                               label=f'HRRR f{fcst_lead}h')
+                               label=f'HRRR f{fcst_lead}')
 
-        # Refresh legend on first panel to include HRRR entries
-        ax0 = fig.axes[0]
-        h, l = ax0.get_legend_handles_labels()
-        ax0.legend(h, l, loc='upper left', fontsize=9, framealpha=0.7)
+    for ax in fig.axes:
+        for patch in ax.patches:
+            patch.set_alpha(0.3)
+
+    # Rebuild legend on first panel to include HRRR entries and capitalize labels
+    ax0 = fig.axes[0]
+    h, l = ax0.get_legend_handles_labels()
+    with plt.style.context('default'):
+        ax0.legend(h, [s[0].upper() + s[1:] for s in l], loc='upper left', fontsize=9, framealpha=0.7)
+    ax0.set_title(f"Predicted outage probability = {float(row['outage_probability']):.2f}", fontsize=9)
 
     # Wind direction as small arrows on top of the wind-speed panel, rather than
     # its own panel — direction only matters in the context of speed/timing.
@@ -1040,10 +1090,10 @@ if view == 'ts':
             ax_wspd.quiver(
                 wdir_sub.index, y_sub.values, u, v,
                 angles='uv', scale_units='inches', scale=6, width=0.004,
-                pivot='mid', color='black', alpha=0.8, zorder=5,
+                pivot='mid', color='b', alpha=0.8, zorder=5,
             )
 
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig, width='stretch')
     plt.close(fig)
 
 # ── SHAP waterfall ────────────────────────────────────────────────────────────
@@ -1051,7 +1101,7 @@ if view == 'ts':
 elif view == 'shap':
     sv          = row[shap_cols].values.astype(float)
     fv          = row[feat_cols].values.astype(float)
-    feat_labels = [c.replace('shap_', '').replace('_W16', '') for c in shap_cols]
+    feat_labels = [_feat_plain(c.replace('shap_', '', 1)) for c in shap_cols]
 
     expl = shap_lib.Explanation(
         values        = sv,
@@ -1059,17 +1109,21 @@ elif view == 'shap':
         data          = fv,
         feature_names = feat_labels,
     )
-
+    
+    st.markdown('#### SHAP waterfall')
+    
     with plt.style.context('default'):
         fig = plt.figure(figsize=(6, max(3, len(shap_cols) * 0.28 + 1.5)))
         shap_lib.plots.waterfall(expl, show=False)
-        plt.title(f'SHAP — {ts.strftime("%Y-%m-%d %H:%M")}', fontsize=8)
+        for txt in fig.findobj(matplotlib.text.Text):
+            txt.set_fontsize(txt.get_fontsize() * 0.75)
         plt.tight_layout()
 
     fig.patch.set_facecolor('white')
     for ax in fig.axes:
         ax.set_facecolor('white')
-    st.pyplot(fig, use_container_width=True)
+    shap_col, _ = st.columns([4, 1])
+    shap_col.pyplot(fig, width='stretch')
     plt.close(fig)
 
 # ── NEXRAD reflectivity ────────────────────────────────────────────────────────────
@@ -1081,10 +1135,10 @@ if view == 'nexrad':
     marker_lat_val = float(marker_lat) if np.isfinite(marker_lat) else None
     marker_lon_val = float(marker_lon) if np.isfinite(marker_lon) else None
 
-    st.markdown('#### Reflectivity')
+    st.markdown('#### Radar reflectivity')
 
     cache_col, _ = st.columns([1, 3])
-    if cache_col.button('Clear NEXRAD cache', use_container_width=True, key='nexrad_clear_cache'):
+    if cache_col.button('Clear NEXRAD cache', width='stretch', key='nexrad_clear_cache'):
         cache_dir = _BASE_DIR / 'data' / 'nexrad_cache'
         if cache_dir.exists():
             shutil.rmtree(cache_dir, ignore_errors=True)
@@ -1122,10 +1176,10 @@ if view == 'nexrad':
         idx = max(0, min(idx, len(scan_times) - 1))
 
         c_prev, c_label, c_next = st.columns([1, 3, 1])
-        if c_prev.button('< Prev', use_container_width=True, disabled=(idx <= 0), key='nexrad_scan_prev'):
+        if c_prev.button('< Prev', width='stretch', disabled=(idx <= 0), key='nexrad_scan_prev'):
             st.session_state['nexrad_scan_idx'] = idx - 1
             st.rerun()
-        if c_next.button('Next >', use_container_width=True, disabled=(idx >= len(scan_times) - 1), key='nexrad_scan_next'):
+        if c_next.button('Next >', width='stretch', disabled=(idx >= len(scan_times) - 1), key='nexrad_scan_next'):
             st.session_state['nexrad_scan_idx'] = idx + 1
             st.rerun()
 
@@ -1144,7 +1198,7 @@ if view == 'nexrad':
                     marker_lon_val,
                     selected_site_label,
                 )
-            st.image(nexrad_png, use_container_width=True)
+            st.image(nexrad_png, width='stretch')
         except Exception as e:
             st.error(f'Unable to load NEXRAD plot: {e}')
 
@@ -1161,21 +1215,27 @@ if view == 'awaken':
     else:
         avail_row = df_avail.loc[ts].fillna(False).astype(bool)
         avail_channels = sorted(avail_row.index[avail_row].tolist())
-        st.caption(f'{len(avail_channels)} / {len(avail_row)} channels available.')
+        st.caption(f'{len(avail_channels)} of {len(avail_row)} channels available.')
 
         if avail_channels:
-            def _split_channel(ch):
+            def _channel_row(ch):
                 parts = ch.split('/')[-1].split('.')
-                site, level, zid = parts[0], parts[-1], parts[-2]
                 instrument = '.'.join(parts[1:-2])
-                return site, instrument, zid, level
+                return {
+                    'Site': _awaken_site_label(parts[0]),
+                    'Instrument': _AWAKEN_INSTRUMENT_LABELS.get(instrument, instrument),
+                    'Data Level': parts[-1],
+                    'Channel': _WDH_URL + ch,
+                }
 
-            rows = [dict(zip(['site', 'instrument', 'zid', 'level'], _split_channel(ch)),
-                         channel=ch)
-                    for ch in avail_channels]
             st.dataframe(
-                pd.DataFrame(rows)[['site', 'instrument', 'zid', 'level', 'channel']],
-                use_container_width=True, hide_index=True,
+                pd.DataFrame([_channel_row(ch) for ch in avail_channels]),
+                width='stretch', hide_index=True,
+                column_config={
+                    'Channel': st.column_config.LinkColumn(
+                        'Channel', display_text=r'https://wdh\.energy\.gov/ds/(.*)',
+                    ),
+                },
             )
         else:
             st.info('No AWAKEN channels flagged available for this event window.')
@@ -1199,7 +1259,7 @@ if view == 'hist':
         w_start = ts - pre_w * dt
         w_end   = ts + post_w * dt
         st.caption(f'Event window: {w_start.strftime("%Y-%m-%d %H:%M")} to '
-                  f'{w_end.strftime("%Y-%m-%d %H:%M")}')
+                  f'{w_end.strftime("%Y-%m-%d %H:%M")} UTC')
 
         ncols = 2
         nrows = (len(hist_vars) + ncols - 1) // ncols
@@ -1221,7 +1281,7 @@ if view == 'hist':
                 ax.axvspan(lo, hi, color='red', alpha=0.3, zorder=3)
                 ax.axvline(float(win_vals.mean()), color='red', linewidth=1.5, zorder=4)
 
-            ax.set_xlabel(_VAR_LABELS.get(var, var), fontsize=9)
+            ax.set_xlabel(' '.join(_VAR_LABELS.get(var, var).split()), fontsize=9)
             ax.set_ylabel('Count', fontsize=9)
             ax.grid(alpha=0.3)
 
@@ -1229,13 +1289,15 @@ if view == 'hist':
             ax.set_visible(False)
 
         legend_patch = plt.Rectangle((0, 0), 1, 1, color='red', alpha=0.3)
-        fig.legend([legend_patch], ['Event window range'], loc='upper right', fontsize=9)
-        fig.suptitle(f'Event: {ts.strftime("%Y-%m-%d %H:%M")}', fontsize=11)
+        legend_line = plt.Line2D([0], [0], color='red', linewidth=1.5)
+        with plt.style.context('default'):
+            fig.legend([legend_patch, legend_line], ['Event window range', 'Event window mean'],
+                       loc='upper right', fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.96))
 
         fig.patch.set_facecolor('white')
         for ax in fig.axes:
             ax.set_facecolor('white')
 
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width='stretch')
         plt.close(fig)

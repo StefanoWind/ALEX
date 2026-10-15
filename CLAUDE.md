@@ -126,7 +126,7 @@ Reuse from `utils.py`: `remove_seasonal_cycle()`, `build_feature_matrix()`.
 Core: `numpy`, `pandas`, `xarray`, `scipy`, `scikit-learn`, `matplotlib`, `pyyaml`
 Optional: `shap` (for SHAP importance)
 
-No `requirements.txt` exists; install manually as needed.
+Install with `pip install -r requirements.txt`.
 
 ## Data
 

@@ -19,6 +19,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 from nexradaws import NexradAwsInterface
 from datetime import timedelta, timezone
 import pyart
+import cartopy.crs
 from doe_dap_dl import DAP
 from functools import lru_cache
 
@@ -1074,6 +1075,8 @@ def download_plot_nexrad(episode: pd.Series,
 
         fig = plt.figure(figsize=(10,8), facecolor="black")
 
+        elev = float(radar.fixed_angle['data'][0])
+        scan_str = nearest_scan.scan_time.strftime('%Y-%m-%d %H:%M')
         display.plot_ppi_map(
             "reflectivity",
             sweep=0,
@@ -1084,6 +1087,8 @@ def download_plot_nexrad(episode: pd.Series,
             resolution=map_resolution,
             vmin=vmin,
             vmax=vmax,
+            title=f"{radar_id} Radar at {elev:.1f} deg elevation on {scan_str} UTC",
+            colorbar_label="Equivalent reflectivity factor [dBZ]",
         )
 
         # Overlay the selected site location if coordinates are available.
@@ -1101,7 +1106,8 @@ def download_plot_nexrad(episode: pd.Series,
             if show_site_label and site_label:
                 try:
                     ax = plt.gca()
-                    ax.text(site_lon + 0.03, site_lat + 0.02, site_label,
+                    ax.text(site_lon + 0.02, site_lat + 0.01, site_label,
+                            transform=cartopy.crs.PlateCarree(),
                             color='white', fontsize=9,
                             bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
                             zorder=8)
@@ -1305,7 +1311,8 @@ def animate_nexrad_reflectivity(start_time,
                         markerfacecolor='white', markeredgecolor='black', zorder=10)
                     ax.plot(site_lon, site_lat, marker='+', markersize=9, color='black', zorder=11)
                 if show_site_label and site_label:
-                    ax.text(site_lon + 0.03, site_lat + 0.02, site_label,
+                    ax.text(site_lon + 0.02, site_lat + 0.01, site_label,
+                            transform=cartopy.crs.PlateCarree(),
                             color='white', fontsize=9,
                             bbox=dict(boxstyle='round,pad=0.18', facecolor='black', alpha=0.5, linewidth=0),
                             zorder=12)
